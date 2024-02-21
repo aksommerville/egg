@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html><head>
+
+<script>
+const vsrc = `
+  precision mediump float;
+  attribute vec2 apos;
+  attribute vec4 acolor;
+  attribute vec2 atexcoord;
+  varying vec4 vcolor;
+  varying vec2 vtexcoord;
+  void main() {
+    gl_Position = vec4(apos, 0.0, 1.0);
+    vcolor = acolor;
+    vtexcoord = atexcoord;
+  }
+`;
+const fsrc = `
+  precision mediump float;
+  uniform sampler2D sampler;
+  varying vec4 vcolor;
+  varying vec2 vtexcoord;
+  void main() {
+    //gl_FragColor = vcolor;
+    gl_FragColor = texture2D(sampler, vtexcoord);
+  }
+`;
+
+function renderScene(image) { // also initializes all the gl stuff
+  const canvas = document.querySelector("canvas");
+  const gl = canvas.getContext("webgl2");
+  
+  gl.clearColor(0.5,0.25,0,1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  
+  const vshader = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vshader, vsrc);
+  gl.compileShader(vshader);
+  if (!gl.getShaderParameter(vshader, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(vshader));
+    gl.deleteShader(vshader);
+    throw new Error(`compile vertex shader failed`);
+  }
+  
+  const fshader = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(fshader, fsrc);
+  gl.compileShader(fshader);
+  if (!gl.getShaderParameter(fshader, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(fshader));
+    gl.deleteShader(vshader);
+    gl.deleteShader(fshader);
+    throw new Error(`compile fragment shader failed`);
+  }
+  
+  const program = gl.createProgram();
+  gl.attachShader(program, vshader);
+  gl.attachShader(program, fshader);
+  gl.linkProgram(program);
+  gl.deleteShader(vshader);
+  gl.deleteShader(fshader);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(program));
+    throw new Error(`link shader failed`);
+  }
+  
+  const apos = gl.getAttribLocation(program, "apos");
+  const acolor = gl.getAttribLocation(program, "acolor");
+  const atexcoord = gl.getAttribLocation(program, "atexcoord");
+  const sampler = gl.getUniformLocation(program, "sampler");
+  
+  const w = 0.75;
+  const posbuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, posbuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -w, w,
+    -w,-w,
+     w, w,
+     w,-w,
+  ]), gl.STATIC_DRAW);//TODO what's STATIC_DRAW?
+  gl.vertexAttribPointer(apos, 2, gl.FLOAT, false, 0/*bytes*/, 0);
+   
+  const colorbuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, colorbuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array([
+    0xff,0x00,0x00,0xff,
+    0x00,0xff,0x00,0xff,
+    0x00,0x00,0xff,0xff,
+    0xff,0xff,0xff,0xff,
+  ]), gl.STATIC_DRAW);
+  gl.vertexAttribPointer(acolor, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+  
+  const texcoordbuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, texcoordbuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array([0,0, 0,1, 1,0, 1,1]), gl.STATIC_DRAW);
+  gl.vertexAttribPointer(atexcoord, 2, gl.UNSIGNED_BYTE, false, 0, 0);
+  
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image); // TODO what are srcfmt and srctype for, if we're supplying an encoded image?
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  
+  gl.useProgram(program);
+  gl.enable(gl.BLEND);
+  gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.SRC_ALPHA, gl.DST_ALPHA);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.uniform1i(sampler, 0);
+  gl.enableVertexAttribArray(apos);
+  gl.enableVertexAttribArray(acolor);
+  gl.enableVertexAttribArray(atexcoord);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+function fetchImage() {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", e => reject(e));
+    image.src = "./dot.png";
+  });
+}
+  
+window.addEventListener("load", () => {
+  fetchImage().then((image) => {
+    renderScene(image);
+  });
+});
+</script>
+
+</head><body>
+<canvas width="640" height="640"></canvas>
+</body></html>

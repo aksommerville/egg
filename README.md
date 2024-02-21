@@ -1,0 +1,97 @@
+# Egg
+
+Framework for portable retro video games.
+
+- Execution.
+- - Games are written in WebAssembly.
+- - Can we do Javascript too? That would be cool.
+- - We supply a runtime for web browsers and a variety of native hosts.
+- - At build time, you can embed the game in a runner for a fake native application.
+- - Or compile directly to native code and build a real native application.
+- - Game sees a very limited platform API, and WebAssembly code gets a subset of libc.
+- - Platform manages timing.
+- Video.
+- - WebGL or GLES2.
+- - Client includes GLES2 headers and platform figures it out from there.
+- - Platform supplies whatever video size it wants.
+- - Some mechanism must be provided for game's preferred size or aspect, where platform has discretion.
+- - - Metadata, readable before the game loads.
+- - Load textures from encoded image data.
+- Input.
+- - Keyboard, mouse, joystick, accelerometer, and touch events.
+- - Text, mouse, and accelerometer must be explicitly enabled.
+- - Entirely event-driven, no polling.
+- - No mapping or emulation logic in the platform. Let the client side manage that.
+- Audio.
+- - Game never sees PCM or knows the output rate. That's by design.
+- - Platform provides a synthesizer, sequencer, and sound effects generator.
+- Persistence.
+- - Text key=value store.
+- - User may set quotas etc, invisible to the game.
+- - Resources packed at build time are accessible by path.
+- Network.
+- - HTTP and WebSocket client.
+
+In addition to the core platform above, we'll provide more opinionated helper code to run client-side.
+- Video.
+- - Prefab shaders etc for sprites.
+- - Fake tiny framebuffer.
+- Input.
+- - Interactive remapping.
+- - Mapping application and persistence.
+- - On-screen keyboard accessible with mouse, touch, or joystick.
+- - Fake cursor accessible with keyboard or joystick.
+- Strings.
+- - Global language setting. Load resources accordingly.
+- Maps?
+- Sprites?
+- General resource broker and cache?
+
+## Development Plan
+
+- [x] Implement full API for full-native executables only.
+- - Do only a minimal driver set. Just GLX+ALSA+evdev would do it.
+- - Skip TLS, but eventually we will need OpenSSL or similar.
+- - Minimal but feature-complete synthesizer, exposed features anyway.
+- - [x] glx: mouse events
+- - [x] GLES pass-through, anything we need to do? ...nope, just works
+- - [x] Persistence.
+- - [x] Resource archive.
+- - [x] Build-time tooling to encode archive (really can't do much without it)
+- - [x] ROM header.
+- - xxx Synthesizer. Lots of work, but there's no doubt it can be done. Punt.
+- - xxx Network. Lots of work, and I think not critical for a POC (Might not end up in the final API anyway, who knows).
+- [ ] Demo or series of demos using all platform API features.
+- [ ] Wasm runtime, archive loader, proper native runtime.
+- [ ] Implement platform API and loader in a web wrapper.
+- - Like native, only a minimal synthesizer, just enough to know it works.
+- [ ] Define Javascript API.
+- [ ] Javascript execution for web.
+- [ ] Javascript execution for native -- QuickJS.
+- [ ] New demos with Javascript and mixed code.
+- [ ] Full synthesizers.
+- - [ ] Define sound effects format.
+- - [ ] Native.
+- - [ ] Web.
+- [ ] Full native drivers.
+- - [ ] OpenSSL.
+- - [ ] MS Windows.
+- - [ ] MacOS.
+- - [ ] DRM, Pulse, Broadcom video.
+- [ ] Confirm web can run sensibly on smartphones.
+- [ ] Support for bundling and unbundling fake native apps.
+- [ ] Also bundled web apps, with both the runtime and game archive.
+- [ ] What extra support would be needed for wrapping a whole browser in the web app, like Electron?
+- [ ] Look into smartphone platforms.
+- - [ ] iOS
+- - [ ] Android
+- [ ] Careful performance review. Interested to really quantify JS vs Wasm vs Native.
+- [ ] Make a bunch of tutorials and demo template games.
+- - I'd like to supply some basic games of well-known forms that an inexperienced developer could pick up and work from.
+- - [ ] Hello World, simplest possible thing. With an involved walkthrough.
+- - [ ] 2D platformer.
+- - [ ] JRPG.
+- - [ ] Rhythm.
+- - [ ] 3D shooter. Don't break your back; think Wolfenstein, not Halo.
+- - [ ] Visual novel. People seem to like those?
+- - [ ] Point and click adventure, a la Shadowgate.
