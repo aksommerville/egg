@@ -1,0 +1,193 @@
+html {
+  background-color: #444;
+  color: #fff;
+  font-family: sans-serif;
+}
+
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none;
+}
+
+.tip {
+  font-size: 0.75em;
+  font-style: italic;
+}
+
+.modal::backdrop {
+  background-color: #000;
+  opacity: 0.75;
+}
+
+/***************************************************************************/
+
+.RootUi {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.RootUi > .workspace {
+  flex: 1;
+}
+.RootUi > .workspace > * {
+  width: 100%;
+  height: 100%;
+}
+
+.SidebarUi {
+  width: 300px;
+  border-right: 1px solid #000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+.SidebarUi > .toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5em;
+  padding-left: 0.5em;
+}
+.SidebarUi .dirtyState {
+  width: 1em;
+  height: 1em;
+  border-radius: 0.5em;
+  border: 1px solid #000;
+}
+.SidebarUi .dirtyState.clean {
+  background-color: #080;
+}
+.SidebarUi .dirtyState.dirty {
+  background-color: #ff0;
+}
+.SidebarUi .dirtyState.saving {
+  background-color: #f80;
+}
+.SidebarUi li.highlight {
+  background-color: #224;
+}
+.SidebarUi ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.SidebarUi ul.typelist > li > .tname {
+  border-top: 1px solid #222;
+  background-color: #333;
+  font-weight: bold;
+  padding: 0 0.5em;
+}
+.SidebarUi ul.typelist > li > .tname.open {
+  background-color: #040;
+}
+.SidebarUi li[data-path] {
+  padding: 0 1em;
+}
+.SidebarUi ul.reslist {
+  margin-bottom: 0.5em;
+}
+
+.ResOptionsModal .editorList {
+  display: flex;
+  flex-direction: column;
+}
+.ResOptionsModal .recommended {
+  background-color: #aca;
+}
+.ResOptionsModal .discouraged {
+  background-color: #caa;
+}
+
+/***************************************************************************/
+
+.TextEditor {
+  display: flex;
+}
+.TextEditor textarea {
+  flex: 1;
+  background-color: #024;
+  color: #fff;
+}
+
+.HexEditor {
+  display: flex;
+}
+.HexEditor textarea {
+  flex: 1;
+  background-color: #010;
+  color: #ff8;
+}
+
+.ImageEditor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ImageEditor > img {
+  width: 100%;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+
+.MetadataEditor > table {
+  width: 100%;
+}
+.MetadataEditor td.v {
+  width: 100%;
+}
+.MetadataEditor td.v > input {
+  width: calc(100% - 10px);
+}
+.MetadataEditor td.v > input.invalid {
+  border-color: #f00;
+}
+.MetadataEditor td.v > input.invalid:focus {
+  outline-color: #f00;
+}
+
+.StringsEditor {
+  overflow-y: scroll;
+}
+.StringsEditor > table {
+  width: 100%;
+}
+.StringsEditor tr.string {
+  color: #aaa;
+}
+.StringsEditor input.string {
+  width: calc(100% - 5px);
+  background: none;
+  color: #fff;
+}
+.StringsEditor td.index {
+  text-align: right;
+  width: 4em;
+}
+.StringsEditor tr:nth-child(odd) {
+  background-color: #555;
+}
+
+.SongEditor .mixer > tr:nth-child(odd) {
+  background-color: #555;
+}
+.SongEditor .mixer > tr.unused {
+  background-color: #222;
+}
+.SongEditor .mixer input {
+  background: none;
+  color: #fff;
+}
