@@ -20,11 +20,16 @@ static void eggrt_signal(int sigid) {
  */
  
 static void eggrt_quit() {
+  int err;
   eggrt_exec_client_quit(eggrt.exitstatus);
+  if (eggrt.store_dirty&&((err=eggrt_store_save())<0)) {
+    if (err!=-2) fprintf(stderr,"%s: Unspecified error saving game.\n",eggrt.storepath);
+  }
   if (!eggrt.exitstatus) {
     eggrt_clock_report();
   }
   //TODO Tear down drivers etc.
+  eggrt_store_quit();
   eggrt_exec_quit();
   eggrt_romsrc_quit();
 }
@@ -44,6 +49,11 @@ static int eggrt_init() {
   
   if ((err=eggrt_exec_init())<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error initializing execution core.\n",eggrt.exename);
+    return -2;
+  }
+  
+  if ((err=eggrt_store_init())<0) {
+    if (err!=-2) fprintf(stderr,"%s: Unspecified error initializing store.\n",eggrt.exename);
     return -2;
   }
 
@@ -75,6 +85,9 @@ static int eggrt_update() {
   if ((err=eggrt_exec_client_update(elapsed))<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error updating game model.\n",eggrt.rptname);
     return -2;
+  }
+  if (eggrt.store_dirty&&((err=eggrt_store_save())<0)) {
+    if (err!=-2) fprintf(stderr,"%s: Unspecified error saving game.\n",eggrt.storepath);
   }
   if (eggrt.terminate) return 0;
   

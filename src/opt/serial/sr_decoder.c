@@ -220,6 +220,7 @@ int sr_decode_json_expression(const char **dstpp,struct sr_decoder *decoder) {
   int exprc=sr_json_measure(expr,decoder->c-decoder->p);
   if (exprc<1) return decoder->jsonctx=-1;
   if (dstpp) *dstpp=expr;
+  decoder->p+=exprc;
   return exprc;
 }
 

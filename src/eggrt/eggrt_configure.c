@@ -41,6 +41,7 @@ static void eggrt_help_default() {
     "  --audio-buffer=FRAMES         Recommend audio buffer size.\n"
     "  --audio-device=STRING         Usage depends on driver.\n"
     "  --configure-input             Enter a special interactive mode to set up a gamepad.\n"
+    "  --store=PATH                  Saved game, blank for default. Invalid eg '/do/not/save' to disable.\n"
     "\n"
   );
   fprintf(stderr,
@@ -165,6 +166,7 @@ static int eggrt_configure_kv(const char *k,int kc,const char *v,int vc) {
   INTOPT("audio-chanc",audio_chanc,0,8)
   INTOPT("audio-buffer",audio_buffer,0,100000)
   INTOPT("configure-input",configure_input,0,1)
+  STROPT("store",storepath)
   
   #undef STROPT
   #undef INTOPT
@@ -246,6 +248,44 @@ static int eggrt_configure_argv(int argc,char **argv) {
   return 0;
 }
 
+/* Make up default value for storepath.
+ */
+ 
+static char *eggrt_configure_default_store() {
+
+  /* If there is a ROM path, append ".save".
+   * Our predecessors ensure that rompath is only set when the program is configured for it.
+   */
+  if (eggrt.rompath) {
+    int romc=0;
+    while (eggrt.rompath[romc]) romc++;
+    int pathc=romc+5;
+    char *path=malloc(pathc+1);
+    if (!path) return 0;
+    memcpy(path,eggrt.rompath,romc);
+    memcpy(path+romc,".save",6); // sic 6, includes terminator
+    return path;
+  }
+  
+  /* If we have an embedded ROM, use a sibling of the executable.
+   * Executable's basename plus ".save". Hmm. Actually the same thing as the external case.
+   * No slash in the executable path means we end up with a wd-relative path, and that seems fair.
+   */
+  if (eggrt_has_embedded_rom) {
+    const char *pfx=eggrt.exename;
+    int pfxc=0;
+    while (pfx[pfxc]) pfxc++;
+    int pathc=pfxc+5;
+    char *path=malloc(pathc+1);
+    if (!path) return 0;
+    memcpy(path,pfx,pfxc);
+    memcpy(path+pfxc,".save",6); // sic 6, includes terminator
+    return path;
+  }
+  
+  return 0;
+}
+
 /* Finalize configuration.
  */
  
@@ -254,6 +294,8 @@ static int eggrt_configure_final() {
   
   if (eggrt.rompath) eggrt.rptname=eggrt.rompath;
   else eggrt.rptname=eggrt.exename;
+  
+  if (!eggrt.storepath) eggrt.storepath=eggrt_configure_default_store();
   
   return 0;
 }

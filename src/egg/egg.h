@@ -117,7 +117,8 @@ int egg_get_rom(void *dst,int dsta);
  * Lengths are required, you can't say <0 for nul-terminated like most of my APIs.
  * (That allows WAMR to validate buffer lengths automatically).
  * To delete a field, set it empty. Empty and absent are indistinguishable.
- * TODO Define length and format constraints.
+ * Keys must be 1..255 bytes of 0x20..0x7e, and must not contain backslash or quote (0x5c,0x22).
+ * Values must be UTF-8.
  */
 int egg_store_get(char *v,int va,const char *k,int kc);
 int egg_store_set(const char *k,int kc,const char *v,int vc);

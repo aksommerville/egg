@@ -54,7 +54,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Native runner.
 - - [x] Timing
 - - [ ] Egg API
-- - [ ] Persistence
+- - [x] Persistence
 - - [ ] Synthesizer
 - - [ ] Renderer
 - - [ ] Drivers

@@ -119,7 +119,7 @@ void egg_set_language(int lang) {
   //TODO Other state to update?
 }
 
-/* ROM.
+/* ROM and store.
  */
 
 int egg_get_rom(void *dst,int dsta) {
@@ -128,29 +128,41 @@ int egg_get_rom(void *dst,int dsta) {
   }
   return eggrt.romserialc;
 }
-
-/* Get store field.
- */
  
 int egg_store_get(char *v,int va,const char *k,int kc) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
+  if (!v) va=0;
+  const struct eggrt_store_field *field=eggrt_store_get_field(k,kc,0);
+  if (!field) {
+    if (va>0) v[0]=0;
+    return 0;
+  }
+  if (field->vc<=va) {
+    memcpy(v,field->v,field->vc);
+    if (field->vc<va) v[field->vc]=0;
+  }
+  return field->vc;
 }
-
-/* Set store field.
- */
  
 int egg_store_set(const char *k,int kc,const char *v,int vc) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  struct eggrt_store_field *field=eggrt_store_get_field(k,kc,1);
+  if (!field) return -1;
+  if (eggrt_store_set_field(field,v,vc)<0) return -1;
   return 0;
 }
-
-/* List store fields.
- */
  
 int egg_store_key_by_index(char *k,int ka,int p) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
+  if (!k) ka=0;
+  const char *src=0;
+  int srcc=0;
+  if ((p>=0)&&(p<eggrt.storec)) {
+    src=eggrt.storev[p].k;
+    srcc=eggrt.storev[p].kc;
+  }
+  if (srcc<=ka) {
+    memcpy(k,src,srcc);
+    if (srcc<ka) k[srcc]=0;
+  }
+  return srcc;
 }
 
 /* Event mask.

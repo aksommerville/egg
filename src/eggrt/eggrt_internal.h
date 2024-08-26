@@ -3,6 +3,8 @@
 
 #include "egg/egg.h"
 #include "opt/rom/rom.h"
+#include "opt/serial/serial.h"
+#include "opt/fs/fs.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -26,6 +28,7 @@ extern struct eggrt {
   int audio_chanc;
   int audio_buffer;
   int configure_input;
+  char *storepath;
   
   // eggrt_romsrc.c:
   const void *romserial;
@@ -43,6 +46,14 @@ extern struct eggrt {
   double starttime_real;
   double starttime_cpu;
   int clock_faultc;
+  
+  // eggrt_store.c:
+  struct eggrt_store_field {
+    char *k,*v;
+    int kc,vc;
+  } *storev;
+  int storec,storea;
+  int store_dirty;
   
   volatile int terminate;
   int exitstatus;
@@ -71,5 +82,11 @@ double eggrt_clock_update();
 double eggrt_now_real();
 double eggrt_now_cpu();
 void eggrt_sleep(double s);
+
+void eggrt_store_quit();
+int eggrt_store_init();
+struct eggrt_store_field *eggrt_store_get_field(const char *k,int kc,int create);
+int eggrt_store_set_field(struct eggrt_store_field *field,const char *v,int vc); // (field) must have been returned by eggrt_store_get_field
+int eggrt_store_save(); // Writes file whether dirty or not; caller should check first.
 
 #endif
