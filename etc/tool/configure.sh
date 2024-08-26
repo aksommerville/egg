@@ -7,6 +7,7 @@ echo "******************************************"
 echo "* Generating build configuration."
 echo "* This is a first-time thing only."
 echo "* Delete $DSTPATH to rerun in the future."
+echo "* Please review $DSTPATH, then make again."
 echo "******************************************"
 
 # Final contents should be about like so:
@@ -98,13 +99,86 @@ fi
 #-------------------------------------------------------------
 # Guess compiler and linker for native builds.
 
+NATIVE_CFLAGS=
+NATIVE_LDFLAGS=
+NATIVE_LDPOST=
+NATIVE_OPT_ENABLE=
+
+case "$NATIVE_TARGET" in
+
+  linux)
+    NATIVE_LDPOST="-lpthread"
+    NEED_EGL=
+    NEED_GLES2=
+    # alsafd asound bcm drmgx evdev pulse xegl
+    
+    # alsafd and evdev are available on all Linux systems and don't have any library dependencies.
+    NATIVE_OPT_ENABLE="alsafd evdev"
+    
+    # asound is usually available. Include if its header is found.
+    if [ -f /usr/include/alsa/asoundlib.h ] ; then
+      NATIVE_OPT_ENABLE="$NATIVE_OPT_ENABLE asound"
+      NATIVE_LDPOST="$NATIVE_LDPOST -lasound"
+    fi
+    
+    # pulse is usually available.
+    if [ -f /usr/include/pulse/pulseaudio.h ] ; then
+      NATIVE_OPT_ENABLE="$NATIVE_OPT_ENABLE pulse"
+      NATIVE_LDPOST="$NATIVE_LDPOST -lpulse-simple"
+    fi
+    
+    # drmgx is usually available. Needs some include paths too.
+    if [ -f /usr/include/libdrm/drm.h ] ; then
+      NATIVE_OPT_ENABLE="$NATIVE_OPT_ENABLE drmgx"
+      NATIVE_CFLAGS="$NATIVE_CFLAGS -I/usr/include/libdrm"
+      NATIVE_LDPOST="$NATIVE_LDPOST -ldrm -lgbm"
+      NEED_EGL=1
+      NEED_GLES2=1
+    fi
+    
+    # xegl should be available on desktop systems.
+    if [ -f /usr/include/X11/X.h ] && [ -f /usr/include/EGL/egl.h ] ; then
+      NATIVE_OPT_ENABLE="$NATIVE_OPT_ENABLE xegl"
+      NATIVE_LDPOST="$NATIVE_LDPOST -lX11"
+      NEED_GLES2=1
+      NEED_EGL=1
+    fi
+    
+    # bcm is only for older Raspberry Pi, unusual.
+    if [ -f /opt/vc/include/bcm_host.h ] ; then
+      NATIVE_OPT_ENABLE="$NATIVE_OPT_ENABLE bcm"
+      NATIVE_CFLAGS="$NATIVE_CFLAGS -I/opt/vc/include"
+      NATIVE_LDFLAGS="$NATIVE_LDFLAGS -L/opt/vc/lib"
+      NATIVE_LDPOST="$NATIVE_LDPOST -lbcm_host"
+      NEED_GLES2=1
+      NEED_EGL=1
+    fi
+    
+    if [ -n "$NEED_GLES2" ] ; then
+      NATIVE_LDPOST="$NATIVE_LDPOST -lGLESv2"
+    fi
+    if [ -n "$NEED_EGL" ] ; then
+      NATIVE_LDPOST="$NATIVE_LDPOST -lEGL"
+    fi
+  ;;
+  
+  macos)
+    NATIVE_OPT_ENABLE="macos macwm machid"
+  ;;
+  
+  mswin)
+    NATIVE_OPT_ENABLE="mswin"
+  ;;
+  
+esac
+
 echo "" >>$DSTPATH
-echo "${NATIVE_TARGET}_CC:=gcc -c -MMD -O3 -Isrc -Werror -Wno-incompatible-library-redeclaration -Wno-builtin-declaration-mismatch" >>$DSTPATH
+echo "${NATIVE_TARGET}_CC:=gcc -c -MMD -O3 -Isrc -Werror -Wno-incompatible-library-redeclaration -Wno-builtin-declaration-mismatch $NATIVE_CFLAGS" >>$DSTPATH
 echo "${NATIVE_TARGET}_AS:=\$(${NATIVE_TARGET}_CC) -xassembler-with-cpp" >>$DSTPATH
-echo "${NATIVE_TARGET}_LD:=gcc" >>$DSTPATH
-echo "${NATIVE_TARGET}_LDPOST:=-lm -lz" >>$DSTPATH
+echo "${NATIVE_TARGET}_LD:=gcc $NATIVE_LDFLAGS" >>$DSTPATH
+echo "${NATIVE_TARGET}_LDPOST:=-lm -lz $NATIVE_LDPOST" >>$DSTPATH
 echo "${NATIVE_TARGET}_AR:=ar" >>$DSTPATH
-echo "${NATIVE_TARGET}_OPT_ENABLE:=" >>$DSTPATH
+echo "${NATIVE_TARGET}_OPT_ENABLE:=$NATIVE_OPT_ENABLE" >>$DSTPATH
 
 #------------------------------------------------------------
 # eggdev builds with the native toolchain.

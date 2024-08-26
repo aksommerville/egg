@@ -12,7 +12,19 @@ static void eggrt_print_version() {
  */
  
 static void eggrt_help_drivers() {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  #define INTF(tag) { \
+    fprintf(stderr,"\n%s drivers:\n",#tag); \
+    int p=0; for (;;p++) { \
+      const struct hostio_##tag##_type *type=hostio_##tag##_type_by_index(p); \
+      if (!type) break; \
+      fprintf(stderr,"%12s: %s\n",type->name,type->desc); \
+    } \
+  }
+  INTF(video)
+  INTF(audio)
+  INTF(input)
+  #undef INTF
+  fprintf(stderr,"\n");
 }
 
 /* --help, default.
@@ -41,7 +53,7 @@ static void eggrt_help_default() {
     "  --audio-buffer=FRAMES         Recommend audio buffer size.\n"
     "  --audio-device=STRING         Usage depends on driver.\n"
     "  --configure-input             Enter a special interactive mode to set up a gamepad.\n"
-    "  --store=PATH                  Saved game, blank for default. Invalid eg '/do/not/save' to disable.\n"
+    "  --store=PATH                  Saved game. Blank for default, or \"none\" to disable.\n"
     "\n"
   );
   fprintf(stderr,
@@ -286,16 +298,113 @@ static char *eggrt_configure_default_store() {
   return 0;
 }
 
+/* List languages supported by the user, in consultation with OS.
+ * Never returns >dsta.
+ */
+ 
+static int eggrt_get_user_languages(int *dstv,int dsta) {
+  if (dsta<1) return 0;
+  int dstc=0;
+  
+  /* POSIX systems typically have LANG as the single preferred locale, which starts with a language code.
+   * There can also be LANGUAGE, which is multiple language codes separated by colons.
+   */
+  const char *src;
+  if (src=getenv("LANG")) {
+    if ((src[0]>='a')&&(src[0]<='z')&&(src[1]>='a')&&(src[1]<='z')) {
+      if (dstc<dsta) dstv[dstc++]=EGG_LANG_FROM_STRING(src);
+    }
+  }
+  if (dstc>=dsta) return dstc;
+  if (src=getenv("LANGUAGE")) {
+    int srcp=0;
+    while (src[srcp]&&(dstc<dsta)) {
+      const char *token=src+srcp;
+      int tokenc=0;
+      while (src[srcp]&&(src[srcp++]!=':')) tokenc++;
+      if ((tokenc>=2)&&(token[0]>='a')&&(token[0]<='z')&&(token[1]>='a')&&(token[1]<='z')) {
+        int lang=EGG_LANG_FROM_STRING(token);
+        int already=0,i=dstc;
+        while (i-->0) if (dstv[i]==lang) { already=1; break; }
+        if (!already) dstv[dstc++]=lang;
+      }
+    }
+  }
+  
+  //TODO I'm sure there are other mechanisms for MacOS and Windows. Find those.
+  
+  return dstc;
+}
+
+/* Parse the metadata language string into a list of integer language codes.
+ * Never returns >dsta.
+ */
+ 
+static int eggrt_parse_languages(int *dstv,int dsta,const char *src,int srcc) {
+  int srcp=0,dstc=0;
+  while ((srcp<srcc)&&(dstc<dsta)) {
+    if ((unsigned char)src[srcp]<=0x20) { srcp++; continue; }
+    if (src[srcp]==',') { srcp++; continue; }
+    const char *token=src+srcp;
+    int tokenc=0;
+    while ((srcp<srcc)&&(src[srcp++]!=',')) tokenc++;
+    while (tokenc&&((unsigned char)token[tokenc-1]<=0x20)) tokenc--;
+    if ((tokenc==2)&&(token[0]>='a')&&(token[0]<='z')&&(token[1]>='a')&&(token[1]<='z')) {
+      dstv[dstc++]=EGG_LANG_FROM_STRING(token);
+    }
+  }
+  return dstc;
+}
+
+/* Guess language from system settings and ROM.
+ */
+ 
+int eggrt_configure_guess_language() {
+
+  // Acquire preferences from the system and the game.
+  int userv[16];
+  int userc=eggrt_get_user_languages(userv,sizeof(userv)/sizeof(userv[0]));
+  const char *romlang=0;
+  int romlangc=rom_lookup_metadata(&romlang,eggrt.romserial,eggrt.romserialc,"lang",4,0);
+  int romv[16];
+  int romc=eggrt_parse_languages(romv,sizeof(romv)/sizeof(romv[0]),romlang,romlangc);
+  
+  // First user language supported at all by the game wins.
+  int ai=0; for (;ai<userc;ai++) {
+    int bi=romc; while (bi-->0) {
+      if (romv[bi]==userv[ai]) return userv[ai];
+    }
+  }
+  
+  // If we wanted some fuzzy-matching logic, eg prefer Russian over English for speakers of Polish, we could do that here.
+  // Sounds like a can of worms to me, I think it's not our problem.
+  
+  // If at least one language is declared by the game, go with its most preferred.
+  if (romc>=1) return romv[0];
+  
+  // Game has no languages. Doesn't really matter what we pick now. Use the user's first language, or if none, English.
+  if (userc>=1) return userv[0];
+  return EGG_LANG_FROM_STRING("en");
+}
+
 /* Finalize configuration.
  */
  
 static int eggrt_configure_final() {
   if (eggrt.terminate) return 0;
   
+  // Set (rptname) for game-related logging, where we don't necessarily want to speak as Egg.
   if (eggrt.rompath) eggrt.rptname=eggrt.rompath;
   else eggrt.rptname=eggrt.exename;
   
+  // Pick a default (storepath) in the typical case where it wasn't provided.
   if (!eggrt.storepath) eggrt.storepath=eggrt_configure_default_store();
+  else if (!strcmp(eggrt.storepath,"none")) {
+    free(eggrt.storepath);
+    eggrt.storepath=0;
+  }
+  
+  // You'd expect to see defaulting of (lang) here too, but we want to wait until the ROM is loaded. See eggrt_main.c:eggrt_init().
   
   return 0;
 }

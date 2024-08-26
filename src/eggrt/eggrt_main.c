@@ -21,6 +21,7 @@ static void eggrt_signal(int sigid) {
  
 static void eggrt_quit() {
   int err;
+  hostio_audio_play(eggrt.hostio,0);
   eggrt_exec_client_quit(eggrt.exitstatus);
   if (eggrt.store_dirty&&((err=eggrt_store_save())<0)) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error saving game.\n",eggrt.storepath);
@@ -28,7 +29,7 @@ static void eggrt_quit() {
   if (!eggrt.exitstatus) {
     eggrt_clock_report();
   }
-  //TODO Tear down drivers etc.
+  eggrt_drivers_quit();
   eggrt_store_quit();
   eggrt_exec_quit();
   eggrt_romsrc_quit();
@@ -47,6 +48,9 @@ static int eggrt_init() {
     return -2;
   }
   
+  // With the ROM online, now we can select default language.
+  if (!eggrt.lang) eggrt.lang=eggrt_configure_guess_language();
+  
   if ((err=eggrt_exec_init())<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error initializing execution core.\n",eggrt.exename);
     return -2;
@@ -57,13 +61,17 @@ static int eggrt_init() {
     return -2;
   }
 
-  //TODO Stand drivers.
+  if ((err=eggrt_drivers_init())<0) {
+    if (err!=-2) fprintf(stderr,"%s: Unspecified error initializing platform drivers.\n",eggrt.exename);
+    return -2;
+  }
   
   if ((err=eggrt_exec_client_init())<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error initializing game.\n",eggrt.rptname);
     return -2;
   }
   
+  hostio_audio_play(eggrt.hostio,1);
   eggrt_clock_init();
   
   return 0;
@@ -78,7 +86,11 @@ static int eggrt_update() {
   // Tick the master clock.
   double elapsed=eggrt_clock_update();
   
-  //TODO Update drivers.
+  // Update drivers.
+  if ((err=eggrt_drivers_update())<0) {
+    if (err!=-2) fprintf(stderr,"%s: Unspecified error updating platform drivers.\n",eggrt.exename);
+    return -2;
+  }
   if (eggrt.terminate) return 0;
   
   // Update client.

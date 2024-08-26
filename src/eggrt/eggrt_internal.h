@@ -5,6 +5,7 @@
 #include "opt/rom/rom.h"
 #include "opt/serial/serial.h"
 #include "opt/fs/fs.h"
+#include "opt/hostio/hostio.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -55,6 +56,10 @@ extern struct eggrt {
   int storec,storea;
   int store_dirty;
   
+  // eggrt_drivers.c:
+  struct hostio *hostio;
+  void *iconstorage;
+  
   volatile int terminate;
   int exitstatus;
   int audiolimit;
@@ -62,6 +67,7 @@ extern struct eggrt {
 } eggrt;
 
 int eggrt_configure(int argc,char **argv);
+int eggrt_configure_guess_language();
 
 extern const int eggrt_has_embedded_rom;
 int eggrt_romsrc_init();
@@ -88,5 +94,9 @@ int eggrt_store_init();
 struct eggrt_store_field *eggrt_store_get_field(const char *k,int kc,int create);
 int eggrt_store_set_field(struct eggrt_store_field *field,const char *v,int vc); // (field) must have been returned by eggrt_store_get_field
 int eggrt_store_save(); // Writes file whether dirty or not; caller should check first.
+
+void eggrt_drivers_quit();
+int eggrt_drivers_init();
+int eggrt_drivers_update();
 
 #endif

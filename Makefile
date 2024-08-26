@@ -10,7 +10,7 @@ clean:;rm -rf mid out
 else
 
 include local/config.mk
-local/config.mk:;$(PRECMD) etc/tool/configure.sh $@
+local/config.mk:;$(PRECMD) etc/tool/configure.sh $@ ; exit 1
 
 SRCFILES:=$(shell find src -type f)
 

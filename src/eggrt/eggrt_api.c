@@ -115,7 +115,22 @@ void egg_set_language(int lang) {
   EGG_STRING_FROM_LANG(nstr,lang)
   fprintf(stderr,"%s: Changing lang from %d (%.2s) to %d (%.2s) per game request.\n",eggrt.exename,eggrt.lang,ostr,lang,nstr);
   eggrt.lang=lang;
-  //TODO Update window title.
+  
+  // Update window title.
+  if (eggrt.hostio->video->type->set_title) {
+    const char *titlesrc=0;
+    int titlesrcc=rom_lookup_metadata(&titlesrc,eggrt.romserial,eggrt.romserialc,"title",5,eggrt.lang);
+    if (titlesrcc>0) {
+      char *ztitle=malloc(titlesrcc+1);
+      if (ztitle) {
+        memcpy(ztitle,titlesrc,titlesrcc);
+        ztitle[titlesrcc]=0;
+        eggrt.hostio->video->type->set_title(eggrt.hostio->video,ztitle);
+        free(ztitle);
+      }
+    }
+  }
+
   //TODO Other state to update?
 }
 

@@ -1,9 +1,8 @@
 linux_MIDDIR:=mid/linux
 linux_OUTDIR:=out/linux
 
-linux_OPT_ENABLE+=serial fs rom image
+linux_OPT_ENABLE+=serial fs rom image hostio
 linux_CC+=$(foreach U,$(linux_OPT_ENABLE),-DUSE_$U=1)
-#TODO Update CC and LDPOST with anything needful in OPT_ENABLE
 
 linux_CFILES:=$(filter \
   src/eggrt/% \

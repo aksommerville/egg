@@ -57,8 +57,11 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [x] Persistence
 - - [ ] Synthesizer
 - - [ ] Renderer
-- - [ ] Drivers
+- - [x] Drivers
 - - [ ] Input manager
 - - [ ] Live input mapping
 - - [ ] Config files
+- - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.
+- [ ] Remove bring-your-own-synthesizer from API. It's too risky and too complicated. (despite having proven that it technically can work).
+- [ ] We might need to implement fwrite in addition to fprintf, I've seen clang substituting it when there's no formatting involved.
