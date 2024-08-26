@@ -62,7 +62,6 @@ static void test_full_api() {
   }
   
   // Audio.
-  egg_audio_set_limit(2048);
   egg_play_sound(1,2);
   egg_play_song(1,0,1);
   egg_play_sound_binary(0,0);
@@ -111,9 +110,4 @@ void egg_client_update(double elapsed) {
 
 void egg_client_render() {
   //egg_log(__func__);
-}
-
-void *egg_client_synth(int samplec) {
-  //egg_log(__func__);
-  return 0;
 }

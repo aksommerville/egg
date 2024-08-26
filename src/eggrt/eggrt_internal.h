@@ -62,7 +62,6 @@ extern struct eggrt {
   
   volatile int terminate;
   int exitstatus;
-  int audiolimit;
   
 } eggrt;
 
@@ -80,7 +79,6 @@ void eggrt_exec_client_quit(int status);
 int eggrt_exec_client_init();
 int eggrt_exec_client_update(double elapsed);
 int eggrt_exec_client_render();
-int eggrt_exec_client_synth(void *dstpp,int samplec);
 
 void eggrt_clock_init();
 void eggrt_clock_report();

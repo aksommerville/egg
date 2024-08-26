@@ -38,16 +38,6 @@ void egg_client_update(double elapsed);
  */
 void egg_client_render();
 
-/* Produce so many samples of audio and return a pointer to them.
- * "samples": not frames, not bytes.
- * Each sample is 16 bits signed.
- * The rate and channel count were provided to you at egg_client_init().
- * Return zero to skip this update and emit silence.
- * You must implement this even if using the recommended built-in synthesizer; just return zero.
- * This is usually called from a separate thread. Platform guarantees that only one client hook is running at a time.
- */
-void *egg_client_synth(int samplec);
-
 /* System odds and ends.
  ******************************************************************/
 
@@ -258,13 +248,6 @@ int egg_input_device_devid_by_index(int p);
 
 /* Audio.
  *********************************************************************/
-
-/* If you're using egg_client_synth(), you can call this during egg_client_init() to
- * establish a maximum buffer length.
- * Platform guarantees never to call egg_client_synth() with a buffer longer than this.
- * <=0 is legal; that will disable audio.
- */
-void egg_audio_set_limit(int samplec);
 
 /* Entry points to the built-in synthesizer.
  * Sounds and songs are usually pulled from the ROM file; you just supply their ID.

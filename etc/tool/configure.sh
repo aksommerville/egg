@@ -91,7 +91,7 @@ if [ -n "$WEB_OK" ] ; then
   echo "" >>$DSTPATH
   echo "web_CC:=clang -c -MMD -O3 --target=wasm32 -nostdlib -Werror -Wno-comment -Isrc -Wno-incompatible-library-redeclaration -Wno-builtin-requires-header" >>$DSTPATH
   echo "web_LD:=wasm-ld --no-entry -z stack-size=4194304 --no-gc-sections --allow-undefined --export-table \\" >>$DSTPATH
-  echo "  --export=egg_client_init --export=egg_client_quit --export=egg_client_update --export=egg_client_render --export=egg_client_synth" >>$DSTPATH
+  echo "  --export=egg_client_init --export=egg_client_quit --export=egg_client_update --export=egg_client_render" >>$DSTPATH
   echo "web_LDPOST:=" >>$DSTPATH
   echo "web_OPT_ENABLE:=" >>$DSTPATH
 fi

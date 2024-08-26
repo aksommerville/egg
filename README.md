@@ -20,10 +20,8 @@ Reasons you would *not* want to use Egg.
 
 - Networking. We don't support at all, and won't.
 - Access to filesystem or exotic hardware.
-- Custom synthesizer. We might support in some fashion, but it will never be a great choice.
-- - We provide an opinionated synthesizer in the platform, and it may or may not be adequate for your game.
-- Custom renderer. We might support direct access to OpenGL (or WebGPU, Vulkan, ...), but won't be a great choice.
-- - We provide an opinionated renderer in the platform, geared for 2D sprite-oriented games.
+- Custom synthesizer. You get beepy old-fashioned synth effects.
+- Custom renderer. You get a nice set of blitting tools. But no 3D support, custom shaders, etc.
 - Enormous data set. You're limited to 64k resources of each type and 4 MB per resource.
 
 ## Features
@@ -63,5 +61,5 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.
-- [ ] Remove bring-your-own-synthesizer from API. It's too risky and too complicated. (despite having proven that it technically can work).
+- [x] Remove bring-your-own-synthesizer from API. It's too risky and too complicated. (despite having proven that it technically can work).
 - [ ] We might need to implement fwrite in addition to fprintf, I've seen clang substituting it when there's no formatting involved.

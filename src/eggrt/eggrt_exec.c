@@ -25,7 +25,6 @@
     wasm_function_inst_t egg_client_init;
     wasm_function_inst_t egg_client_update;
     wasm_function_inst_t egg_client_render;
-    wasm_function_inst_t egg_client_synth;
   } eggrt_wasm={0};
 
 #elif EXECFMT==RECOM
@@ -52,7 +51,6 @@
   int w2c_mm_egg_client_init(w2c_mm *mod);
   void w2c_mm_egg_client_update(w2c_mm *mod,double elapsed);
   void w2c_mm_egg_client_render(w2c_mm *mod);
-  uint32_t w2c_mm_egg_client_synth(w2c_mm *mod,int c);
   
 #else
   #error "Please build with -DEXECFMT=NATIVE or -DEXECFMT=WASM or -DEXECFMT=RECOM"
@@ -140,10 +138,6 @@
   
   static int egg_wasm_input_device_devid_by_index(wasm_exec_env_t ee,int p) {
     return egg_input_device_devid_by_index(p);
-  }
-  
-  static void egg_wasm_audio_set_limit(wasm_exec_env_t ee,int samplec) {
-    egg_audio_set_limit(samplec);
   }
   
   static void egg_wasm_play_sound(wasm_exec_env_t ee,int rid,int index) {
@@ -256,7 +250,6 @@
     {"egg_input_device_get_name",egg_wasm_input_device_get_name,"(*~i)i"},
     {"egg_input_device_get_ids",egg_wasm_input_device_get_ids,"(iiii)"},
     {"egg_input_device_devid_by_index",egg_wasm_input_device_devid_by_index,"(i)i"},
-    {"egg_audio_set_limit",egg_wasm_audio_set_limit,"(i)"},
     {"egg_play_sound",egg_wasm_play_sound,"(ii)"},
     {"egg_play_song",egg_wasm_play_song,"(iii)"},
     {"egg_play_sound_binary",egg_wasm_play_sound_binary,"(*~)"},
@@ -366,10 +359,6 @@
   
   int w2c_env_egg_input_device_devid_by_index(struct w2c_env *env,int p) {
     return egg_input_device_devid_by_index(p);
-  }
-  
-  void w2c_env_egg_audio_set_limit(struct w2c_env *env,int samplec) {
-    egg_audio_set_limit(samplec);
   }
   
   void w2c_env_egg_play_sound(struct w2c_env *env,int rid,int index) {
@@ -533,7 +522,6 @@ int eggrt_exec_init() {
     LOADFN(egg_client_init)
     LOADFN(egg_client_update)
     LOADFN(egg_client_render)
-    LOADFN(egg_client_synth)
     #undef LOADFN
     
   #elif EXECFMT==RECOM
@@ -570,12 +558,6 @@ int eggrt_exec_client_update(double elapsed) {
 int eggrt_exec_client_render() {
   if (eggrt.exec_callstate!=1) return -1;
   egg_client_render();
-  return 0;
-}
-
-int eggrt_exec_client_synth(void *dstpp,int samplec) {
-  if (eggrt.exec_callstate!=1) return -1;
-  *(void**)dstpp=egg_client_synth(samplec);
   return 0;
 }
 
@@ -630,12 +612,6 @@ int eggrt_exec_client_render() {
   return 0;
 }
 
-int eggrt_exec_client_synth(void *dstpp,int samplec) {
-  if (eggrt.exec_callstate!=1) return -1;
-  //TODO Decide how we're doing this, buffer-wise. See pebble
-  return 0;
-}
-
 #elif EXECFMT==RECOM
 
 void eggrt_exec_client_quit(int status) {
@@ -664,13 +640,6 @@ int eggrt_exec_client_update(double elapsed) {
 int eggrt_exec_client_render() {
   if (eggrt.exec_callstate!=1) return -1;
   w2c_mm_egg_client_render(&eggrt_w2c.mod);
-  return 0;
-}
-
-int eggrt_exec_client_synth(void *dstpp,int samplec) {
-  if (eggrt.exec_callstate!=1) return -1;
-  uint32_t p=w2c_mm_egg_client_synth(&eggrt_w2c.mod,samplec);
-  if (p) *(void**)dstpp=HOSTADDR(p,samplec<<1);
   return 0;
 }
 

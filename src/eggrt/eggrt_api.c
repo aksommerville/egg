@@ -23,7 +23,6 @@ int egg_lock_cursor(int lock);
 int egg_input_device_get_name(char *dst,int dsta,int devid);
 void egg_input_device_get_ids(int *vid,int *pid,int *version,int devid);
 int egg_input_device_devid_by_index(int p);
-void egg_audio_set_limit(int samplec);
 void egg_play_sound(int rid,int index);
 void egg_play_song(int rid,int force,int repeat);
 void egg_play_sound_binary(const void *src,int srcc);
@@ -230,13 +229,6 @@ void egg_input_device_get_ids(int *vid,int *pid,int *version,int devid) {
 int egg_input_device_devid_by_index(int p) {
   fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
   return 0;
-}
-
-/* Audio limit.
- */
-
-void egg_audio_set_limit(int samplec) {
-  eggrt.audiolimit=samplec;
 }
 
 /* Play sound from resource.
