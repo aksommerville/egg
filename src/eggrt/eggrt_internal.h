@@ -36,8 +36,17 @@ extern struct eggrt {
   // eggrt_exec.c: (also it has a bunch of its own private globals elsewhere)
   int exec_callstate; // (0,1,2)=(none,initted,quitted)
   
+  // eggrt_clock.c:
+  double pvtime;
+  double framelen;
+  int framec;
+  double starttime_real;
+  double starttime_cpu;
+  int clock_faultc;
+  
   volatile int terminate;
   int exitstatus;
+  int audiolimit;
   
 } eggrt;
 
@@ -55,5 +64,12 @@ int eggrt_exec_client_init();
 int eggrt_exec_client_update(double elapsed);
 int eggrt_exec_client_render();
 int eggrt_exec_client_synth(void *dstpp,int samplec);
+
+void eggrt_clock_init();
+void eggrt_clock_report();
+double eggrt_clock_update();
+double eggrt_now_real();
+double eggrt_now_cpu();
+void eggrt_sleep(double s);
 
 #endif

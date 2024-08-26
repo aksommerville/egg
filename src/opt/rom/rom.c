@@ -65,7 +65,7 @@ struct rom_res *rom_reader_next(struct rom_reader *reader) {
       case 0xc0: {
           if (reader->srcp>reader->srcc-2) FAIL
           int len=(lead&0x3f)<<16;
-          len|=reader->src[reader->srcp++];
+          len|=reader->src[reader->srcp++]<<8;
           len|=reader->src[reader->srcp++];
           len+=16385;
           if (reader->srcp>reader->srcc-len) FAIL

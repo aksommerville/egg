@@ -41,47 +41,22 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
-- [x] Build framework.
-- - [x] Can I arrange for `make` from scratch to guess the initial configuration? Would be great if a fresh clone can just `make`.
-- - - It's going to get hairy when there's actual real stuff to configure, but yep the groundwork is laid.
-- - [x] Avoid baking config into `eggdev`. Did that with Pebble, and it's painful when you tweak the config.
-- - - Maybe a config file adjacent to the eggdev binary.
-- - - ...ended up with basically the same thing, a bunch of '-D' at build time, but with eggdev it's all isolated in one file, might be less awkward.
-- - - [x] While we're there, can we export more of Egg's build config for games' consumption?
-- - - - Thinking, a game should be able to borrow CC, LD, LDPOST from whatever Egg used to build itself.
-- [x] Define API.
 - [ ] Define data types.
-- - [x] ROM: Use Pebble's format, or something like it. Inlining payloads seems a good move.
-- - [x] Metadata: Pebble and egg-202408 had basically the same format, and I think no reason to change.
-- - [x] Song.
 - - [ ] Sound effects.
-- - [x] Image.
 - [ ] Dev tool.
-- - [x] bundle html: CSS and Javascript
-- - [x] serve
-- - - [x] Make before serving (eggdev_main_serve.c:eggdev_cb_get_api_make)
-- - [x] validate: metadata. Currently checking framing and encoding, there's much more we could do.
-- - [x] validate: image
 - - [ ] validate: sounds
-- - [x] validate: song
 - - [ ] Synth helper. Maybe as part of 'serve'.
 - [ ] Editor.
-- - [x] Scaffolding. Allow games to override, same way egg-202408 did.
-- - [x] Generic: Text, hex, image
-- - [x] Manifest
-- - [x] Metadata
-- - [x] Strings
-- - [x] Song. Probably just channel headers, and don't touch note data.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.
 - - [ ] Sound effects.
 - - [ ] Launch game.
 - [ ] Native runner.
-- - [x] Configure
-- - [x] Load ROM
-- - [ ] Timing
-- - [x] Execute
+- - [x] Timing
 - - [ ] Egg API
+- - [ ] Persistence
+- - [ ] Synthesizer
+- - [ ] Renderer
 - - [ ] Drivers
 - - [ ] Input manager
 - - [ ] Live input mapping

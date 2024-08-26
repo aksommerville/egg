@@ -1,4 +1,7 @@
 #include "eggrt_internal.h"
+#include "opt/image/image.h"
+#include <time.h>
+#include <sys/time.h>
 
 /* For reference, here's all the functions of the Egg Platform API.
  * Structs and constants, refer to src/egg/egg.h.
@@ -49,7 +52,7 @@ void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int
  
 void egg_log(const char *msg) {
   int msgc=0;
-  if (msg) while (msg[msgc]) msgc++;
+  if (msg) while ((msgc<256)&&msg[msgc]) msgc++;
   while (msgc&&((unsigned char)msg[msgc-1]<=0x20)) msgc--;
   fprintf(stderr,"GAME: %.*s\n",msgc,msg);
 }
@@ -67,15 +70,28 @@ void egg_terminate(int status) {
  */
  
 double egg_time_real() {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0.0;
+  struct timeval tv={0};
+  gettimeofday(&tv,0);
+  return (double)tv.tv_sec+(double)tv.tv_usec/1000000.0;
 }
 
 /* Current local time, split for display.
  */
  
 void egg_time_local(int *dstv,int dsta) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  if (!dstv||(dsta<1)) return;
+  time_t now=time(0);
+  struct tm *tm=localtime(&now);
+  if (!tm) return;
+  dstv[0]=1900+tm->tm_year; if (dsta<2) return;
+  dstv[1]=1+tm->tm_mon; if (dsta<3) return;
+  dstv[2]=tm->tm_mday; if (dsta<4) return;
+  dstv[3]=tm->tm_hour; if (dsta<5) return;
+  dstv[4]=tm->tm_min; if (dsta<6) return;
+  dstv[5]=tm->tm_sec; if (dsta<7) return;
+  struct timeval tv={0};
+  gettimeofday(&tv,0);
+  dstv[6]=(tv.tv_usec/1000)%1000;
 }
 
 /* Language
@@ -89,8 +105,18 @@ int egg_get_language() {
  */
  
 void egg_set_language(int lang) {
-  fprintf(stderr,"TODO %s [%s:%d] %d\n",__func__,__FILE__,__LINE__,lang);
-  //TODO Not just setting eggrt.lang -- must update eg window title, maybe other stuff
+  if (lang==eggrt.lang) return;
+  if (lang&~0x3ff) return;
+  int hi=lang>>5;
+  int lo=lang&0x1f;
+  if ((hi>=26)||(lo>=26)) return;
+  char ostr[2],nstr[2];
+  EGG_STRING_FROM_LANG(ostr,eggrt.lang)
+  EGG_STRING_FROM_LANG(nstr,lang)
+  fprintf(stderr,"%s: Changing lang from %d (%.2s) to %d (%.2s) per game request.\n",eggrt.exename,eggrt.lang,ostr,lang,nstr);
+  eggrt.lang=lang;
+  //TODO Update window title.
+  //TODO Other state to update?
 }
 
 /* ROM.
@@ -183,7 +209,7 @@ int egg_input_device_devid_by_index(int p) {
  */
 
 void egg_audio_set_limit(int samplec) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  eggrt.audiolimit=samplec;
 }
 
 /* Play sound from resource.
@@ -258,17 +284,26 @@ int egg_texture_get_pixels(void *dst,int dsta,int texid) {
  */
 
 int egg_texture_load_image(int texid,int rid) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return -1;
+  const void *serial=0;
+  int serialc=eggrt_rom_get(&serial,EGG_TID_image,rid);
+  return egg_texture_load_serial(texid,serial,serialc);
 }
 
 int egg_texture_load_serial(int texid,const void *src,int srcc) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return -1;
+  struct image *image=image_decode(src,srcc);
+  if (!image) return -1;
+  int fmt=0;//TODO Standardize texture formats.
+  if (image_force_rgba(image)<0) {
+    image_del(image);
+    return -1;
+  }
+  int err=egg_texture_load_raw(texid,fmt,image->w,image->h,image->stride,image->v,image->stride*image->h);
+  image_del(image);
+  return err;
 }
 
 int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  fprintf(stderr,"TODO %s [%s:%d] texid=%d fmt=%d size=%dx%d stride=%d srcc=%d\n",__func__,__FILE__,__LINE__,texid,fmt,w,h,stride,srcc);
   return -1;
 }
 

@@ -22,7 +22,7 @@ static void eggrt_signal(int sigid) {
 static void eggrt_quit() {
   eggrt_exec_client_quit(eggrt.exitstatus);
   if (!eggrt.exitstatus) {
-    //TODO Report performance.
+    eggrt_clock_report();
   }
   //TODO Tear down drivers etc.
   eggrt_exec_quit();
@@ -54,6 +54,8 @@ static int eggrt_init() {
     return -2;
   }
   
+  eggrt_clock_init();
+  
   return 0;
 }
 
@@ -63,9 +65,8 @@ static int eggrt_init() {
 static int eggrt_update() {
   int err;
   
-  //TODO Clock.
-  usleep(50000);
-  double elapsed=0.050;
+  // Tick the master clock.
+  double elapsed=eggrt_clock_update();
   
   //TODO Update drivers.
   if (eggrt.terminate) return 0;
@@ -112,5 +113,5 @@ int main(int argc,char **argv) {
   }
   
   eggrt_quit();
-  return 0;
+  return eggrt.exitstatus;
 }

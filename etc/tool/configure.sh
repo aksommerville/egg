@@ -88,7 +88,7 @@ fi
 if [ -n "$WEB_OK" ] ; then
   TARGETS="$TARGETS web"
   echo "" >>$DSTPATH
-  echo "web_CC:=clang -c -MMD -O3 --target=wasm32 -nostdlib -Werror -Wno-comment -Isrc" >>$DSTPATH
+  echo "web_CC:=clang -c -MMD -O3 --target=wasm32 -nostdlib -Werror -Wno-comment -Isrc -Wno-incompatible-library-redeclaration -Wno-builtin-requires-header" >>$DSTPATH
   echo "web_LD:=wasm-ld --no-entry -z stack-size=4194304 --no-gc-sections --allow-undefined --export-table \\" >>$DSTPATH
   echo "  --export=egg_client_init --export=egg_client_quit --export=egg_client_update --export=egg_client_render --export=egg_client_synth" >>$DSTPATH
   echo "web_LDPOST:=" >>$DSTPATH
@@ -99,10 +99,10 @@ fi
 # Guess compiler and linker for native builds.
 
 echo "" >>$DSTPATH
-echo "${NATIVE_TARGET}_CC:=gcc -c -MMD -O3 -Isrc -Werror" >>$DSTPATH
+echo "${NATIVE_TARGET}_CC:=gcc -c -MMD -O3 -Isrc -Werror -Wno-incompatible-library-redeclaration -Wno-builtin-declaration-mismatch" >>$DSTPATH
 echo "${NATIVE_TARGET}_AS:=\$(${NATIVE_TARGET}_CC) -xassembler-with-cpp" >>$DSTPATH
 echo "${NATIVE_TARGET}_LD:=gcc" >>$DSTPATH
-echo "${NATIVE_TARGET}_LDPOST:=-lm" >>$DSTPATH
+echo "${NATIVE_TARGET}_LDPOST:=-lm -lz" >>$DSTPATH
 echo "${NATIVE_TARGET}_AR:=ar" >>$DSTPATH
 echo "${NATIVE_TARGET}_OPT_ENABLE:=" >>$DSTPATH
 

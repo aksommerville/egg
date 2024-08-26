@@ -4,17 +4,22 @@ demo_OUTDIR:=out
 demo_ROM:=$(demo_OUTDIR)/demo.egg
 demo-all:$(demo_ROM)
 
-#TODO Include opt units too
-demo_CFILES:=$(filter src/demo/src/%.c,$(SRCFILES))
+demo_OPT_ENABLE:=stdlib
+
+demo_CFILES:=$(filter \
+  src/demo/src/%.c \
+  $(addprefix src/opt/,$(addsuffix /%.c,$(demo_OPT_ENABLE))) \
+,$(SRCFILES))
 ifneq (,$(strip $(web_CC)))
   demo_OFILES_WASM:=$(patsubst src/%.c,$(demo_MIDDIR)/wasm/%.o,$(demo_CFILES))
   -include $(demo_OFILES_WASM:.o=.d)
   $(demo_MIDDIR)/wasm/%.o:src/%.c;$(PRECMD) $(web_CC) -o$@ $<
 endif
 ifneq (,$(strip $($(NATIVE_TARGET)_CC)))
-  demo_OFILES_NATIVE:=$(patsubst src/%.c,$(demo_MIDDIR)/$(NATIVE_TARGET)/%.o,$(demo_CFILES))
+  demo_OFILES_NATIVE:=$(patsubst src/%.c,$(demo_MIDDIR)/$(NATIVE_TARGET)/%.o, \
+    $(filter-out src/opt/stdlib/%,$(demo_CFILES)))
   -include $(demo_OFILES_NATIVE:.o=.d)
-  $(demo_MIDDIR)/$(NATIVE_TARGET)/%.o:src/%.c;$(PRECMD) $($(NATIVE_TARGET)_CC) -o$@ $<
+  $(demo_MIDDIR)/$(NATIVE_TARGET)/%.o:src/%.c;$(PRECMD) $($(NATIVE_TARGET)_CC) -o$@ $< -DUSE_REAL_STDLIB=1
 endif
 
 ifneq (,$(strip $(web_LD)))
