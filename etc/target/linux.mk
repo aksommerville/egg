@@ -1,7 +1,7 @@
 linux_MIDDIR:=mid/linux
 linux_OUTDIR:=out/linux
 
-linux_OPT_ENABLE+=serial fs rom image hostio
+linux_OPT_ENABLE+=serial fs rom image hostio render
 linux_CC+=$(foreach U,$(linux_OPT_ENABLE),-DUSE_$U=1)
 
 linux_CFILES:=$(filter \

@@ -295,3 +295,10 @@ int snprintf(char *dst,int dsta,const char *fmt,...) {
   va_start(vargs,fmt);
   return vsnprintf(dst,dsta,fmt,vargs);
 }
+
+/* fwrite. Annoyingly, clang replaces fprintf calls with this, if it sees there's no formatting.
+ */
+ 
+int fwrite(const void *src,int size,int count,void *file) {
+  return fprintf(file,"%.*s",size*count,src);
+}

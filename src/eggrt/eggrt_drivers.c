@@ -63,6 +63,8 @@ static void hostio_cb_button(struct hostio_input *driver,int devid,int btnid,int
  */
  
 void eggrt_drivers_quit() {
+  render_del(eggrt.render);
+  eggrt.render=0;
   hostio_del(eggrt.hostio);
   eggrt.hostio=0;
   if (eggrt.iconstorage) free(eggrt.iconstorage);
@@ -124,7 +126,6 @@ static int eggrt_video_setup_cb(const char *k,int kc,const char *v,int vc,void *
  */
  
 static int eggrt_drivers_init_video() {
-  fprintf(stderr,"%s\n",__func__);
   struct hostio_video_setup setup={
     .title=eggrt.rptname,
     .w=eggrt.window_w,
@@ -160,8 +161,19 @@ static int eggrt_drivers_init_video() {
   int err=hostio_init_video(eggrt.hostio,eggrt.video_drivers,&setup);
   if (titlestorage) free(titlestorage);
   if (err<0) return -1;
+  if (!eggrt.hostio->video->type->gx_begin||!eggrt.hostio->video->type->gx_end) {
+    fprintf(stderr,"%s: Video driver '%s' must implement both GX fences.\n",eggrt.exename,eggrt.hostio->video->type->name);
+    return -2;
+  }
   
-  //TODO Render.
+  // Create renderer.
+  if (!(eggrt.render=render_new())) {
+    fprintf(stderr,"%s: Failed to initialize OpenGL.\n",eggrt.exename);
+    return -2;
+  }
+  if (render_texture_require(eggrt.render,1)<0) return -1;
+  if (render_texture_load(eggrt.render,1,setup.fbw,setup.fbh,setup.fbw<<2,EGG_TEX_FMT_RGBA,0,0)<0) return -1;
+
   return 0;
 }
 
@@ -169,7 +181,6 @@ static int eggrt_drivers_init_video() {
  */
  
 static int eggrt_drivers_init_audio() {
-  fprintf(stderr,"%s\n",__func__);
   struct hostio_audio_setup setup={
     .rate=eggrt.audio_rate,
     .chanc=eggrt.audio_chanc,
@@ -185,7 +196,6 @@ static int eggrt_drivers_init_audio() {
  */
  
 static int eggrt_drivers_init_input() {
-  fprintf(stderr,"%s\n",__func__);
   struct hostio_input_setup setup={0};
   if (hostio_init_input(eggrt.hostio,eggrt.input_drivers,&setup)<0) return -1;
   //TODO Input Manager.

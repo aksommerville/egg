@@ -37,6 +37,7 @@ int egg_texture_get_pixels(void *dst,int dsta,int texid);
 int egg_texture_load_image(int texid,int rid);
 int egg_texture_load_serial(int texid,const void *src,int srcc);
 int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc);
+void egg_draw_globals(int tint,int alpha);
 void egg_draw_clear(int dsttexid,uint32_t rgba);
 void egg_draw_line(int dsttexid,const struct egg_draw_line *v,int c);
 void egg_draw_rect(int dsttexid,const struct egg_draw_rect *v,int c);
@@ -281,16 +282,17 @@ void egg_audio_set_playhead(double s) {
  */
  
 void egg_texture_del(int texid) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  render_texture_del(eggrt.render,texid);
 }
 
 int egg_texture_new() {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return -1;
+  return render_texture_new(eggrt.render);
 }
 
 int egg_texture_get_status(int *w,int *h,int texid) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  int fmt=0;
+  render_texture_get_header(w,h,&fmt,eggrt.render,texid);
+  if (fmt>=0) return 1;
   return -1;
 }
 
@@ -311,7 +313,7 @@ int egg_texture_load_image(int texid,int rid) {
 int egg_texture_load_serial(int texid,const void *src,int srcc) {
   struct image *image=image_decode(src,srcc);
   if (!image) return -1;
-  int fmt=0;//TODO Standardize texture formats.
+  int fmt=EGG_TEX_FMT_RGBA;
   if (image_force_rgba(image)<0) {
     image_del(image);
     return -1;
@@ -322,37 +324,49 @@ int egg_texture_load_serial(int texid,const void *src,int srcc) {
 }
 
 int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc) {
-  fprintf(stderr,"TODO %s [%s:%d] texid=%d fmt=%d size=%dx%d stride=%d srcc=%d\n",__func__,__FILE__,__LINE__,texid,fmt,w,h,stride,srcc);
-  return -1;
+  return render_texture_load(eggrt.render,texid,w,h,stride,fmt,src,srcc);
 }
 
 /* Rendering.
  */
  
+void egg_draw_globals(int tint,int alpha) {
+  render_tint(eggrt.render,tint);
+  render_alpha(eggrt.render,alpha);
+}
+ 
 void egg_draw_clear(int dsttexid,uint32_t rgba) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  if (rgba) {
+    struct egg_draw_rect vtx={
+      .x=0,.y=0,.w=4096,.h=4096,
+      .r=rgba>>24,.g=rgba>>16,.b=rgba>>8,.a=rgba,
+    };
+    render_draw_rect(eggrt.render,dsttexid,&vtx,1);
+  } else {
+    render_texture_clear(eggrt.render,dsttexid);
+  }
 }
 
 void egg_draw_line(int dsttexid,const struct egg_draw_line *v,int c) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  render_draw_line(eggrt.render,dsttexid,v,c);
 }
 
 void egg_draw_rect(int dsttexid,const struct egg_draw_rect *v,int c) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  render_draw_rect(eggrt.render,dsttexid,v,c);
 }
 
 void egg_draw_trig(int dsttexid,const struct egg_draw_trig *v,int c) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  render_draw_trig(eggrt.render,dsttexid,v,c);
 }
 
 void egg_draw_decal(int dsttexid,int srctexid,const struct egg_draw_decal *v,int c) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  render_draw_decal(eggrt.render,dsttexid,srctexid,v,c);
 }
 
 void egg_draw_tile(int dsttexid,int srctexid,const struct egg_draw_tile *v,int c) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  render_draw_tile(eggrt.render,dsttexid,srctexid,v,c);
 }
 
 void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  render_draw_mode7(eggrt.render,dsttexid,srctexid,v,c);
 }

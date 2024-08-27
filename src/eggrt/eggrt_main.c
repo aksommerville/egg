@@ -103,11 +103,15 @@ static int eggrt_update() {
   }
   if (eggrt.terminate) return 0;
   
-  //TODO Render.
+  // Render.
+  if (eggrt.hostio->video->type->gx_begin(eggrt.hostio->video)<0) return -1;
+  egg_draw_globals(0,0xff);
   if ((err=eggrt_exec_client_render())<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error rendering frame.\n",eggrt.rptname);
     return -2;
   }
+  render_draw_to_main(eggrt.render,eggrt.hostio->video->w,eggrt.hostio->video->h,1);
+  if (eggrt.hostio->video->type->gx_end(eggrt.hostio->video)<0) return -1;
   
   return 0;
 }

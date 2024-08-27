@@ -51,10 +51,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Launch game.
 - [ ] Native runner.
 - - [x] Timing
-- - [ ] Egg API
+- - [x] Egg API (audio, video, input are stubs)
 - - [x] Persistence
 - - [ ] Synthesizer
-- - [ ] Renderer
+- - [x] Renderer
 - - [x] Drivers
 - - [ ] Input manager
 - - [ ] Live input mapping

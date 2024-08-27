@@ -273,6 +273,10 @@ void egg_audio_set_playhead(double s);
  ************************************************************************/
  
 #define EGG_TEXTURE_SIZE_LIMIT 4096
+
+#define EGG_TEX_FMT_RGBA 1 /* Red first, bytewise. */
+#define EGG_TEX_FMT_A8 2
+#define EGG_TEX_FMT_A1 3 /* 0x80 first. */
  
 #define EGG_XFORM_XREV 1
 #define EGG_XFORM_YREV 2
@@ -315,6 +319,12 @@ int egg_texture_load_serial(int texid,const void *src,int srcc);
  * You must supply full geometry, and also the buffer's length as validation.
  */
 int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc);
+
+/* (tint) is RGBA, default zero. If A is zero, no effect.
+ * (alpha) is 0..255, default 255.
+ * Globals reset to (0,255) at the start of each render cycle.
+ */
+void egg_draw_globals(int tint,int alpha);
 
 void egg_draw_clear(int dsttexid,uint32_t rgba);
 

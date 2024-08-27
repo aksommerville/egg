@@ -198,6 +198,10 @@
     return egg_texture_load_raw(texid,fmt,w,h,stride,src,srcc);
   }
   
+  static void egg_wasm_draw_globals(wasm_exec_env_t ee,int tint,int alpha) {
+    egg_draw_globals(tint,alpha);
+  }
+  
   static void egg_wasm_draw_clear(wasm_exec_env_t ee,int dsttexid,uint32_t rgba) {
     egg_draw_clear(dsttexid,rgba);
   }
@@ -264,6 +268,7 @@
     {"egg_texture_load_image",egg_wasm_texture_load_image,"(ii)i"},
     {"egg_texture_load_serial",egg_wasm_texture_load_serial,"(i*~)i"},
     {"egg_texture_load_raw",egg_wasm_texture_load_raw,"(iiiii*~)i"},
+    {"egg_draw_globals",egg_wasm_draw_globals,"(ii)"},
     {"egg_draw_clear",egg_wasm_draw_clear,"(ii)"},
     {"egg_draw_line",egg_wasm_draw_line,"(iii)"},
     {"egg_draw_rect",egg_wasm_draw_rect,"(iii)"},
@@ -422,6 +427,10 @@
   int w2c_env_egg_texture_load_raw(struct w2c_env *env,int texid,int fmt,int w,int h,int stride,uint32_t srcp,int srcc) {
     const void *src=HOSTADDR(srcp,srcc);
     return egg_texture_load_raw(texid,fmt,w,h,stride,src,srcc);
+  }
+  
+  void w2c_env_egg_draw_globals(struct w2c_env *env,int tint,int alpha) {
+    egg_draw_globals(tint,alpha);
   }
   
   void w2c_env_egg_draw_clear(struct w2c_env *env,int dsttexid,uint32_t rgba) {

@@ -1,6 +1,17 @@
 #include "egg/egg.h"
 #include "opt/stdlib/egg-stdlib.h"
 
+#define SCREENW 320
+#define SCREENH 180
+
+static int texid_tiles8=0;
+static float xscale=1.0f;
+static float yscale=1.0f;
+static float dxscale=0.5f; // Absolute. The more logical multiplying method is complicated since we have to multiply by elapsed time.
+static float dyscale=0.6f;
+static float rotate=0.0f;
+static float drotate=1.0f; // radian/s
+
 /* Call all 39 functions of the Egg Platform API, to ensure everything is hooked up.
  *******************************************************************/
  
@@ -71,24 +82,23 @@ static void test_full_api() {
   egg_audio_set_playhead(4.0);
   
   // Video.
+  int screenw=0,screenh=0;
+  if (egg_texture_get_status(&screenw,&screenh,1)<1) egg_terminate(1);
+  if ((screenw!=SCREENW)||(screenh!=SCREENH)) {
+    fprintf(stderr,"Got framebuffer %dx%d, expected %dx%d\n",screenw,screenh,SCREENW,SCREENH);
+    egg_terminate(1);
+  }
+  if (egg_texture_load_image(texid_tiles8=egg_texture_new(),5)<0) {
+    fprintf(stderr,"Failed to load image:5 (tiles8)\n");
+    egg_terminate(1);
+  }
   /* TODO test video
 void egg_texture_del(int texid);
-int egg_texture_new();
-int egg_texture_get_status(int *w,int *h,int texid);
 int egg_texture_get_pixels(void *dst,int dsta,int texid);
-int egg_texture_load_image(int texid,int rid);
 int egg_texture_load_serial(int texid,const void *src,int srcc);
 int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc);
   */
-  /* These won't work here. Test all during egg_client_render():
-void egg_draw_clear(int dsttexid,uint32_t rgba);
-void egg_draw_line(int dsttexid,const struct egg_draw_line *v,int c);
-void egg_draw_rect(int dsttexid,const struct egg_draw_rect *v,int c);
-void egg_draw_trig(int dsttexid,const struct egg_draw_trig *v,int c);
-void egg_draw_decal(int dsttexid,int srctexid,const struct egg_draw_decal *v,int c);
-void egg_draw_tile(int dsttexid,int srctexid,const struct egg_draw_tile *v,int c);
-void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c);
-  */
+  // All the egg_draw_* only work during egg_client_render(). See below.
 }
 
 /* Entry points.
@@ -105,9 +115,99 @@ int egg_client_init() {
 }
 
 void egg_client_update(double elapsed) {
-  //egg_log(__func__);
+  xscale+=dxscale*elapsed;
+       if ((xscale>3.5f)&&(dxscale>0.0f)) dxscale=-dxscale;
+  else if ((xscale<0.5f)&&(dxscale<0.0f)) dxscale=-dxscale;
+  yscale+=dyscale*elapsed;
+       if ((yscale>3.5f)&&(dyscale>0.0f)) dyscale=-dyscale;
+  else if ((yscale<0.5f)&&(dyscale<0.0f)) dyscale=-dyscale;
+  rotate+=drotate*elapsed;
+  if (rotate>M_PI) rotate-=M_PI*2.0f;
 }
 
 void egg_client_render() {
-  //egg_log(__func__);
+  egg_draw_clear(1,0xff8000ff);
+  {
+    struct egg_draw_line vtxv[]={
+      {1,1,SCREENW-2,SCREENH-2,0xff,0xff,0xff,0xff}, // White NW to SE.
+      {SCREENW-2,1,1,SCREENH-2,0xff,0xff,0xff,0x80}, // Partial white NE to SW.
+      {1,SCREENH>>1,SCREENW-2,SCREENH>>1,0xff,0x00,0x00,0xff}, // Red horizontal at vertical mid.
+      {SCREENW>>1,1,SCREENW>>1,SCREENH-2,0x00,0x00,0xff,0xff}, // Blue vertical at horizontal mid.
+    };
+    egg_draw_globals(0x00000000,0xff); // Fiddle with globals if you like. Verified.
+    egg_draw_line(1,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+  }
+  {
+    struct egg_draw_rect vtxv[]={
+      {10,10,30,20,0xff,0x00,0x00,0xff},
+      {15,15,30,20,0x00,0x00,0xff,0x80},
+    };
+    egg_draw_globals(0x00000000,0xff);
+    egg_draw_rect(1,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+  }
+  {
+    struct egg_draw_trig vtxv[]={
+      {100,20,150,30,120,50,0xff,0x00,0x00,0xff},
+      {150,30,200,20,180,50,0x00,0xff,0x00,0xff},
+    };
+    egg_draw_globals(0x00000000,0xff);
+    egg_draw_trig(1,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+  }
+  {
+    struct egg_draw_tile vtxv[]={
+      { 50,80,0x00,0},
+      { 60,80,0x01,0},
+      { 70,80,0x02,0},
+      { 80,80,0x10,0},
+      { 90,80,0x11,0},
+      {100,80,0xff,0},
+      {110,80,0x20,0}, // xform references...
+      {120,80,0x21,0},
+      {130,80,0x22,0},
+      {140,80,0x23,0},
+      {150,80,0x24,0},
+      {160,80,0x25,0},
+      {170,80,0x26,0},
+      {180,80,0x27,0},
+      {110,90,0x20,0}, // xforms for validation...
+      {120,90,0x20,1}, // XREV
+      {130,90,0x20,2}, // YREV
+      {140,90,0x20,3}, // XREV|YREV
+      {150,90,0x20,4}, // SWAP
+      {160,90,0x20,5}, // XREV|SWAP
+      {170,90,0x20,6}, // SWAP|YREV
+      {180,90,0x20,7}, // XREV|YREV|SWAP
+    };
+    egg_draw_globals(0x00000000,0xff);
+    egg_draw_tile(1,texid_tiles8,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+  }
+  {
+    struct egg_draw_decal vtxv[]={
+      {106, 96,0,16,8,8,0}, // xforms for validation...
+      {116, 96,0,16,8,8,1}, // XREV
+      {126, 96,0,16,8,8,2}, // YREV
+      {136, 96,0,16,8,8,3}, // XREV|YREV
+      {146, 96,0,16,8,8,4}, // SWAP
+      {156, 96,0,16,8,8,5}, // XREV|SWAP
+      {166, 96,0,16,8,8,6}, // SWAP|YREV
+      {176, 96,0,16,8,8,7}, // XREV|YREV|SWAP
+    };
+    egg_draw_globals(0x00000000,0xff);
+    egg_draw_decal(1,texid_tiles8,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+  }
+  {
+    struct egg_draw_mode7 vtxv[]={
+      {110,110,0,16,8,8, 1.0f, 1.0f, 0.0f}, // xforms for validation...
+      {120,110,0,16,8,8,-1.0f, 1.0f, 0.0f}, // XREV
+      {130,110,0,16,8,8, 1.0f,-1.0f, 0.0f}, // YREV
+      {140,110,0,16,8,8,-1.0f,-1.0f, 0.0f}, // XREV|YREV
+      {150,110,0,16,8,8, 1.0f,-1.0f, M_PI/2.0f}, // SWAP
+      {160,110,0,16,8,8,-1.0f,-1.0f, M_PI/2.0f}, // XREV|SWAP
+      {170,110,0,16,8,8, 1.0f, 1.0f, M_PI/2.0f}, // SWAP|YREV
+      {180,110,0,16,8,8,-1.0f, 1.0f, M_PI/2.0f}, // XREV|YREV|SWAP
+      {210, 95,72,32,8,8,xscale,yscale,rotate}, // Demo continuous scale and rotation.
+    };
+    egg_draw_globals(0x00000000,0xff);
+    egg_draw_mode7(1,texid_tiles8,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+  }
 }

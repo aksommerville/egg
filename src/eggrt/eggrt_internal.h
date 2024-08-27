@@ -6,6 +6,7 @@
 #include "opt/serial/serial.h"
 #include "opt/fs/fs.h"
 #include "opt/hostio/hostio.h"
+#include "opt/render/render.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -59,6 +60,7 @@ extern struct eggrt {
   // eggrt_drivers.c:
   struct hostio *hostio;
   void *iconstorage;
+  struct render *render;
   
   volatile int terminate;
   int exitstatus;
