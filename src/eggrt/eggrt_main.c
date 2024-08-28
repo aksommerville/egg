@@ -92,6 +92,10 @@ static int eggrt_update() {
     return -2;
   }
   if (eggrt.terminate) return 0;
+  if (eggrt.hardpause) {
+    inmgr_drop_redundant_events(eggrt.inmgr);
+    return 0;
+  }
   
   // Update client.
   if ((err=eggrt_exec_client_update(elapsed))<0) {

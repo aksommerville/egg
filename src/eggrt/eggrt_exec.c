@@ -109,12 +109,18 @@
     return egg_store_key_by_index(k,ka,p);
   }
   
+  static int egg_wasm_get_events(wasm_exec_env_t ee,uint32_t dstp,int dsta) {
+    union egg_event *dstv=eggrt_wasm_get_client_memory(dstp,sizeof(union egg_event)*dsta);
+    if (!dstv) return 0;
+    return egg_get_events(dstv,dsta);
+  }
+  
   static uint32_t egg_wasm_get_event_mask(wasm_exec_env_t ee) {
     return egg_get_event_mask();
   }
   
-  static void egg_wasm_set_event_mask(wasm_exec_env_t ee,uint32_t mask) {
-    egg_set_event_mask(mask);
+  static uint32_t egg_wasm_set_event_mask(wasm_exec_env_t ee,uint32_t mask) {
+    return egg_set_event_mask(mask);
   }
   
   static int egg_wasm_show_cursor(wasm_exec_env_t ee,int show) {
@@ -247,8 +253,9 @@
     {"egg_store_get",egg_wasm_store_get,"(*~*~)i"},
     {"egg_store_set",egg_wasm_store_set,"(*~*~)i"},
     {"egg_store_key_by_index",egg_wasm_store_key_by_index,"(*~i)i"},
+    {"egg_get_events",egg_wasm_get_events,"(ii)i"},
     {"egg_get_event_mask",egg_wasm_get_event_mask,"()i"},
-    {"egg_set_event_mask",egg_wasm_set_event_mask,"(i)"},
+    {"egg_set_event_mask",egg_wasm_set_event_mask,"(i)i"},
     {"egg_show_cursor",egg_wasm_show_cursor,"(i)i"},
     {"egg_lock_cursor",egg_wasm_lock_cursor,"(i)i"},
     {"egg_input_device_get_name",egg_wasm_input_device_get_name,"(*~i)i"},
@@ -334,12 +341,16 @@
     return egg_store_key_by_index(k,ka,p);
   }
   
+  int w2c_env_egg_get_events(struct w2c_env *env,union egg_event *dst,int dsta) {
+    return egg_get_events(dst,dsta);
+  }
+  
   uint32_t w2c_env_egg_get_event_mask(struct w2c_env *env) {
     return egg_get_event_mask();
   }
   
-  void w2c_env_egg_set_event_mask(struct w2c_env *env,uint32_t mask) {
-    egg_set_event_mask(mask);
+  uint32_t w2c_env_egg_set_event_mask(struct w2c_env *env,uint32_t mask) {
+    return egg_set_event_mask(mask);
   }
   
   int w2c_env_egg_show_cursor(struct w2c_env *env,int show) {

@@ -10,37 +10,61 @@
  */
  
 static void hostio_cb_close(struct hostio_video *driver) {
-  fprintf(stderr,"%s\n",__func__);
   eggrt.terminate++;
 }
 
 static void hostio_cb_focus(struct hostio_video *driver,int focus) {
-  fprintf(stderr,"%s %d\n",__func__,focus);
+  if (focus) {
+    if (eggrt.hardpause) {
+      fprintf(stderr,"%s: Resume due to WM focus.\n",eggrt.exename);
+      eggrt.hardpause=0;
+    }
+  } else {
+    if (!eggrt.hardpause) {
+      fprintf(stderr,"%s: Pause due to WM focus.\n",eggrt.exename);
+      eggrt.hardpause=1;
+    }
+  }
 }
 
 static void hostio_cb_resize(struct hostio_video *driver,int w,int h) {
-  //fprintf(stderr,"%s %dx%d\n",__func__,w,h);
+  // I think we don't care. We need video size for the final transfer, but we poll for that.
 }
 
 static int hostio_cb_key(struct hostio_video *driver,int keycode,int value) {
-  fprintf(stderr,"%s %#.8x=%d\n",__func__,keycode,value);
-  return 0; // Or nonzero to suppress text.
+  return inmgr_event_key(eggrt.inmgr,keycode,value);
 }
 
 static void hostio_cb_text(struct hostio_video *driver,int codepoint) {
-  fprintf(stderr,"%s U+%x\n",__func__,codepoint);
+  inmgr_event_text(eggrt.inmgr,codepoint);
 }
 
 static void hostio_cb_mmotion(struct hostio_video *driver,int x,int y) {
-  //fprintf(stderr,"%s %d,%d\n",__func__,x,y);
+  int fbx=x,fby=y;
+  render_coords_fb_from_screen(eggrt.render,&fbx,&fby);
+  if ((fbx==eggrt.mousex)&&(fby==eggrt.mousey)) return;
+  
+  /* If the mouse was previously OOB, ignore all events until it goes in bounds again.
+   * There's some variety among drivers, whether they'll report OOB motion or not.
+   * And we confuse the issue further by adding window=>fb conversion on top of it.
+   * So we're forcing a convention: Game gets one OOB event as the mouse leaves the framebuffer,
+   * and the next motion event will be in bounds.
+   */
+  if ((eggrt.mousex<0)||(eggrt.mousey<0)||(eggrt.mousex>=eggrt.fbw)||(eggrt.mousey>=eggrt.fbh)) {
+    if ((fbx<0)||(fby<0)||(fbx>=eggrt.fbw)||(fby>=eggrt.fbh)) return;
+  }
+  
+  eggrt.mousex=fbx;
+  eggrt.mousey=fby;
+  inmgr_event_mmotion(eggrt.inmgr,fbx,fby);
 }
 
 static void hostio_cb_mbutton(struct hostio_video *driver,int btnid,int value) {
-  fprintf(stderr,"%s %d=%d\n",__func__,btnid,value);
+  inmgr_event_mbutton(eggrt.inmgr,btnid,value);
 }
 
 static void hostio_cb_mwheel(struct hostio_video *driver,int dx,int dy) {
-  fprintf(stderr,"%s %+d,%+d\n",__func__,dx,dy);
+  inmgr_event_mwheel(eggrt.inmgr,dx,dy);
 }
  
 static void hostio_cb_pcm_out(int16_t *v,int c,struct hostio_audio *driver) {
@@ -48,25 +72,24 @@ static void hostio_cb_pcm_out(int16_t *v,int c,struct hostio_audio *driver) {
 }
 
 static void hostio_cb_connect(struct hostio_input *driver,int devid) {
-  fprintf(stderr,"%s %d\n",__func__,devid);
+  inmgr_event_connect(eggrt.inmgr,driver,devid);
 }
 
 static void hostio_cb_disconnect(struct hostio_input *driver,int devid) {
-  fprintf(stderr,"%s %d\n",__func__,devid);
+  inmgr_event_disconnect(eggrt.inmgr,driver,devid);
 }
 
 static void hostio_cb_button(struct hostio_input *driver,int devid,int btnid,int value) {
-  fprintf(stderr,"%s %d.%d=%d\n",__func__,devid,btnid,value);
+  inmgr_event_button(eggrt.inmgr,driver,devid,btnid,value);
 }
 
 /* Quit.
  */
  
 void eggrt_drivers_quit() {
-  render_del(eggrt.render);
-  eggrt.render=0;
-  hostio_del(eggrt.hostio);
-  eggrt.hostio=0;
+  render_del(eggrt.render); eggrt.render=0;
+  inmgr_del(eggrt.inmgr); eggrt.inmgr=0;
+  hostio_del(eggrt.hostio); eggrt.hostio=0;
   if (eggrt.iconstorage) free(eggrt.iconstorage);
   eggrt.iconstorage=0;
 }
@@ -156,6 +179,8 @@ static int eggrt_drivers_init_video() {
     fprintf(stderr,"%s: Framebuffer size not defined by ROM.\n",eggrt.rptname);
     return -2;
   }
+  eggrt.fbw=setup.fbw;
+  eggrt.fbh=setup.fbh;
   
   // Bring video driver up.
   int err=hostio_init_video(eggrt.hostio,eggrt.video_drivers,&setup);
@@ -198,7 +223,9 @@ static int eggrt_drivers_init_audio() {
 static int eggrt_drivers_init_input() {
   struct hostio_input_setup setup={0};
   if (hostio_init_input(eggrt.hostio,eggrt.input_drivers,&setup)<0) return -1;
-  //TODO Input Manager.
+  if (!(eggrt.inmgr=inmgr_new())) return -1;
+  eggrt.mousex=-1;
+  eggrt.mousey=-1;
   return 0;
 }
 
@@ -237,5 +264,8 @@ int eggrt_drivers_init() {
  */
  
 int eggrt_drivers_update() {
-  return hostio_update(eggrt.hostio);
+  int err;
+  if ((err=hostio_update(eggrt.hostio))<0) return -1;
+  if ((err=inmgr_update(eggrt.inmgr))<0) return -1;
+  return 0;
 }

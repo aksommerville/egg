@@ -7,6 +7,7 @@
 #include "opt/fs/fs.h"
 #include "opt/hostio/hostio.h"
 #include "opt/render/render.h"
+#include "inmgr/inmgr.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -61,9 +62,14 @@ extern struct eggrt {
   struct hostio *hostio;
   void *iconstorage;
   struct render *render;
+  struct inmgr *inmgr;
+  int mousex,mousey; // In framebuffer coordinates.
+  int fbw,fbh;
+  uint32_t evtmask;
   
   volatile int terminate;
   int exitstatus;
+  int hardpause; // Currently controlled only by window manager focus.
   
 } eggrt;
 

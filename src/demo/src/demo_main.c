@@ -99,6 +99,26 @@ int egg_texture_load_serial(int texid,const void *src,int srcc);
 int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc);
   */
   // All the egg_draw_* only work during egg_client_render(). See below.
+  // Similarly, egg_get_events() only works during egg_client_update().
+}
+
+/* Receive event.
+ *************************************************************/
+ 
+static void egg_client_event(const union egg_event *event) {
+  switch (event->type) {
+    case EGG_EVENT_RAW: fprintf(stderr,"RAW: %d.%d=%d\n",event->raw.devid,event->raw.btnid,event->raw.value); break;
+    case EGG_EVENT_GAMEPAD: fprintf(stderr,"GAMEPAD: %d.%d=%d [%#.4x] devid=%d\n",event->gamepad.playerid,event->gamepad.btnid,event->gamepad.value,event->gamepad.state,event->gamepad.devid); break;
+    case EGG_EVENT_KEY: fprintf(stderr,"KEY: %#.8x=%d\n",event->key.keycode,event->key.value); break;
+    case EGG_EVENT_TEXT: fprintf(stderr,"TEXT: U+%x\n",event->text.codepoint); break;
+    case EGG_EVENT_MMOTION: fprintf(stderr,"MMOTION: %d,%d\n",event->mmotion.x,event->mmotion.y); break;
+    case EGG_EVENT_MBUTTON: fprintf(stderr,"MBUTTON: %d=%d @%d,%d\n",event->mbutton.btnid,event->mbutton.value,event->mbutton.x,event->mbutton.y); break;
+    case EGG_EVENT_MWHEEL: fprintf(stderr,"MWHEEL: %+d,%+d @%d,%d\n",event->mwheel.dx,event->mwheel.dy,event->mwheel.x,event->mwheel.y); break;
+    case EGG_EVENT_TOUCH: fprintf(stderr,"TOUCH: %d=%d @%d,%d\n",event->touch.touchid,event->touch.state,event->touch.x,event->touch.y); break;
+    case EGG_EVENT_ACCEL: fprintf(stderr,"ACCEL: %f,%f,%f\n",event->accel.x,event->accel.y,event->accel.z); break;
+    case EGG_EVENT_IMAGE: fprintf(stderr,"IMAGE: %d\n",event->image.texid); break;
+    default: fprintf(stderr,"Unknown event type %d.\n",event->type);
+  }
 }
 
 /* Entry points.
@@ -115,6 +135,17 @@ int egg_client_init() {
 }
 
 void egg_client_update(double elapsed) {
+
+  for (;;) {
+    union egg_event storage[16];
+    int eventc=egg_get_events(storage,sizeof(storage)/sizeof(storage[0]));
+    if (eventc<1) break;
+    const union egg_event *event=storage;
+    int i=eventc;
+    for (;i-->0;event++) egg_client_event(event);
+    if (eventc<sizeof(storage)/sizeof(storage[0])) break;
+  }
+
   xscale+=dxscale*elapsed;
        if ((xscale>3.5f)&&(dxscale>0.0f)) dxscale=-dxscale;
   else if ((xscale<0.5f)&&(dxscale<0.0f)) dxscale=-dxscale;
@@ -126,7 +157,7 @@ void egg_client_update(double elapsed) {
 }
 
 void egg_client_render() {
-  egg_draw_clear(1,0xff8000ff);
+  egg_draw_clear(1,0x402010ff);
   {
     struct egg_draw_line vtxv[]={
       {1,1,SCREENW-2,SCREENH-2,0xff,0xff,0xff,0xff}, // White NW to SE.

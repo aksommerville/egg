@@ -16,6 +16,7 @@ int egg_get_rom(void *dst,int dsta);
 int egg_store_get(char *v,int va,const char *k,int kc);
 int egg_store_set(const char *k,int kc,const char *v,int vc);
 int egg_store_key_by_index(char *k,int ka,int p);
+int egg_get_events(union egg_event *dst,int dsta);
 uint32_t egg_get_event_mask();
 void egg_set_event_mask(uint32_t mask);
 int egg_show_cursor(int show);
@@ -180,17 +181,34 @@ int egg_store_key_by_index(char *k,int ka,int p) {
   return srcc;
 }
 
+/* Get events.
+ */
+ 
+int egg_get_events(union egg_event *dst,int dsta) {
+  if (!dst||(dsta<1)) return 0;
+  return inmgr_get_events(dst,dsta,eggrt.inmgr);
+}
+
 /* Event mask.
  */
 
 uint32_t egg_get_event_mask() {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
+  return eggrt.evtmask;
 }
  
-void egg_set_event_mask(uint32_t mask) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  //TODO It's not just setting the field. Work with input manager to enable/disable features.
+uint32_t egg_set_event_mask(uint32_t mask) {
+  if (mask==eggrt.evtmask) return eggrt.evtmask;
+  mask&=0x7fffffff; // So I don't need to worry what happens at overflow; event 31 should never be defined.
+  uint32_t enable=mask&~eggrt.evtmask;
+  uint32_t disable=eggrt.evtmask&~mask;
+  uint32_t bit,p;
+  for (bit=1,p=0;bit<=enable;bit<<=1,p++) {
+    if (inmgr_enable_event(eggrt.inmgr,p)>0) eggrt.evtmask|=bit;
+  }
+  for (bit=1,p=0;bit<=disable;bit<<=1,p++) {
+    if (inmgr_disable_event(eggrt.inmgr,p)>0) eggrt.evtmask&=~bit;
+  }
+  return eggrt.evtmask;
 }
 
 /* Show cursor.

@@ -56,41 +56,10 @@ void render_draw_decal(struct render *render,int dsttexid,int srctexid,const str
 void render_draw_tile(struct render *render,int dsttexid,int srctexid,const struct egg_draw_tile *v,int c);
 void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c);
 
-#if 0
-void render_draw_rect(struct render *render,int texid,int x,int y,int w,int h,uint32_t pixel);
-
-void render_draw_line(struct render *render,int texid,const struct egg_draw_line *v,int c);
-
-// Triangle strip.
-void render_draw_trig(struct render *render,int texid,const struct egg_draw_line *v,int c);
-
-void render_draw_decal(
-  struct render *render,
-  int dsttexid,int srctexid,
-  int dstx,int dsty,
-  int srcx,int srcy,
-  int w,int h,
-  int xform
-);
-
-void render_draw_decal_mode7(
-  struct render *render,
-  int dsttexid,int srctexid,
-  int dstx,int dsty, // center
-  int srcx,int srcy,
-  int w,int h,
-  double rotation,double xscale,double yscale
-);
-
-void render_draw_tile(
-  struct render *render,
-  int dsttexid,int srctexid,
-  const struct egg_draw_tile *v,int c
-);
-#endif
-
 void render_draw_to_main(struct render *render,int mainw,int mainh,int texid);
 
+/* We take pains to ensure that OOB coords coming in are also OOB going out.
+ */
 void render_coords_fb_from_screen(struct render *render,int *x,int *y);
 void render_coords_screen_from_fb(struct render *render,int *x,int *y);
 

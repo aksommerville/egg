@@ -62,4 +62,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.
 - [x] Remove bring-your-own-synthesizer from API. It's too risky and too complicated. (despite having proven that it technically can work).
-- [ ] We might need to implement fwrite in addition to fprintf, I've seen clang substituting it when there's no formatting involved.
+- [x] We might need to implement fwrite in addition to fprintf, I've seen clang substituting it when there's no formatting involved.
+- [ ] Rich set of client-side helper libraries.
+- [ ] Example projects.
+- [ ] Validate eject.

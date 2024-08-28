@@ -142,7 +142,7 @@ int egg_store_key_by_index(char *k,int ka,int p);
 
 #define EGG_EVENT_RAW 1
 #define EGG_EVENT_GAMEPAD 2
-#define EGG_EVENT_KEYBOARD 3
+#define EGG_EVENT_KEY 3
 #define EGG_EVENT_TEXT 4
 #define EGG_EVENT_MMOTION 5
 #define EGG_EVENT_MBUTTON 6
@@ -167,8 +167,8 @@ struct egg_event_gamepad {
   int devid; // Same namespace as RAW.
 };
 
-struct egg_event_keyboard {
-  uint8_t type; // EGG_EVENT_KEYBOARD
+struct egg_event_key {
+  uint8_t type; // EGG_EVENT_KEY
   int keycode; // USB-HID page 7; high 16 bits are always 0x00070000.
   int value; // (0,1,2)=(release,press,repeat)
 };
@@ -215,7 +215,8 @@ union egg_event {
   uint8_t type;
   struct egg_event_raw raw;
   struct egg_event_gamepad gamepad;
-  struct egg_event_keyboard keyboard;
+  struct egg_event_key key;
+  struct egg_event_text text;
   struct egg_event_mmotion mmotion;
   struct egg_event_mbutton mbutton;
   struct egg_event_mwheel mwheel;
@@ -224,11 +225,18 @@ union egg_event {
   struct egg_event_image image;
 };
 
+/* Copy pending events from the platform's queue onto (dst) and return the count copied.
+ * Never returns more than (dsta).
+ * If it returns exactly (dsta), there may be more events pending.
+ */
+int egg_get_events(union egg_event *dst,int dsta);
+
 /* Event mask is bits, (1<<EGG_EVENT_*).
  * Don't enable events you don't need! There can be some processing cost.
+ * Setting the mask returns the new mask. Unknown or unavailable events will be unset.
  */
 uint32_t egg_get_event_mask();
-void egg_set_event_mask(uint32_t mask);
+uint32_t egg_set_event_mask(uint32_t mask);
 
 /* Show or lock system cursor.
  * Request <0 to only query the current state.
