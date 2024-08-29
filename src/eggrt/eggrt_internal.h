@@ -63,13 +63,12 @@ extern struct eggrt {
   void *iconstorage;
   struct render *render;
   struct inmgr *inmgr;
-  int mousex,mousey; // In framebuffer coordinates.
   int fbw,fbh;
-  uint32_t evtmask;
   
   volatile int terminate;
   int exitstatus;
-  int hardpause; // Currently controlled only by window manager focus.
+  int focus,debugger; // Hard pause if either is set.
+  int debugstep; // Nonzero to advance one frame, when debugger set.
   
 } eggrt;
 

@@ -14,17 +14,7 @@ static void hostio_cb_close(struct hostio_video *driver) {
 }
 
 static void hostio_cb_focus(struct hostio_video *driver,int focus) {
-  if (focus) {
-    if (eggrt.hardpause) {
-      fprintf(stderr,"%s: Resume due to WM focus.\n",eggrt.exename);
-      eggrt.hardpause=0;
-    }
-  } else {
-    if (!eggrt.hardpause) {
-      fprintf(stderr,"%s: Pause due to WM focus.\n",eggrt.exename);
-      eggrt.hardpause=1;
-    }
-  }
+  eggrt.focus=focus;
 }
 
 static void hostio_cb_resize(struct hostio_video *driver,int w,int h) {
@@ -32,39 +22,8 @@ static void hostio_cb_resize(struct hostio_video *driver,int w,int h) {
 }
 
 static int hostio_cb_key(struct hostio_video *driver,int keycode,int value) {
-  return inmgr_event_key(eggrt.inmgr,keycode,value);
-}
-
-static void hostio_cb_text(struct hostio_video *driver,int codepoint) {
-  inmgr_event_text(eggrt.inmgr,codepoint);
-}
-
-static void hostio_cb_mmotion(struct hostio_video *driver,int x,int y) {
-  int fbx=x,fby=y;
-  render_coords_fb_from_screen(eggrt.render,&fbx,&fby);
-  if ((fbx==eggrt.mousex)&&(fby==eggrt.mousey)) return;
-  
-  /* If the mouse was previously OOB, ignore all events until it goes in bounds again.
-   * There's some variety among drivers, whether they'll report OOB motion or not.
-   * And we confuse the issue further by adding window=>fb conversion on top of it.
-   * So we're forcing a convention: Game gets one OOB event as the mouse leaves the framebuffer,
-   * and the next motion event will be in bounds.
-   */
-  if ((eggrt.mousex<0)||(eggrt.mousey<0)||(eggrt.mousex>=eggrt.fbw)||(eggrt.mousey>=eggrt.fbh)) {
-    if ((fbx<0)||(fby<0)||(fbx>=eggrt.fbw)||(fby>=eggrt.fbh)) return;
-  }
-  
-  eggrt.mousex=fbx;
-  eggrt.mousey=fby;
-  inmgr_event_mmotion(eggrt.inmgr,fbx,fby);
-}
-
-static void hostio_cb_mbutton(struct hostio_video *driver,int btnid,int value) {
-  inmgr_event_mbutton(eggrt.inmgr,btnid,value);
-}
-
-static void hostio_cb_mwheel(struct hostio_video *driver,int dx,int dy) {
-  inmgr_event_mwheel(eggrt.inmgr,dx,dy);
+  inmgr_event_key(eggrt.inmgr,keycode,value);
+  return 1;
 }
  
 static void hostio_cb_pcm_out(int16_t *v,int c,struct hostio_audio *driver) {
@@ -181,6 +140,7 @@ static int eggrt_drivers_init_video() {
   }
   eggrt.fbw=setup.fbw;
   eggrt.fbh=setup.fbh;
+  eggrt.focus=1;
   
   // Bring video driver up.
   int err=hostio_init_video(eggrt.hostio,eggrt.video_drivers,&setup);
@@ -224,8 +184,11 @@ static int eggrt_drivers_init_input() {
   struct hostio_input_setup setup={0};
   if (hostio_init_input(eggrt.hostio,eggrt.input_drivers,&setup)<0) return -1;
   if (!(eggrt.inmgr=inmgr_new())) return -1;
-  eggrt.mousex=-1;
-  eggrt.mousey=-1;
+  
+  if (eggrt.hostio->video&&eggrt.hostio->video->type->provides_input) {
+    if (inmgr_enable_system_keyboard(eggrt.inmgr,1)<0) return -1;
+  }
+  
   return 0;
 }
 
@@ -239,10 +202,6 @@ int eggrt_drivers_init() {
     .cb_focus=hostio_cb_focus,
     .cb_resize=hostio_cb_resize,
     .cb_key=hostio_cb_key,
-    .cb_text=hostio_cb_text,
-    .cb_mmotion=hostio_cb_mmotion,
-    .cb_mbutton=hostio_cb_mbutton,
-    .cb_mwheel=hostio_cb_mwheel,
   };
   struct hostio_audio_delegate adel={
     .cb_pcm_out=hostio_cb_pcm_out,

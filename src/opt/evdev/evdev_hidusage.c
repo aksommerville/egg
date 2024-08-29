@@ -152,7 +152,8 @@ static int evdev_guess_hid_usage_KEY(int code) {
     case BTN_TL2: return 0x00050039; // Gamepad Trigger
     case BTN_TR2: return 0x00050039; // Gamepad Trigger
     case BTN_SELECT: return 0x0001003e; // Select
-    case BTN_START: return 0x0001003e; // Start
+    case BTN_START: return 0x0001003d; // Start
+    case BTN_MODE: return 0x00010085; // System Main Menu
   }
   return 0;
 }

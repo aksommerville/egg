@@ -11,6 +11,7 @@ static float dxscale=0.5f; // Absolute. The more logical multiplying method is c
 static float dyscale=0.6f;
 static float rotate=0.0f;
 static float drotate=1.0f; // radian/s
+static int pvinstate=0;
 
 /* Call all 39 functions of the Egg Platform API, to ensure everything is hooked up.
  *******************************************************************/
@@ -53,25 +54,6 @@ static void test_full_api() {
     }
   }
   
-  // Input.
-  fprintf(stderr,"egg_get_event_mask(): %#.8x\n",egg_get_event_mask());
-  egg_set_event_mask(0xffffffff);
-  fprintf(stderr,"egg_show_cursor(1): %d\n",egg_show_cursor(1));
-  fprintf(stderr,"egg_lock_cursor(1): %d\n",egg_lock_cursor(1));
-  {
-    int p=0; for (;;p++) {
-      int devid=egg_input_device_devid_by_index(p);
-      if (devid<=0) break;
-      fprintf(stderr,"egg_input_device_devid_by_index(%d): %d\n",p,devid);
-      char name[256];
-      int namec=egg_input_device_get_name(name,sizeof(name),devid);
-      if ((namec<1)||(namec>sizeof(name))) namec=0;
-      int vid=0,pid=0,version=0;
-      egg_input_device_get_ids(&vid,&pid,&version,devid);
-      fprintf(stderr,"...%#.4x:%#.4x:%#.4x '%.*s'\n",vid,pid,version,namec,name);
-    }
-  }
-  
   // Audio.
   egg_play_sound(1,2);
   egg_play_song(1,0,1);
@@ -102,25 +84,6 @@ int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *sr
   // Similarly, egg_get_events() only works during egg_client_update().
 }
 
-/* Receive event.
- *************************************************************/
- 
-static void egg_client_event(const union egg_event *event) {
-  switch (event->type) {
-    case EGG_EVENT_RAW: fprintf(stderr,"RAW: %d.%d=%d\n",event->raw.devid,event->raw.btnid,event->raw.value); break;
-    case EGG_EVENT_GAMEPAD: fprintf(stderr,"GAMEPAD: %d.%d=%d [%#.4x] devid=%d\n",event->gamepad.playerid,event->gamepad.btnid,event->gamepad.value,event->gamepad.state,event->gamepad.devid); break;
-    case EGG_EVENT_KEY: fprintf(stderr,"KEY: %#.8x=%d\n",event->key.keycode,event->key.value); break;
-    case EGG_EVENT_TEXT: fprintf(stderr,"TEXT: U+%x\n",event->text.codepoint); break;
-    case EGG_EVENT_MMOTION: fprintf(stderr,"MMOTION: %d,%d\n",event->mmotion.x,event->mmotion.y); break;
-    case EGG_EVENT_MBUTTON: fprintf(stderr,"MBUTTON: %d=%d @%d,%d\n",event->mbutton.btnid,event->mbutton.value,event->mbutton.x,event->mbutton.y); break;
-    case EGG_EVENT_MWHEEL: fprintf(stderr,"MWHEEL: %+d,%+d @%d,%d\n",event->mwheel.dx,event->mwheel.dy,event->mwheel.x,event->mwheel.y); break;
-    case EGG_EVENT_TOUCH: fprintf(stderr,"TOUCH: %d=%d @%d,%d\n",event->touch.touchid,event->touch.state,event->touch.x,event->touch.y); break;
-    case EGG_EVENT_ACCEL: fprintf(stderr,"ACCEL: %f,%f,%f\n",event->accel.x,event->accel.y,event->accel.z); break;
-    case EGG_EVENT_IMAGE: fprintf(stderr,"IMAGE: %d\n",event->image.texid); break;
-    default: fprintf(stderr,"Unknown event type %d.\n",event->type);
-  }
-}
-
 /* Entry points.
  **************************************************************/
 
@@ -136,14 +99,31 @@ int egg_client_init() {
 
 void egg_client_update(double elapsed) {
 
-  for (;;) {
-    union egg_event storage[16];
-    int eventc=egg_get_events(storage,sizeof(storage)/sizeof(storage[0]));
-    if (eventc<1) break;
-    const union egg_event *event=storage;
-    int i=eventc;
-    for (;i-->0;event++) egg_client_event(event);
-    if (eventc<sizeof(storage)/sizeof(storage[0])) break;
+  int instate=egg_input_get_one(0);
+  if (instate!=pvinstate) {
+    char msg[256];
+    memcpy(msg,"INPUT(aggregate): ",18);
+    int msgc=18;
+    #define _(tag) if (instate&EGG_BTN_##tag) { memcpy(msg+msgc,#tag,sizeof(#tag)-1); msgc+=sizeof(#tag)-1; msg[msgc++]=' '; }
+    _(LEFT)
+    _(RIGHT)
+    _(UP)
+    _(DOWN)
+    _(SOUTH)
+    _(WEST)
+    _(EAST)
+    _(NORTH)
+    _(L1)
+    _(R1)
+    _(L2)
+    _(R2)
+    _(AUX1)
+    _(AUX2)
+    _(AUX3)
+    _(CD)
+    #undef _
+    fprintf(stderr,"%.*s\n",msgc,msg);
+    pvinstate=instate;
   }
 
   xscale+=dxscale*elapsed;

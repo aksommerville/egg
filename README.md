@@ -56,8 +56,9 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synthesizer
 - - [x] Renderer
 - - [x] Drivers
-- - [ ] Input manager
+- - [x] Input manager
 - - [ ] Live input mapping
+- - [ ] Save and load input templates.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.

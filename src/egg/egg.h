@@ -115,144 +115,48 @@ int egg_store_set(const char *k,int kc,const char *v,int vc);
 int egg_store_key_by_index(char *k,int ka,int p);
 
 /* Input.
+ * We only support gamepad input, and only two-state buttons.
+ * Platform has some leeway to present keyboards, and maybe touch events, as gamepads.
+ * Hardware devices get assigned a positive 'playerid'.
+ * There may be more than one physical device associated with a playerid; they merge transparently.
+ * Each player's state is expressed in 16 bits.
+ * It's the Standard Mapping Gamepad, minus analogue sticks.
+ * If it helps, the Evercade gamepad matches our buttons exactly.
+ * And SNES comes close, only we have L2, R2, and AUX3, which SNES did not.
  **********************************************************************/
 
-#define EGG_BTN_CD 0 /* Fake button for reporting device connect/disconnect. */
-#define EGG_BTN_SOUTH 1
-#define EGG_BTN_EAST 2
-#define EGG_BTN_WEST 3
-#define EGG_BTN_NORTH 4
-#define EGG_BTN_L1 5
-#define EGG_BTN_R1 6
-#define EGG_BTN_L2 7
-#define EGG_BTN_R2 8
-#define EGG_BTN_AUX2 9
-#define EGG_BTN_AUX1 10
-#define EGG_BTN_LP 11
-#define EGG_BTN_RP 12
-#define EGG_BTN_UP 13
-#define EGG_BTN_DOWN 14
-#define EGG_BTN_LEFT 15
-#define EGG_BTN_RIGHT 16
-#define EGG_BTN_AUX3 17
-#define EGG_BTN_LX 18 /* analogue -128..127 */
-#define EGG_BTN_LY 19
-#define EGG_BTN_RX 20
-#define EGG_BTN_RY 21
-
-#define EGG_EVENT_RAW 1
-#define EGG_EVENT_GAMEPAD 2
-#define EGG_EVENT_KEY 3
-#define EGG_EVENT_TEXT 4
-#define EGG_EVENT_MMOTION 5
-#define EGG_EVENT_MBUTTON 6
-#define EGG_EVENT_MWHEEL 7
-#define EGG_EVENT_TOUCH 8
-#define EGG_EVENT_ACCEL 9
-#define EGG_EVENT_IMAGE 10 /* Sent when an async image load completes. */
-
-struct egg_event_raw {
-  uint8_t type; // EGG_EVENT_RAW
-  int devid;
-  int btnid; // 0 for connect/disconnect; other values straight off the driver.
-  int value;
-};
-
-struct egg_event_gamepad {
-  uint8_t type; // EGG_EVENT_GAMEPAD
-  int playerid; // Zero is the aggregate of player states.
-  int btnid; // EGG_BTN_*
-  int value; // (0,1) for CD..AUX3; (-128..127) for LX..RY.
-  int state; // Bits, (1<<(EGG_BTN_-1)) for SOUTH..AUX3.
-  int devid; // Same namespace as RAW.
-};
-
-struct egg_event_key {
-  uint8_t type; // EGG_EVENT_KEY
-  int keycode; // USB-HID page 7; high 16 bits are always 0x00070000.
-  int value; // (0,1,2)=(release,press,repeat)
-};
-
-struct egg_event_text {
-  uint8_t type; // EGG_EVENT_TEXT
-  int codepoint; // Unicode.
-};
-
-struct egg_event_mmotion {
-  uint8_t type; // EGG_EVENT_MMOTION
-  int x,y;
-};
-
-struct egg_event_mbutton {
-  uint8_t type; // EGG_EVENT_MBUTTON
-  int btnid,value;
-  int x,y;
-};
-
-struct egg_event_mwheel {
-  uint8_t type; // EGG_EVENT_MWHEEL
-  int dx,dy;
-  int x,y;
-};
-
-struct egg_event_touch {
-  uint8_t type; // EGG_EVENT_TOUCH
-  int touchid,x,y;
-  int state; // (0,1,2)=(end,begin,move)
-};
-
-struct egg_event_accel {
-  uint8_t type; // EGG_EVENT_ACCEL
-  float x,y,z;
-};
-
-struct egg_event_image {
-  uint8_t type; // EGG_EVENT_IMAGE
-  int texid;
-};
-
-union egg_event {
-  uint8_t type;
-  struct egg_event_raw raw;
-  struct egg_event_gamepad gamepad;
-  struct egg_event_key key;
-  struct egg_event_text text;
-  struct egg_event_mmotion mmotion;
-  struct egg_event_mbutton mbutton;
-  struct egg_event_mwheel mwheel;
-  struct egg_event_touch touch;
-  struct egg_event_accel accel;
-  struct egg_event_image image;
-};
-
-/* Copy pending events from the platform's queue onto (dst) and return the count copied.
- * Never returns more than (dsta).
- * If it returns exactly (dsta), there may be more events pending.
+#define EGG_BTN_SOUTH 0x0001
+#define EGG_BTN_EAST  0x0002
+#define EGG_BTN_WEST  0x0004
+#define EGG_BTN_NORTH 0x0008
+#define EGG_BTN_L1    0x0010
+#define EGG_BTN_R1    0x0020
+#define EGG_BTN_L2    0x0040
+#define EGG_BTN_R2    0x0080
+#define EGG_BTN_AUX2  0x0100
+#define EGG_BTN_AUX1  0x0200
+#define EGG_BTN_UP    0x0400
+#define EGG_BTN_DOWN  0x0800
+#define EGG_BTN_LEFT  0x1000
+#define EGG_BTN_RIGHT 0x2000
+#define EGG_BTN_AUX3  0x4000
+#define EGG_BTN_CD    0x8000 /* Fake button for reporting device connect/disconnect. */
+ 
+/* Input states are indexed by a nonzero "playerid".
+ * There is a special playerid zero which is the aggregate of all states.
+ * If your metadata declares "players" >0, you will not see a playerid greater than that.
+ * States are a combination of (1<<EGG_BTN_*).
+ * Check EGG_BTN_CD to test whether at least one physical device is associated with a player.
+ * Games should assume that input states will not change during one update cycle. But platform does not strictly guarantee it.
  */
-int egg_get_events(union egg_event *dst,int dsta);
+int egg_input_get_all(int *dstv,int dsta);
+int egg_input_get_one(int playerid);
 
-/* Event mask is bits, (1<<EGG_EVENT_*).
- * Don't enable events you don't need! There can be some processing cost.
- * Setting the mask returns the new mask. Unknown or unavailable events will be unset.
+/* Enter interactive input configuration.
+ * On success, the game will stop updating, and will resume at some time in the future.
+ * Equivalent to launching with --configure-input.
  */
-uint32_t egg_get_event_mask();
-uint32_t egg_set_event_mask(uint32_t mask);
-
-/* Show or lock system cursor.
- * Request <0 to only query the current state.
- * Both return the new state: 0 or 1.
- * Platform won't fake it. If there's no system cursor, it is always "hidden" and "unlocked".
- * When the cursor is locked, it will report relative motion only.
- * Strongly recommend that you hide whenever locked.
- */
-int egg_show_cursor(int show);
-int egg_lock_cursor(int lock);
-
-/* Get properties for devices reportable via EGG_EVENT_RAW and EGG_EVENT_GAMEPAD.
- */
-int egg_input_device_get_name(char *dst,int dsta,int devid);
-void egg_input_device_get_ids(int *vid,int *pid,int *version,int devid);
-int egg_input_device_devid_by_index(int p);
+int egg_input_configure();
 
 /* Audio.
  *********************************************************************/

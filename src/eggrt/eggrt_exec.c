@@ -109,41 +109,17 @@
     return egg_store_key_by_index(k,ka,p);
   }
   
-  static int egg_wasm_get_events(wasm_exec_env_t ee,uint32_t dstp,int dsta) {
-    union egg_event *dstv=eggrt_wasm_get_client_memory(dstp,sizeof(union egg_event)*dsta);
-    if (!dstv) return 0;
-    return egg_get_events(dstv,dsta);
+  static int egg_wasm_input_get_one(wasm_exec_env_t ee,int playerid) {
+    return egg_input_get_one(playerid);
   }
   
-  static uint32_t egg_wasm_get_event_mask(wasm_exec_env_t ee) {
-    return egg_get_event_mask();
+  static int egg_wasm_input_get_all(wasm_exec_env_t ee,uint32_t dstp,int dsta) {
+    int *dst=eggrt_wasm_get_client_memory(dstp,sizeof(int)*dsta);
+    return egg_input_get_all(dst,dsta);
   }
   
-  static uint32_t egg_wasm_set_event_mask(wasm_exec_env_t ee,uint32_t mask) {
-    return egg_set_event_mask(mask);
-  }
-  
-  static int egg_wasm_show_cursor(wasm_exec_env_t ee,int show) {
-    return egg_show_cursor(show);
-  }
-  
-  static int egg_wasm_lock_cursor(wasm_exec_env_t ee,int lock) {
-    return egg_lock_cursor(lock);
-  }
-  
-  static int egg_wasm_input_device_get_name(wasm_exec_env_t ee,char *dst,int dsta,int devid) {
-    return egg_input_device_get_name(dst,dsta,devid);
-  }
-  
-  static void egg_wasm_input_device_get_ids(wasm_exec_env_t ee,int vidp,int pidp,int versionp,int devid) {
-    int *vid=eggrt_wasm_get_client_memory(vidp,4);
-    int *pid=eggrt_wasm_get_client_memory(pidp,4);
-    int *version=eggrt_wasm_get_client_memory(versionp,4);
-    egg_input_device_get_ids(vid,pid,version,devid);
-  }
-  
-  static int egg_wasm_input_device_devid_by_index(wasm_exec_env_t ee,int p) {
-    return egg_input_device_devid_by_index(p);
+  static int egg_wasm_input_configure(wasm_exec_env_t ee) {
+    return egg_input_configure();
   }
   
   static void egg_wasm_play_sound(wasm_exec_env_t ee,int rid,int index) {
@@ -253,14 +229,9 @@
     {"egg_store_get",egg_wasm_store_get,"(*~*~)i"},
     {"egg_store_set",egg_wasm_store_set,"(*~*~)i"},
     {"egg_store_key_by_index",egg_wasm_store_key_by_index,"(*~i)i"},
-    {"egg_get_events",egg_wasm_get_events,"(ii)i"},
-    {"egg_get_event_mask",egg_wasm_get_event_mask,"()i"},
-    {"egg_set_event_mask",egg_wasm_set_event_mask,"(i)i"},
-    {"egg_show_cursor",egg_wasm_show_cursor,"(i)i"},
-    {"egg_lock_cursor",egg_wasm_lock_cursor,"(i)i"},
-    {"egg_input_device_get_name",egg_wasm_input_device_get_name,"(*~i)i"},
-    {"egg_input_device_get_ids",egg_wasm_input_device_get_ids,"(iiii)"},
-    {"egg_input_device_devid_by_index",egg_wasm_input_device_devid_by_index,"(i)i"},
+    {"egg_input_get_one",egg_wasm_input_get_one,"(i)i"},
+    {"egg_input_get_all",egg_wasm_input_get_all,"(ii)i"},
+    {"egg_input_configure",egg_wasm_input_configure,"()i"},
     {"egg_play_sound",egg_wasm_play_sound,"(ii)"},
     {"egg_play_song",egg_wasm_play_song,"(iii)"},
     {"egg_play_sound_binary",egg_wasm_play_sound_binary,"(*~)"},
@@ -341,40 +312,17 @@
     return egg_store_key_by_index(k,ka,p);
   }
   
-  int w2c_env_egg_get_events(struct w2c_env *env,union egg_event *dst,int dsta) {
-    return egg_get_events(dst,dsta);
+  int w2c_env_egg_input_get_one(struct w2c_env *env,int playerid) {
+    return egg_input_get_one(playerid);
   }
   
-  uint32_t w2c_env_egg_get_event_mask(struct w2c_env *env) {
-    return egg_get_event_mask();
+  int w2c_env_egg_input_get_all(struct w2c_env *env,uint32_t dstp,int dsta) {
+    int *dst=HOSTADDR(dstp,sizeof(int)*dsta);
+    return egg_input_get_all(dst,dsta);
   }
   
-  uint32_t w2c_env_egg_set_event_mask(struct w2c_env *env,uint32_t mask) {
-    return egg_set_event_mask(mask);
-  }
-  
-  int w2c_env_egg_show_cursor(struct w2c_env *env,int show) {
-    return egg_show_cursor(show);
-  }
-  
-  int w2c_env_egg_lock_cursor(struct w2c_env *env,int lock) {
-    return egg_lock_cursor(lock);
-  }
-  
-  int w2c_env_egg_input_device_get_name(struct w2c_env *env,uint32_t dstp,int dsta,int devid) {
-    char *dst=HOSTADDR(dstp,dsta);
-    return egg_input_device_get_name(dst,dsta,devid);
-  }
-  
-  void w2c_env_egg_input_device_get_ids(struct w2c_env *env,uint32_t vidp,uint32_t pidp,uint32_t versionp,int devid) {
-    int *vid=HOSTADDR(vidp,4);
-    int *pid=HOSTADDR(pidp,4);
-    int *version=HOSTADDR(versionp,4);
-    return egg_input_device_get_ids(vid,pid,version,devid);
-  }
-  
-  int w2c_env_egg_input_device_devid_by_index(struct w2c_env *env,int p) {
-    return egg_input_device_devid_by_index(p);
+  int w2c_env_egg_input_configure(struct w2c_env *env) {
+    return egg_input_configure();
   }
   
   void w2c_env_egg_play_sound(struct w2c_env *env,int rid,int index) {

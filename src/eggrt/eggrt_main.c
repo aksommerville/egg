@@ -91,10 +91,16 @@ static int eggrt_update() {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error updating platform drivers.\n",eggrt.exename);
     return -2;
   }
+  
+  // Done if terminated or hard-paused.
   if (eggrt.terminate) return 0;
-  if (eggrt.hardpause) {
-    inmgr_drop_redundant_events(eggrt.inmgr);
-    return 0;
+  if (!eggrt.focus) return 0;
+  if (eggrt.debugger) {
+    if (eggrt.debugstep) {
+      eggrt.debugstep=0; // and proceed
+    } else {
+      return 0;
+    }
   }
   
   // Update client.

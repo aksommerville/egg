@@ -16,14 +16,9 @@ int egg_get_rom(void *dst,int dsta);
 int egg_store_get(char *v,int va,const char *k,int kc);
 int egg_store_set(const char *k,int kc,const char *v,int vc);
 int egg_store_key_by_index(char *k,int ka,int p);
-int egg_get_events(union egg_event *dst,int dsta);
-uint32_t egg_get_event_mask();
-void egg_set_event_mask(uint32_t mask);
-int egg_show_cursor(int show);
-int egg_lock_cursor(int lock);
-int egg_input_device_get_name(char *dst,int dsta,int devid);
-void egg_input_device_get_ids(int *vid,int *pid,int *version,int devid);
-int egg_input_device_devid_by_index(int p);
+int egg_input_get_one(int playerid);
+int egg_input_get_all(int *dst,int dsta);
+int egg_input_configure();
 void egg_play_sound(int rid,int index);
 void egg_play_song(int rid,int force,int repeat);
 void egg_play_sound_binary(const void *src,int srcc);
@@ -181,73 +176,25 @@ int egg_store_key_by_index(char *k,int ka,int p) {
   return srcc;
 }
 
-/* Get events.
+/* Input.
  */
  
-int egg_get_events(union egg_event *dst,int dsta) {
+int egg_input_get_one(int playerid) {
+  if ((playerid<0)||(playerid>=eggrt.inmgr->playerc)) return 0;
+  return eggrt.inmgr->playerv[playerid];
+}
+
+int egg_input_get_all(int *dst,int dsta) {
   if (!dst||(dsta<1)) return 0;
-  return inmgr_get_events(dst,dsta,eggrt.inmgr);
+  int dstc=eggrt.inmgr->playerc;
+  if (dstc>dsta) dstc=dsta;
+  memcpy(dst,eggrt.inmgr->playerv,sizeof(int)*dstc);
+  return dstc;
 }
 
-/* Event mask.
- */
-
-uint32_t egg_get_event_mask() {
-  return eggrt.evtmask;
-}
- 
-uint32_t egg_set_event_mask(uint32_t mask) {
-  if (mask==eggrt.evtmask) return eggrt.evtmask;
-  mask&=0x7fffffff; // So I don't need to worry what happens at overflow; event 31 should never be defined.
-  uint32_t enable=mask&~eggrt.evtmask;
-  uint32_t disable=eggrt.evtmask&~mask;
-  uint32_t bit,p;
-  for (bit=1,p=0;bit<=enable;bit<<=1,p++) {
-    if (inmgr_enable_event(eggrt.inmgr,p)>0) eggrt.evtmask|=bit;
-  }
-  for (bit=1,p=0;bit<=disable;bit<<=1,p++) {
-    if (inmgr_disable_event(eggrt.inmgr,p)>0) eggrt.evtmask&=~bit;
-  }
-  return eggrt.evtmask;
-}
-
-/* Show cursor.
- */
- 
-int egg_show_cursor(int show) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
-}
-
-/* Lock cursor.
- */
- 
-int egg_lock_cursor(int lock) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
-}
-
-/* Input device name.
- */
- 
-int egg_input_device_get_name(char *dst,int dsta,int devid) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
-}
-
-/* Input device IDs.
- */
- 
-void egg_input_device_get_ids(int *vid,int *pid,int *version,int devid) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-}
-
-/* List input devices.
- */
- 
-int egg_input_device_devid_by_index(int p) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
+int egg_input_configure() {
+  //TODO
+  return -1;
 }
 
 /* Play sound from resource.
