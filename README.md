@@ -23,6 +23,7 @@ Reasons you would *not* want to use Egg.
 - Custom synthesizer. You get beepy old-fashioned synth effects.
 - Custom renderer. You get a nice set of blitting tools. But no 3D support, custom shaders, etc.
 - Enormous data set. You're limited to 64k resources of each type and 4 MB per resource.
+- Input from sources other than gamepads. eg Mouse, Touch, or digested text from keyboards.
 
 ## Features
 
@@ -33,7 +34,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - Fast load time.
 - Pixelly sprites and beepy music, and no recorded sound effects or music.
 - - High resolution video and recorded sound should be possible, but I'm not optimizing for those.
-- Uniform input. I consider the Standard Mapping Gamepad canonical. We'll also support keyboard, mouse, touch, and accelerometer.
+- Uniform input. I consider the Standard Mapping Gamepad canonical.
 - Portable. Build self-contained executables for web and any native platform where you can run eggdev.
 - Easy eject. If a project outgrows Egg, you have the source. You can drop the Egg Runtime source in your project and season to taste, if need be.
 
@@ -44,26 +45,26 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Dev tool.
 - - [ ] validate: sounds
 - - [ ] Synth helper. Maybe as part of 'serve'.
+- - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - [ ] Editor.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.
 - - [ ] Sound effects.
 - - [ ] Launch game.
 - [ ] Native runner.
-- - [x] Timing
-- - [x] Egg API (audio, video, input are stubs)
-- - [x] Persistence
 - - [ ] Synthesizer
-- - [x] Renderer
-- - [x] Drivers
-- - [x] Input manager
 - - [ ] Live input mapping
 - - [ ] Save and load input templates.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.
-- [x] Remove bring-your-own-synthesizer from API. It's too risky and too complicated. (despite having proven that it technically can work).
-- [x] We might need to implement fwrite in addition to fprintf, I've seen clang substituting it when there's no formatting involved.
+- - [x] Execution.
+- - [ ] Render.
+- - [ ] Synth.
+- - [ ] Input.
+- - [ ] Input config.
 - [ ] Rich set of client-side helper libraries.
 - [ ] Example projects.
 - [ ] Validate eject.
+- [ ] Web Video could also be implemented without much fuss in CanvasRenderingContext2D. Is there any reason to provide both?
+- [ ] Consider adding a uniform "linearFilter" parameter to mode7 blit.

@@ -211,20 +211,6 @@ void egg_play_song(int rid,int force,int repeat) {
   fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
 }
 
-/* Play sound from serial data.
- */
- 
-void egg_play_sound_binary(const void *src,int srcc) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-}
-
-/* Play song from serial data.
- */
- 
-void egg_play_song_binary(const void *src,int srcc,int force,int repeat) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-}
-
 /* Generic audio event.
  */
  

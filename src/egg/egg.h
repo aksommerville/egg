@@ -162,15 +162,12 @@ int egg_input_configure();
  *********************************************************************/
 
 /* Entry points to the built-in synthesizer.
- * Sounds and songs are usually pulled from the ROM file; you just supply their ID.
- * You may also call the "_binary" versions to play something generated client-side.
+ * Sounds and songs are pulled from the ROM file; you just supply their ID.
  * egg_audio_event() allows you to send raw MIDI events into the bus.
  * Beware that they may conflict with the song; avoiding that is up to you.
  */
 void egg_play_sound(int rid,int index);
 void egg_play_song(int rid,int force,int repeat);
-void egg_play_sound_binary(const void *src,int srcc);
-void egg_play_song_binary(const void *src,int srcc,int force,int repeat);
 void egg_audio_event(int chid,int opcode,int a,int b,int durms);
 
 /* Get the current song playhead in seconds, or move it to a given time.

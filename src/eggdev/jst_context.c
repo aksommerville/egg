@@ -351,6 +351,12 @@ static int jst_const(struct jst_context *ctx,const char *src,int srcc) {
     const char *k=token;
     int kc=tokenc;
     
+    // Actually, the first token can also be '[' or '{' for destructuring assignment. Don't touch those.
+    if (!started&&(kc==1)&&((k[0]=='[')||(k[0]=='{'))) {
+      if (sr_encode_raw(ctx->dst,"const",5)<0) return -1;
+      return 0;
+    }
+    
     // Next must be '='.
     NEXT
     if ((tokenc!=1)||(token[0]!='=')) return jst_error(ctx,token,"Expected '=' before '%.*s'",tokenc,token);

@@ -1,11 +1,55 @@
+import { Rom } from "./js/Rom.js";
+import { Runtime } from "./js/Runtime.js";
+
+function reprError(error) {
+  if (!error) return "A fatal error occurred (no detail).";
+  if (typeof(error) === "string") return error;
+  if (error.stack) return error.stack;
+  if (error.message) return error.message;
+  return JSON.stringify(error, null, 2);
+}
+
+function reportError(error) {
+  console.error(error);
+  const element = document.querySelector(".error");
+  element.innerText = reprError(error);
+  element.style.display = "block";
+}
+
+function launchEgg(serial) {
+  let runtime;
+  return Promise.resolve().then(() => {
+    const canvas = document.getElementById("egg-canvas");
+    if (!canvas) throw new Error("Canvas not found.");
+    const rom = new Rom(serial);
+    runtime = new Runtime(rom, canvas);
+    console.log(`launchEgg`, { rom, serial, runtime });
+    return runtime.load();
+  }).then(() => {
+    runtime.start();
+  });
+}
+
+/* Main bootstrap.
+ * Acquire the encoded ROM (possibly base64-encoded too), and give it to launchEgg.
+ */
 window.addEventListener("load", () => {
-  const canvas = document.getElementById("egg-canvas");
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#08f";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(canvas.width, canvas.height);
-  ctx.strokeStyle = "#fff";
-  ctx.stroke();
+  const romElement = document.querySelector("egg-rom");
+  let launchPromise;
+  if (romElement) {
+    launchPromise = launchEgg(romElement.innerText);
+  /*IGNORE{*/
+  } else if (1) {
+    launchPromise = fetch("/api/make/demo.egg").then(rsp => {
+      if (!rsp.ok) return rsp.text().then(body => { throw body; });
+      return rsp.arrayBuffer();
+    }).then(rom => {
+      return launchEgg(rom);
+    });
+  /*}IGNORE*/
+  } else {
+    launchPromise = Promise.reject('ROM not found');
+  }
+  launchPromise.then(() => {
+  }).catch(e => reportError(e));
 }, { once: true });

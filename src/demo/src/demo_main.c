@@ -37,9 +37,14 @@ static void test_full_api() {
   
   // Storage.
   {
-    uint8_t rom[4]; // won't be long enough.
-    int romc=egg_get_rom(&rom,sizeof(rom));
+    int romc=egg_get_rom(0,0);
     fprintf(stderr,"egg_get_rom(): %d\n",romc);
+    uint8_t *rom=malloc(romc);
+    if (rom) {
+      egg_get_rom(rom,romc);
+      fprintf(stderr,"ROM signature: %02x %02x %02x %02x\n",rom[0],rom[1],rom[2],rom[3]);
+      free(rom);
+    }
   }
   {
     char tmp[256];
@@ -57,8 +62,6 @@ static void test_full_api() {
   // Audio.
   egg_play_sound(1,2);
   egg_play_song(1,0,1);
-  egg_play_sound_binary(0,0);
-  egg_play_song_binary(0,0,0,1);
   egg_audio_event(0,0x90,0x48,0x40,500);
   fprintf(stderr,"egg_audio_get_playhead(): %f\n",egg_audio_get_playhead());
   egg_audio_set_playhead(4.0);

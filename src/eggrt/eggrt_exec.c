@@ -130,14 +130,6 @@
     egg_play_song(rid,force,repeat);
   }
   
-  static void egg_wasm_play_sound_binary(wasm_exec_env_t ee,const void *src,int srcc) {
-    egg_play_sound_binary(src,srcc);
-  }
-  
-  static void egg_wasm_play_song_binary(wasm_exec_env_t ee,const void *src,int srcc,int force,int repeat) {
-    egg_play_song_binary(src,srcc,force,repeat);
-  }
-  
   static void egg_wasm_audio_event(wasm_exec_env_t ee,int chid,int opcode,int a,int b,int durms) {
     egg_audio_event(chid,opcode,a,b,durms);
   }
@@ -234,8 +226,6 @@
     {"egg_input_configure",egg_wasm_input_configure,"()i"},
     {"egg_play_sound",egg_wasm_play_sound,"(ii)"},
     {"egg_play_song",egg_wasm_play_song,"(iii)"},
-    {"egg_play_sound_binary",egg_wasm_play_sound_binary,"(*~)"},
-    {"egg_play_song_binary",egg_wasm_play_song_binary,"(*~ii)"},
     {"egg_audio_event",egg_wasm_audio_event,"(iiiii)"},
     {"egg_audio_get_playhead",egg_wasm_audio_get_playhead,"()F"},
     {"egg_audio_set_playhead",egg_wasm_audio_set_playhead,"(F)"},
@@ -331,16 +321,6 @@
   
   void w2c_env_egg_play_song(struct w2c_env *env,int rid,int force,int repeat) {
     egg_play_song(rid,force,repeat);
-  }
-  
-  void w2c_env_egg_play_sound_binary(struct w2c_env *env,uint32_t srcp,int srcc) {
-    const void *src=HOSTADDR(srcp,srcc);
-    egg_play_sound_binary(src,srcc);
-  }
-  
-  void w2c_env_egg_play_song_binary(struct w2c_env *env,uint32_t srcp,int srcc,int force,int repeat) {
-    const void *src=HOSTADDR(srcp,srcc);
-    egg_play_song_binary(src,srcc,force,repeat);
   }
   
   void w2c_env_egg_audio_event(struct w2c_env *env,int chid,int opcode,int a,int b,int durms) {
