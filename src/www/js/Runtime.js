@@ -32,11 +32,14 @@ export class Runtime {
     this.pendingUpdate = null;
     this.lastFrameTime = 0; // s
     this.storePrefix = (this.rom.getMetadata("title") || "eggGame") + ".";
-    
+    this.hardPause = false;
+    this.step = 0; // >0 to advance so many video frames despite (hardPause).
+    /* XXX We shouldn't need this now; press Escape to terminate or F12 to pause.
     this.canvas.addEventListener("click", () => {
       console.log("XXX TEMP: Stopping Runtime due to click in canvas.");
       this.stop();
     });
+    /**/
   }
   
   /* Public: Startup and shutdown.
@@ -81,6 +84,28 @@ export class Runtime {
     this.status = "stopped";
   }
   
+  toggleFullscreen() {
+    console.log(`TODO Runtime.toggleFullscreen`);
+  }
+  
+  toggleHardPause() {
+    console.log(`Runtime.toggleHardPause`);
+    this.hardPause = !this.hardPause;
+    this.step = 0;
+  }
+  
+  saveState() {
+    console.log(`TODO Runtime.saveState`);
+  }
+  
+  loadState() {
+    console.log(`TODO Runtime.loadState`);
+  }
+  
+  screencap() {
+    console.log(`TODO Runtime.screencap`);
+  }
+  
   /* Private: Maintenance.
    ***********************************************************************/
    
@@ -108,7 +133,11 @@ export class Runtime {
     }
     this.lastUpdateTime = now;
     
-    //TODO Hard-pause and frame step.
+    // Enforce hard-pause.
+    if (this.hardPause) {
+      if (this.step < 1) return this.scheduleUpdate();
+      this.step--;
+    }
     
     // Update all the things.
     this.input.update();

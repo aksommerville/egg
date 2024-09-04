@@ -58,16 +58,11 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.
-- - [x] Execution.
-- - [x] Render.
 - - [ ] Synth.
-- - [ ] Input.
 - - [ ] Input config.
-- - [x] ImageDecoder: qoi, rawimg, and rlead
 - [ ] Rich set of client-side helper libraries.
 - [ ] Example projects.
 - [ ] Validate eject.
-- [ ] Web Video could also be implemented without much fuss in CanvasRenderingContext2D. Is there any reason to provide both?
 - [ ] Consider adding a uniform "linearFilter" parameter to mode7 blit.
 
 ## Third-Party Code
