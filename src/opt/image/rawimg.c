@@ -5,6 +5,25 @@
 #include <limits.h>
 #include <stdint.h>
 
+/* Decode, header only.
+ */
+ 
+int rawimg_decode_header(struct image *image,const void *_src,int srcc) {
+  const uint8_t *src=_src;
+  if (srcc<9) return 0;
+  if (memcmp(src,"\x00rIm",4)) return 0;
+  image->w=(src[4]<<8)|src[5];
+  image->h=(src[6]<<8)|src[7];
+  if ((image->w<1)||(image->w>0x7fff)||(image->h<1)||(image->h>0x7fff)) return -1;
+  switch (image->pixelsize=src[8]) {
+    case 1: case 2: case 4: case 8: case 16: case 24: case 32: case 40: case 48: case 56: case 64: break;
+    default: return -1;
+  }
+  image->stride=(image->w*image->pixelsize+7)>>3;
+  if (image->stride>INT_MAX/image->h) return -1;
+  return image->h*image->stride;
+}
+
 /* Decode.
  */
 

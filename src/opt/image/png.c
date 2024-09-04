@@ -268,6 +268,53 @@ struct image *png_decode(const void *_src,int srcc) {
   return image;
 }
 
+/* Decode PNG, header only.
+ */
+ 
+int png_decode_header(struct image *dst,const void *_src,int srcc) {
+  const uint8_t *src=_src;
+  if ((srcc<8)||memcmp(src,"\x89PNG\r\n\x1a\n",8)) return -1;
+  int srcp=8;
+  for (;;) {
+    if (srcp>srcc-8) return -1;
+    int chunklen=(src[srcp]<<24)|(src[srcp+1]<<16)|(src[srcp+2]<<8)|src[srcp+3];
+    const uint8_t *chunkid=src+srcp+4;
+    srcp+=8;
+    if ((chunklen<0)||(srcp>srcc-chunklen)) return -1;
+    if (!memcmp(chunkid,"IHDR",4)) {
+      if (chunklen<13) return -1;
+      int w=(src[srcp]<<24)|(src[srcp+1]<<16)|(src[srcp+2]<<8)|src[srcp+3];
+      int h=(src[srcp+4]<<24)|(src[srcp+5]<<16)|(src[srcp+6]<<8)|src[srcp+7];
+      int depth=src[srcp+8];
+      int colortype=src[srcp+9];
+      if ((w<1)||(w>0x7fff)||(h<1)||(h>0x7fff)) return -1;
+      int chanc;
+      switch (colortype) {
+        case 0: chanc=1; break;
+        case 2: chanc=3; break;
+        case 3: chanc=1; break;
+        case 4: chanc=2; break;
+        case 6: chanc=4; break;
+        default: return -1;
+      }
+      int pixelsize=depth*chanc;
+      switch (pixelsize) {
+        case 1: case 2: case 4: case 8: case 16: case 24: case 32: case 48: case 64: break;
+        default: return -1;
+      }
+      int stride=(w*pixelsize+7)>>3;
+      if (stride>INT_MAX/h) return -1;
+      dst->w=w;
+      dst->h=h;
+      dst->stride=stride;
+      dst->pixelsize=pixelsize;
+      return stride*h;
+    }
+    srcp+=chunklen;
+    srcp+=4;
+  }
+}
+
 /* Encoder context.
  */
  

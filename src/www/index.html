@@ -8,8 +8,16 @@
 <script type="module" src="./bootstrap.js"></script>
 <style>
 html {
-  background-color: #444;
+  background-color: #000;
   color: #fff;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
 }
 .error {
   position: fixed;
@@ -22,9 +30,14 @@ html {
   display: none;
   font-family: monospace;
 }
+canvas {
+  width: 960px;/*TODO Dynamically update with a multiple of framebuffer width, smaller than body. */
+  height: 100vh;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
 </style>
 </head><body>
-<h1>TODO: Egg Dev Server</h1>
 <canvas id="egg-canvas"></canvas>
 <div class="error"></div>
 </body></html>

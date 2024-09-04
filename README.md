@@ -59,12 +59,30 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.
 - - [x] Execution.
-- - [ ] Render.
+- - [x] Render.
 - - [ ] Synth.
 - - [ ] Input.
 - - [ ] Input config.
+- - [ ] ImageDecoder: qoi, rawimg, and rlead
 - [ ] Rich set of client-side helper libraries.
 - [ ] Example projects.
 - [ ] Validate eject.
 - [ ] Web Video could also be implemented without much fuss in CanvasRenderingContext2D. Is there any reason to provide both?
 - [ ] Consider adding a uniform "linearFilter" parameter to mode7 blit.
+
+## Third-Party Code
+
+Dependencies required for build:
+- The usual gcc tools (gcc, make, ...)
+- LLVM with wasm32 support, for compiling ROMs.
+- [wasm-micro-runtime](https://github.com/bytecodealliance/wasm-micro-runtime)
+- [WABT](https://github.com/WebAssembly/wabt)
+- (Optional) pulse
+- (Optional) libasound
+- (Optional) libdrm, libgbm
+- GLESv2
+- zlib
+
+Code baked into our source:
+- zlib.js by imaya. [Source](https://github.com/imaya/zlib.js). In the Web runtime.
+- [Newlib](https://sourceware.org/newlib/). In client libraries.

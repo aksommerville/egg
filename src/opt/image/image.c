@@ -28,6 +28,19 @@ struct image *image_decode(const void *src,int srcc) {
   return 0;
 }
 
+/* Decode header, any format.
+ */
+ 
+int image_decode_header(struct image *dst,const void *src,int srcc) {
+  if (!dst||!src||(srcc<1)) return -1;
+  switch (image_format_guess(src,srcc)) {
+    #define _(tag) case IMAGE_FORMAT_##tag: return tag##_decode_header(dst,src,srcc);
+    IMAGE_FORMAT_FOR_EACH
+    #undef _
+  }
+  return -1;
+}
+
 /* Encode.
  */
  

@@ -5,6 +5,24 @@
 #include <limits.h>
 #include <stdint.h>
 
+/* Decode, header only.
+ */
+ 
+int qoi_decode_header(struct image *image,const void *_src,int srcc) {
+  const uint8_t *src=_src;
+  if ((srcc<12)||memcmp(src,"qoif",4)) return -1;
+  int w=(src[4]<<24)|(src[5]<<16)|(src[6]<<8)|src[7];
+  int h=(src[8]<<24)|(src[9]<<16)|(src[10]<<8)|src[11];
+  if ((w<1)||(w>0x7fff)||(h<1)||(h>0x7fff)) return -1;
+  int stride=w<<2;
+  if (stride>INT_MAX/h) return -1;
+  image->w=w;
+  image->h=h;
+  image->stride=stride;
+  image->pixelsize=32;
+  return stride*h;
+}
+
 /* Decode.
  */
 

@@ -55,6 +55,11 @@ void image_del(struct image *image);
 
 struct image *image_decode(const void *src,int srcc);
 
+/* Decode just the header, populating (w,h,stride,pixelsize,hint) but not (v).
+ * Returns the total length, ie (stride*h).
+ */
+int image_decode_header(struct image *dst,const void *src,int srcc);
+
 struct image *image_new_alloc(int pixelsize,int w,int h);
 
 /* Generically rewrite an image in place.
@@ -84,6 +89,7 @@ static inline int image_get_pixels_length(const struct image *image) {
 int image_encode(struct sr_encoder *dst,struct image *image,int format);
 
 #define _(tag) \
+  int tag##_decode_header(struct image *dst,const void *src,int srcc); \
   struct image *tag##_decode(const void *src,int srcc); \
   int tag##_encode(struct sr_encoder *dst,struct image *image);
 IMAGE_FORMAT_FOR_EACH

@@ -7,6 +7,14 @@ import { Exec } from "./Exec.js";
 import { Video } from "./Video.js";
 import { Audio } from "./Audio.js";
 import { Input } from "./Input.js";
+import { ImageDecoder } from "./ImageDecoder.js";
+
+/* The ideal update interval is 1/60 seconds, about 0.017.
+ * If they come in too fast, we skip some frames.
+ * If they come in too slow, we lie about the elapsed time and let the game run slow.
+ */
+const MINIMUM_UPDATE_TIME = 0.010;
+const MAXIMUM_UPDATE_TIME = 0.040;
 
 export class Runtime {
   constructor(rom, canvas) {
@@ -16,6 +24,7 @@ export class Runtime {
     this.video = new Video(this);
     this.audio = new Audio(this);
     this.input = new Input(this);
+    this.imageDecoder = new ImageDecoder();
     this.status = "new"; // "new" "loaded" "running" "stopped"
     this.exitStatus = 0;
     this.terminate = false;
@@ -23,6 +32,11 @@ export class Runtime {
     this.pendingUpdate = null;
     this.lastFrameTime = 0; // s
     this.storePrefix = (this.rom.getMetadata("title") || "eggGame") + ".";
+    
+    this.canvas.addEventListener("click", () => {
+      console.log("XXX TEMP: Stopping Runtime due to click in canvas.");
+      this.stop();
+    });
   }
   
   /* Public: Startup and shutdown.
@@ -116,8 +130,7 @@ export class Runtime {
     const iconRid = +this.rom.getMetadata("iconImage", 0);
     if (iconRid) {
       const serial = this.rom.getResource(Rom.TID_image, iconRid);
-      if (serial.length) {
-        //TODO Validate PNG signature. Should we support other formats too?
+      if (this.imageDecoder.isPng(serial)) {
         const b64 = this.rom.encodeBase64(serial);
         for (const element of document.querySelectorAll("link[rel='icon']")) element.remove();
         const element = document.createElement("LINK");
@@ -252,5 +265,37 @@ export class Runtime {
   egg_input_configure() {
     console.log(`TODO Runtime.egg_input_configure`);
     return -1;
+  }
+  
+  egg_image_decode_header(wp, hp, psp, srcp, srcc) {
+    const src = this.exec.getMemory(srcp, srcc);
+    if (!src) return -1;
+    try {
+      const image = this.imageDecoder.decodeHeader(src);
+      if (wp) this.exec.mem32[wp >> 2] = image.w;
+      if (hp) this.exec.mem32[hp >> 2] = image.h;
+      if (psp) switch (image.fmt) {
+        case 1: this.exec.mem32[psp >> 2] = 32; break;
+        case 2: this.exec.mem32[psp >> 2] = 8; break;
+        case 3: this.exec.mem32[psp >> 2] = 1; break;
+      }
+      return image.stride * image.h;
+    } catch (e) {
+      return -1;
+    }
+  }
+  
+  egg_image_decode(dstp, dsta, srcp, srcc) {
+    const dst = this.exec.getMemory(dstp, dsta);
+    const src = this.exec.getMemory(srcp, srcc);
+    if (!src) return -1;
+    try {
+      const image = this.imageDecoder.decode(src);
+      const dstc = image.stride * image.h;
+      if (dst && (dstc <= dsta)) dst.set(image.v);
+      return dstc;
+    } catch (e) {
+      return -1;
+    }
   }
 }

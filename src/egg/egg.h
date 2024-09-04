@@ -191,6 +191,13 @@ void egg_audio_set_playhead(double s);
 #define EGG_XFORM_YREV 2
 #define EGG_XFORM_SWAP 4
 
+/* Decode the header or pixels of an encoded image, typically sourced from an image resource.
+ * Both return the total pixels length in bytes.
+ * This is a bit exotic. Normally you'll want egg_texture_load_image() instead.
+ */
+int egg_image_decode_header(int *w,int *h,int *pixelsize,const void *v,int c);
+int egg_image_decode(void *dst,int dsta,const void *v,int c);
+
 /* Valid texid are >0.
  * You must delete all textures you create.
  * A newly created texture has zero size.
@@ -260,6 +267,7 @@ struct egg_draw_decal {
   int16_t srcx,srcy; // Top-left.
   int16_t w,h; // Exact size in (src). Output may be swapped per xform.
   uint8_t xform;
+  uint8_t pad1;
 };
 void egg_draw_decal(int dsttexid,int srctexid,const struct egg_draw_decal *v,int c);
 

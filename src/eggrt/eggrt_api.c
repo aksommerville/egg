@@ -26,6 +26,8 @@ void egg_play_song_binary(const void *src,int srcc,int force,int repeat);
 void egg_audio_event(int chid,int opcode,int a,int b,int durms);
 double egg_audio_get_playhead();
 void egg_audio_set_playhead(double s);
+int egg_image_decode_header(int *w,int *h,int *pixelsize,const void *v,int c);
+int egg_image_decode(void *dst,int dsta,const void *v,int c);
 void egg_texture_del(int texid);
 int egg_texture_new();
 int egg_texture_get_status(int *w,int *h,int texid);
@@ -227,6 +229,28 @@ double egg_audio_get_playhead() {
 
 void egg_audio_set_playhead(double s) {
   fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+}
+
+/* Image decoder.
+ */
+ 
+int egg_image_decode_header(int *w,int *h,int *pixelsize,const void *v,int c) {
+  struct image image={0};
+  int len=image_decode_header(&image,v,c);
+  if (len<=0) return -1;
+  if (w) *w=image.w;
+  if (h) *h=image.h;
+  if (pixelsize) *pixelsize=image.pixelsize;
+  return len;
+}
+
+int egg_image_decode(void *dst,int dsta,const void *v,int c) {
+  struct image *image=image_decode(v,c);
+  if (!image) return -1;
+  int dstc=image->stride*image->h;
+  if (dstc<=dsta) memcpy(dst,image->v,dstc);
+  image_del(image);
+  return dstc;
 }
 
 /* Textures.

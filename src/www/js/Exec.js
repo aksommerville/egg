@@ -32,6 +32,8 @@ export class Exec {
       egg_audio_event: (chid, op, a, b, dms) => this.rt.audio.egg_audio_event(chid, op, a, b, dms),
       egg_audio_get_playhead: () => this.rt.audio.egg_audio_get_playhead(),
       egg_audio_set_playhead: s => this.rt.audio.egg_audio_set_playhead(s),
+      egg_image_decode_header: (wp, hp, psp, srcp, srcc) => this.rt.egg_image_decode_header(wp, hp, psp, srcp, srcc),
+      egg_image_decode: (dstp, dsta, srcp, srcc) => this.rt.egg_image_decode(dstp, dsta, srcp, srcc),
       egg_texture_del: texid => this.rt.video.egg_texture_del(texid),
       egg_texture_new: () => this.rt.video.egg_texture_new(),
       egg_texture_get_status: (wp, hp, texid) => this.rt.video.egg_texture_get_status(wp, hp, texid),
@@ -46,7 +48,7 @@ export class Exec {
       egg_draw_trig: (dt, vp, c) => this.rt.video.egg_draw_trig(dt, vp, c),
       egg_draw_decal: (dt, st, vp, c) => this.rt.video.egg_draw_decal(dt, st, vp, c),
       egg_draw_tile: (dt, st, vp, c) => this.rt.video.egg_draw_tile(dt, st, vp, c),
-      egg_draw_mode7: (dt, st, vp, c) => this.rt.video.egg_draw_mode7(dt, sr, vp, c),
+      egg_draw_mode7: (dt, st, vp, c) => this.rt.video.egg_draw_mode7(dt, st, vp, c),
     }};
     return WebAssembly.instantiate(serial, options).then(result => {
       const yoink = name => {

@@ -128,6 +128,25 @@ struct image *rlead_decode(const void *_src,int srcc) {
   return image;
 }
 
+/* Decode header.
+ */
+ 
+int rlead_decode_header(struct image *image,const void *_src,int srcc) {
+  const uint8_t *src=_src;
+  if (srcc<9) return 0;
+  if (memcmp(src,"\x00rld",4)) return 0;
+  int w=(src[4]<<8)|src[5];
+  int h=(src[6]<<8)|src[7];
+  if ((w<1)||(w>0x7fff)||(h<1)||(h>0x7fff)) return -1;
+  int stride=(w+7)>>3;
+  if (stride>INT_MAX/h) return -1;
+  image->w=w;
+  image->h=h;
+  image->stride=stride;
+  image->pixelsize=1;
+  return image->stride*image->h;
+}
+
 /* Encoder context.
  */
  
