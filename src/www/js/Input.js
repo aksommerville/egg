@@ -10,12 +10,27 @@ export class Input {
    *******************************************************************************/
   
   start() {
+    this.keyListener = e => this.onKey(e);
+    window.addEventListener("keydown", this.keyListener);
+    window.addEventListener("keyup", this.keyListener);
   }
   
   stop() {
+    if (this.keyListener) {
+      window.removeEventListener("keydown", this.keyListener);
+      window.removeEventListener("keyup", this.keyListener);
+      this.keyListener = null;
+    }
   }
   
   update() {
+  }
+  
+  /* Keyboard.
+   ***************************************************************************/
+   
+  onKey(event) {
+    console.log(`Input.onKey`, event);
   }
   
   /* Egg Platform API.

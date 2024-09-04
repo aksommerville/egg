@@ -88,12 +88,13 @@ Header:
 
 Followed by payload, which must be read bitwise big-endianly:
  - First read a 3-bit leading word.
- - Emit so many pixels, plus 1. ie 1..8 pixels.
+ - Emit so many pixels of the current color, plus 1. ie 1..8 pixels.
  - If the leading word is 7, begin extension words:
  - - Increment word length by 1. ie first extension word is 4 bits.
  - - Read a word of that length, and emit so many pixels. Do not add 1.
  - - If the word contains a zero, the run is over.
  - - Otherwise, do another extension word (increasing the word size by 1 bit each time).
+ - Reverse the color and start over.
  
 This arrangement has a clean break-even point at 3-pixel runs.
 Meaning, runs of 1 or 2 pixels encode longer than raw, and runs of 4 or more encode smaller.

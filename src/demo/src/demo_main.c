@@ -5,6 +5,9 @@
 #define SCREENH 180
 
 static int texid_tiles8=0;
+static int texid_qoi=0;
+static int texid_rawimg=0;
+static int texid_rlead=0;
 static float xscale=1.0f;
 static float yscale=1.0f;
 static float dxscale=0.5f; // Absolute. The more logical multiplying method is complicated since we have to multiply by elapsed time.
@@ -75,6 +78,18 @@ static void test_full_api() {
   }
   if (egg_texture_load_image(texid_tiles8=egg_texture_new(),5)<0) {
     fprintf(stderr,"Failed to load image:5 (tiles8)\n");
+    egg_terminate(1);
+  }
+  if (egg_texture_load_image(texid_qoi=egg_texture_new(),6)<0) {
+    fprintf(stderr,"Failed to load image:6 (qoitest)\n");
+    egg_terminate(1);
+  }
+  if (egg_texture_load_image(texid_rawimg=egg_texture_new(),7)<0) {
+    fprintf(stderr,"Failed to load image:7 (rawimgtest)\n");
+    egg_terminate(1);
+  }
+  if (egg_texture_load_image(texid_rlead=egg_texture_new(),2)<0) {
+    fprintf(stderr,"Failed to load image:2 (font_9h_21)\n");
     egg_terminate(1);
   }
   /* TODO test video
@@ -223,5 +238,17 @@ void egg_client_render() {
     };
     egg_draw_globals(0x00000000,0xff);
     egg_draw_mode7(1,texid_tiles8,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+  }
+  {
+    struct egg_draw_decal vtxv={200, 20,0,0,32,32,0};
+    egg_draw_decal(1,texid_qoi,&vtxv,1);
+  }
+  {
+    struct egg_draw_decal vtxv={200, 60,0,0,32,32,0};
+    egg_draw_decal(1,texid_rawimg,&vtxv,1);
+  }
+  {
+    struct egg_draw_decal vtxv={200,100,0,0,84,54,0};
+    egg_draw_decal(1,texid_rlead,&vtxv,1);
   }
 }

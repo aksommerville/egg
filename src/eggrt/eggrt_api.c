@@ -289,9 +289,16 @@ int egg_texture_load_serial(int texid,const void *src,int srcc) {
   struct image *image=image_decode(src,srcc);
   if (!image) return -1;
   int fmt=EGG_TEX_FMT_RGBA;
-  if (image_force_rgba(image)<0) {
-    image_del(image);
-    return -1;
+  switch (image->pixelsize) {
+    case 1: fmt=EGG_TEX_FMT_A1; break;
+    case 8: fmt=EGG_TEX_FMT_A8; break;
+    case 32: break;
+    default: {
+        if (image_force_rgba(image)<0) {
+          image_del(image);
+          return -1;
+        }
+      }
   }
   int err=egg_texture_load_raw(texid,fmt,image->w,image->h,image->stride,image->v,image->stride*image->h);
   image_del(image);

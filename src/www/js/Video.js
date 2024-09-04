@@ -17,7 +17,6 @@ export class Video {
   load() {
     const [fbw, fbh] = this.rt.rom.getMetadata("fb").split('x').map(v => +v);
     if (isNaN(fbw) || (fbw < 1) || (fbw > 4096) || isNaN(fbh) || (fbh < 1) || (fbh > 4096)) throw new Error("Invalid framebuffer size.");
-    console.log(`Video.load: framebuffer ${fbw} x ${fbh}`);
     this.rt.canvas.width = fbw;
     this.rt.canvas.height = fbh;
     this.gl = this.rt.canvas.getContext("webgl");
@@ -48,7 +47,6 @@ export class Video {
     ) throw new Error(`Failed to create main framebuffer.`);
     
     this.compileShaders();
-    console.log(`...Video.load`, this);
   }
   
   start() {
@@ -151,6 +149,25 @@ export class Video {
     }
   }
   
+  expandOneBit(src, w, h, stride) {
+    const dst = new Uint8Array(w * h * 4);
+    for (let yi=h, dstp=0, srcrowp=0; yi-->0; srcrowp+=stride) {
+      for (let xi=w, srcp=srcrowp, srcmask=0x80; xi-->0; ) {
+        dst[dstp++] = 0x00;
+        dst[dstp++] = 0x00;
+        dst[dstp++] = 0x00;
+        if (src[srcp] & srcmask) {
+          dst[dstp++] = 0xff;
+        } else {
+          dst[dstp++] = 0x00;
+        }
+        if (srcmask === 1) { srcmask = 0x80; srcp++; }
+        else srcmask >>= 1;
+      }
+    }
+    return dst;
+  }
+  
   loadTexture(tex, fmt, w, h, stride, src) {
     
     if ((w < 1) || (w > Video.TEXTURE_SIZE_LIMIT) || (h < 1) || (h > Video.TEXTURE_SIZE_LIMIT)) return -1;
@@ -162,7 +179,11 @@ export class Video {
     switch (fmt) {
       case Video.TEX_FMT_RGBA: break;
       case Video.TEX_FMT_A8: ifmt = this.gl.ALPHA; glfmt = this.gl.ALPHA; minstride = w; break;
-      case Video.TEX_FMT_A1: return -1; // TODO
+      case Video.TEX_FMT_A1: {
+          if (src) src = this.expandOneBit(src, w, h, stride);
+          fmt = Video.TEX_FMT_RGBA;
+          stride = w << 2;
+        } break;
       default: return -1;
     }
     if (src) {
@@ -197,7 +218,6 @@ export class Video {
     if (!src?.length) return -1;
     const tex = this.textures[texid];
     if (!tex) return -1;
-    console.log(`TODO Video.loadTextureSerial`, { texid, tex, src });
     try {
       const image = this.rt.imageDecoder.decode(src);
       return this.loadTexture(tex, image.fmt, image.w, image.h, image.stride, image.v);

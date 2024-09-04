@@ -1,7 +1,6 @@
 /* ImageDecoder.js
  * Would be awesome if we could use browser facilities for this but alas
  * that is not possible because we have to be synchronous.
- * TODO Add qoi, rawimg, and rlead. Those are easy to do synchronously, and our tooling does produce them.
  */
  
 import { imaya } from "./inflate.min.js";
@@ -15,6 +14,9 @@ export class ImageDecoder {
    */
   decodeHeader(src) {
     if (this.isPng(src)) return this.decodeHeaderPng(src);
+    if (this.isQoi(src)) return this.decodeHeaderQoi(src);
+    if (this.isRlead(src)) return this.decodeHeaderRlead(src);
+    if (this.isRawimg(src)) return this.decodeHeaderRawimg(src);
     throw new Error(`Image format unknown`);
   }
   
@@ -23,6 +25,9 @@ export class ImageDecoder {
    */
   decode(src) {
     if (this.isPng(src)) return this.decodePng(src);
+    if (this.isQoi(src)) return this.decodeQoi(src);
+    if (this.isRlead(src)) return this.decodeRlead(src);
+    if (this.isRawimg(src)) return this.decodeRawimg(src);
     throw new Error(`Image format unknown`);
   }
   
@@ -354,5 +359,286 @@ export class ImageDecoder {
         } break;
     }
     return () => 0;
+  }
+  
+  /* QOI.
+   *******************************************************************/
+   
+  isQoi(src) {
+    if (src.length < 14) return 0;
+    if (src[0] !== 0x71) return 0;
+    if (src[1] !== 0x6f) return 0;
+    if (src[2] !== 0x69) return 0;
+    if (src[3] !== 0x66) return 0;
+    return 1;
+  }
+  
+  decodeHeaderQoi(src) {
+    if (src.length < 14) throw new Error("Invalid QOI");
+    const w = (src[4] << 24) | (src[5] << 16) | (src[6] << 8) | src[7];
+    const h = (src[8] << 24) | (src[9] << 16) | (src[10] << 8) | src[11];
+    if ((w < 1) || (w > 0x7fff) || (h < 1) || (h > 0x7fff)) throw new Error("Invalid QOI");
+    return { w, h, stride:w<<2, fmt:1 };
+  }
+  
+  decodeQoi(src) {
+    if (src.length < 14) throw new Error("Invalid QOI");
+    const w = (src[4] << 24) | (src[5] << 16) | (src[6] << 8) | src[7];
+    const h = (src[8] << 24) | (src[9] << 16) | (src[10] << 8) | src[11];
+    if ((w < 1) || (w > 0x7fff) || (h < 1) || (h > 0x7fff)) throw new Error("Invalid QOI");
+    
+    const dstc = w * h * 4;
+    const dst = new Uint8Array(dstc);
+    const cache = new Uint8Array(64 * 4);
+    const prev = [0, 0, 0, 0xff];
+    let dstp=0, srcp=14;
+    const prevToCache = () => {
+      let p = (prev[0] * 3 + prev[1] * 5 + prev[2] * 7 + prev[3] * 11) & 0x3f;
+      p <<= 2;
+      cache[p++] = prev[0];
+      cache[p++] = prev[1];
+      cache[p++] = prev[2];
+      cache[p] = prev[3];
+    };
+    
+    while ((dstp < dstc) && (srcp < src.length)) {
+      const lead = src[srcp++];
+      
+      if (lead === 0xfe) { // QOI_OP_RGB
+        const r = src[srcp++];
+        const g = src[srcp++];
+        const b = src[srcp++];
+        dst[dstp++] = prev[0] = r;
+        dst[dstp++] = prev[1] = g;
+        dst[dstp++] = prev[2] = b;
+        dst[dstp++] = prev[3];
+        prevToCache();
+        continue;
+      }
+      
+      if (lead === 0xff) { // QOI_OP_RGBA
+        const r = src[srcp++];
+        const g = src[srcp++];
+        const b = src[srcp++];
+        const a = src[srcp++];
+        dst[dstp++] = prev[0] = r;
+        dst[dstp++] = prev[1] = g;
+        dst[dstp++] = prev[2] = b;
+        dst[dstp++] = prev[3] = a;
+        prevToCache();
+        continue;
+      }
+      
+      switch (lead & 0xc0) {
+        case 0x00: { // QOI_OP_INDEX
+            let p = lead << 2;
+            dst[dstp++] = prev[0] = cache[p++];
+            dst[dstp++] = prev[1] = cache[p++];
+            dst[dstp++] = prev[2] = cache[p++];
+            dst[dstp++] = prev[3] = cache[p];
+          } continue;
+          
+        case 0x40: { // QOI_OP_DIFF
+            const dr = ((lead >> 4) & 3) - 2;
+            const dg = ((lead >> 2) & 3) - 2;
+            const db = (lead & 3) - 2;
+            prev[0] += dr;
+            prev[1] += dg;
+            prev[2] += db;
+            dst[dstp++] = prev[0];
+            dst[dstp++] = prev[1];
+            dst[dstp++] = prev[2];
+            dst[dstp] = prev[3];
+            prevToCache();
+          } continue;
+         
+        case 0x80: { // QOI_OP_LUMA
+            const dg = (lead & 0x3f) - 32;
+            const dr = (src[srcp] >> 4) - 8 + dg;
+            const db = (src[srcp] & 15) - 8 + dg;
+            srcp++;
+            prev[0] += dr;
+            prev[1] += dg;
+            prev[2] += db;
+            dst[dstp++] = prev[0];
+            dst[dstp++] = prev[1];
+            dst[dstp++] = prev[2];
+            dst[dstp] = prev[3];
+            prevToCache();
+          } continue;
+          
+        case 0xc0: { // QOI_OP_RUN
+            let c = (lead & 0x3f) + 1;
+            while (c-- > 0) {
+              dst[dstp++] = prev[0];
+              dst[dstp++] = prev[1];
+              dst[dstp++] = prev[2];
+              dst[dstp++] = prev[3];
+            }
+          } continue;
+      }
+    }
+    return { v:dst, w, h, stride:w<<2, fmt:1 };
+  }
+  
+  /* RLEAD.
+   ***********************************************************************/
+   
+  isRlead(src) {
+    if (src.length < 9) return 0;
+    if ((src[0] !== 0x00) || (src[1] !== 0x72) || (src[2] !== 0x6c) || (src[3] !== 0x64)) return 0;
+    return 1;
+  }
+  
+  decodeHeaderRlead(src) {
+    if ((src.length < 9) || (src[0] !== 0x00) || (src[1] !== 0x72) || (src[2] !== 0x6c) || (src[3] !== 0x64)) throw new Error("Invalid RLEAD");
+    const w = (src[4] << 8) | src[5];
+    const h = (src[6] << 8) | src[7];
+    if ((w < 1) || (w > 0x7fff) || (h < 1) || (h > 0x7fff)) throw new Error("Invalid RLEAD");
+    const stride = (w + 7) >> 3;
+    return { w, h, stride, fmt:3 };
+  }
+  
+  rleadUnfilter(v, stride, h) {
+    let rp=0, wp=stride;
+    for (; wp<v.length; rp++, wp++) {
+      v[wp] ^= v[rp];
+    }
+  }
+  
+  decodeRlead(src) {
+    if ((src.length < 9) || (src[0] !== 0x00) || (src[1] !== 0x72) || (src[2] !== 0x6c) || (src[3] !== 0x64)) throw new Error("Invalid RLEAD");
+    const w = (src[4] << 8) | src[5];
+    const h = (src[6] << 8) | src[7];
+    if ((w < 1) || (w > 0x7fff) || (h < 1) || (h > 0x7fff)) throw new Error("Invalid RLEAD");
+    const stride = (w + 7) >> 3;
+    const flags = src[8];
+    const dst = new Uint8Array(stride * h);
+    let color = (flags & 2) ? 1 : 0;
+    let dstx=0, dstp=0, srcp=9, dstmask=0x80, srcmask=0x80;
+    
+    /* Reading and writing are done one bit at a time.
+     * This could be done more efficiently, but I'd probably mess it up.
+     */
+    const readBits = (len) => {
+      let word = 0;
+      while (len-- > 0) {
+        word <<= 1;
+        if (src[srcp] & srcmask) word |= 1;
+        if (srcmask === 1) { srcmask = 0x80; srcp++; }
+        else srcmask >>= 1;
+      }
+      return word;
+    };
+    const writeOnes = (len) => {
+      while (len-- > 0) {
+        dst[dstp] |= dstmask;
+        if (++dstx >= w) {
+          dstx = 0;
+          dstmask = 0x80;
+          dstp++;
+        } else if (dstmask === 1) {
+          dstmask = 0x80;
+          dstp++;
+        } else {
+          dstmask >>= 1;
+        }
+      }
+    };
+    const writeZeroes = (len) => {
+      while (len-- > 0) {
+        if (++dstx >= w) {
+          dstx = 0;
+          dstmask = 0x80;
+          dstp++;
+        } else if (dstmask === 1) {
+          dstmask = 0x80;
+          dstp++;
+        } else {
+          dstmask >>= 1;
+        }
+      }
+    };
+    
+    while ((dstp < dst.length) && (srcp < src.length)) {
+      
+      /* Acquire the next run length.
+       */
+      let runlen = 1;
+      let wordlen = 3;
+      for (;;) {
+        const word = readBits(wordlen);
+        runlen += word;
+        if (word !== (1 << wordlen) - 1) break;
+        wordlen++;
+        if (wordlen > 30) throw new Error("Invalid RLEAD");
+      }
+      
+      /* Emit the run.
+       */
+      if (color) {
+        writeOnes(runlen);
+        color = 0;
+      } else {
+        writeZeroes(runlen);
+        color = 1;
+      }
+    }
+    if (flags & 1) this.rleadUnfilter(dst, stride, h);
+    return { v:dst, w, h, stride, fmt:3 };
+  }
+  
+  /* Rawimg.
+   *******************************************************************/
+   
+  isRawimg(src) {
+    if (src.length < 9) return 0;
+    if ((src[0] !== 0x00) || (src[1] !== 0x72) || (src[2] !== 0x49) || (src[3] !== 0x6d)) return 0;
+    return 1;
+  }
+  
+  decodeHeaderRawimg(src) {
+    if ((src.length < 9) || (src[0] !== 0x00) || (src[1] !== 0x72) || (src[2] !== 0x49) || (src[3] !== 0x6d)) throw new Error("Invalid rawimg");
+    const w = (src[4] << 8) | src[5];
+    const h = (src[6] << 8) | src[7];
+    const pixelsize = src[8];
+    if ((w < 1) || (w > 0x7fff) || (h < 1) || (h > 0x7fff)) throw new Error("Invalid rawimg");
+    let fmt;
+    switch (pixelsize) {
+      case 1: fmt = 3; break;
+      case 2: fmt = 0x102; break;
+      case 4: fmt = 0x104; break;
+      case 8: fmt = 2; break;
+      case 16: fmt = 0x110; break;
+      case 24: fmt = 0x118; break;
+      case 32: fmt = 1; break;
+      default: throw new Error("Invalid rawimg");
+    }
+    const stride = (w * pixelsize + 7) >> 3;
+    return { w, h, stride, fmt };
+  }
+  
+  decodeRawimg(src) {
+    if ((src.length < 9) || (src[0] !== 0x00) || (src[1] !==0x72) || (src[2] !==0x49) || (src[3] !== 0x6d)) throw new Error("Invalid rawimg");
+    const w = (src[4] << 8) | src[5];
+    const h = (src[6] << 8) | src[7];
+    const pixelsize = src[8];
+    if ((w < 1) || (w > 0x7fff) || (h < 1) || (h > 0x7fff)) throw new Error("Invalid rawimg");
+    let fmt;
+    switch (pixelsize) {
+      case 1: fmt = 3; break;
+      case 2: fmt = 0x102; break;
+      case 4: fmt = 0x104; break;
+      case 8: fmt = 2; break;
+      case 16: fmt = 0x110; break;
+      case 24: fmt = 0x118; break;
+      case 32: fmt = 1; break;
+      default: throw new Error("Invalid rawimg");
+    }
+    const stride = (w * pixelsize + 7) >> 3;
+    const v = new Uint8Array(stride * h);
+    const pixels = new Uint8Array(src.buffer, src.byteOffset + 9, stride * h);
+    v.set(pixels);
+    return { v, w, h, stride, fmt };
   }
 }

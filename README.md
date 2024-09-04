@@ -63,7 +63,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synth.
 - - [ ] Input.
 - - [ ] Input config.
-- - [ ] ImageDecoder: qoi, rawimg, and rlead
+- - [x] ImageDecoder: qoi, rawimg, and rlead
 - [ ] Rich set of client-side helper libraries.
 - [ ] Example projects.
 - [ ] Validate eject.

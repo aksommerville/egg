@@ -160,6 +160,7 @@ static int render_minimum_stride(int w,int fmt) {
  */
  
 static void render_expand_1bit(uint32_t *dst,const uint8_t *src,int w,int h,int srcstride,uint32_t zero,uint32_t one) {
+  int zc=0,oc=0;
   int yi=h;
   for (;yi-->0;dst+=w,src+=srcstride) {
     const uint8_t *srcp=src;
@@ -167,6 +168,7 @@ static void render_expand_1bit(uint32_t *dst,const uint8_t *src,int w,int h,int 
     uint8_t mask=0x80;
     int xi=w;
     for (;xi-->0;dstp++) {
+      if ((*srcp)&mask) oc++; else zc++;
       *dstp=((*srcp)&mask)?one:zero;
       if (mask==1) { mask=0x80; srcp++; }
       else mask>>=1;

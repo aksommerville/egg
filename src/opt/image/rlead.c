@@ -4,6 +4,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 
 struct rlead_pixel_writer {
   uint8_t *dstrow;
@@ -188,7 +189,7 @@ static int rlead_emit_run(struct rlead_encoder *encoder,int runlen) {
   if (runlen<1) return -1;
   runlen--;
    
-  int range=2;
+  int range=8;
   for (;;) {
     int limit=range-1;
     if (runlen<limit) { // end of sequence, after we emit this. sic '<' not '<='
