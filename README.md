@@ -40,8 +40,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
-- [ ] Define data types.
-- - [ ] Sound effects.
+- [x] Define data types.
+- - [x] Sound effects.
 - [ ] Dev tool.
 - - [ ] validate: sounds
 - - [ ] Synth helper. Maybe as part of 'serve'.
@@ -53,6 +53,9 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Launch game.
 - [ ] Native runner.
 - - [ ] Synthesizer
+- - - [ ] Stereo.
+- - - [ ] SFG printer.
+- - - [ ] Song player.
 - - [ ] Live input mapping
 - - [ ] Save and load input templates.
 - - [ ] Config files
@@ -60,6 +63,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Web runner.
 - - [ ] Synth.
 - - [ ] Input config.
+- - [ ] Use Compression Streams API: https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API
+- - - MDN calls it "Newly available" as of 2023 but something this good is worth losing old browsers over.
 - [ ] Rich set of client-side helper libraries.
 - [ ] Example projects.
 - [ ] Validate eject.

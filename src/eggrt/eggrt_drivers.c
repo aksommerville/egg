@@ -27,7 +27,8 @@ static int hostio_cb_key(struct hostio_video *driver,int keycode,int value) {
 }
  
 static void hostio_cb_pcm_out(int16_t *v,int c,struct hostio_audio *driver) {
-  memset(v,0,c<<1);//TODO synthesizer
+  if (eggrt.synth) synth_updatei(v,c,eggrt.synth);
+  else memset(v,0,c<<1);
 }
 
 static void hostio_cb_connect(struct hostio_input *driver,int devid) {
@@ -46,9 +47,14 @@ static void hostio_cb_button(struct hostio_input *driver,int devid,int btnid,int
  */
  
 void eggrt_drivers_quit() {
+  if (hostio_audio_lock(eggrt.hostio)>=0) {
+    hostio_audio_play(eggrt.hostio,0);
+    hostio_audio_unlock(eggrt.hostio);
+  }
   render_del(eggrt.render); eggrt.render=0;
   inmgr_del(eggrt.inmgr); eggrt.inmgr=0;
   hostio_del(eggrt.hostio); eggrt.hostio=0;
+  synth_del(eggrt.synth); eggrt.synth=0;
   if (eggrt.iconstorage) free(eggrt.iconstorage);
   eggrt.iconstorage=0;
 }
@@ -173,7 +179,23 @@ static int eggrt_drivers_init_audio() {
     .buffer_size=eggrt.audio_buffer,
   };
   if (hostio_init_audio(eggrt.hostio,eggrt.audio_drivers,&setup)<0) return -1;
-  //TODO Synth.
+  if (!(eggrt.synth=synth_new(eggrt.hostio->audio->rate,eggrt.hostio->audio->chanc))) {
+    fprintf(stderr,"%s: Failed to initialize synthesizer.\n",eggrt.exename);
+    return -2;
+  }
+  
+  const struct rom_res *res=eggrt.resv;
+  int i=eggrt.resc;
+  for (;i-->0;res++) {
+    if (res->tid==EGG_TID_sounds) {
+      if (synth_install_sounds(eggrt.synth,res->rid,res->v,res->c)<0) return -1;
+    } else if (res->tid==EGG_TID_song) {
+      if (synth_install_song(eggrt.synth,res->rid,res->v,res->c)<0) return -1;
+    } else if ((res->tid>EGG_TID_sounds)&&(res->tid>EGG_TID_song)) {
+      break;
+    }
+  }
+  
   return 0;
 }
 

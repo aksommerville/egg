@@ -141,6 +141,7 @@ void egg_client_update(double elapsed) {
     _(CD)
     #undef _
     fprintf(stderr,"%.*s\n",msgc,msg);
+    if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1,35);
     pvinstate=instate;
   }
 

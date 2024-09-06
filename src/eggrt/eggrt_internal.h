@@ -7,6 +7,7 @@
 #include "opt/fs/fs.h"
 #include "opt/hostio/hostio.h"
 #include "opt/render/render.h"
+#include "opt/synth/synth.h"
 #include "inmgr/inmgr.h"
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +65,7 @@ extern struct eggrt {
   struct render *render;
   struct inmgr *inmgr;
   int fbw,fbh;
+  struct synth *synth;
   
   volatile int terminate;
   int exitstatus;

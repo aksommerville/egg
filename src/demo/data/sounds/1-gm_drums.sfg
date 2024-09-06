@@ -1,0 +1,160 @@
+begin 35 Acoustic Bass Drum
+  master 0.500
+  shape sine
+  harm 1.0 0 0.3333 0 0.2 0 0.1
+  fm 0.5 0 50 3.0 100 1.0 1000 0
+  fmlfo 6.0 1.0
+  freq 100 1150 40
+  freqlfo 2.0 600
+  level 0 50 1.0 100 0.200 1000 0
+  waveshaper -1 -0.800 0 0.800 1
+  gain 6.0 0.750 0.0
+  delay 200 0.5 0.5 0.5 0.5
+  detune 200 0.5
+  lopass 150.0
+  hipass 50.0
+  bpass 100.0 80.0
+  notch 120.0 20.0
+endvoice
+  shape square
+  freq 100 1000 40
+  level 0 50 1.0 100 0.200 850 0
+end
+
+begin 36 Bass Drum 1
+end
+
+begin 37 Side Stick
+end
+
+begin 38 Acoustic Snare
+end
+
+begin 39 Hand Clap
+end
+
+begin 40 Electric Snare
+end
+
+begin 41 Low Floor Tom
+end
+
+begin 42 Closed Hi Hat
+end
+
+begin 43 High Floor Tom
+end
+
+begin 44 Pedal Hi-Hat
+end
+
+begin 45 Low Tom
+end
+
+begin 46 Open Hi-Hat
+end
+
+begin 47 Low-Mid Tom
+end
+
+begin 48 Hi Mid Tom
+end
+
+begin 49 Crash Cymbal 1
+end
+
+begin 50 High Tom
+end
+
+begin 51 Ride Cymbal 1
+end
+
+begin 52 Chinese Cymbal
+end
+
+begin 53 Ride Bell
+end
+
+begin 54 Tambourine
+end
+
+begin 55 Splash Cymbal
+end
+
+begin 56 Cowbell
+end
+
+begin 57 Crash Cymbal 2
+end
+
+begin 58 Vibraslap
+end
+
+begin 59 Ride Cymbal 2
+end
+
+begin 60 Hi Bongo
+end
+
+begin 61 Low Bongo
+end
+
+begin 62 Mute Hi Conga
+end
+
+begin 63 Open Hi Conga
+end
+
+begin 64 Low Conga
+end
+
+begin 65 High Timbale
+end
+
+begin 66 Low Timbale
+end
+
+begin 67 High Agogo
+end
+
+begin 68 Low Agogo
+end
+
+begin 69 Cabasa
+end
+
+begin 70 Maracas
+end
+
+begin 71 Short Whistle
+end
+
+begin 72 Long Whistle
+end
+
+begin 73 Short Guiro
+end
+
+begin 74 Long Guiro
+end
+
+begin 75 Claves
+end
+
+begin 76 Hi Wood Block
+end
+
+begin 77 Low Wood Block
+end
+
+begin 78 Mute Cuica
+end
+
+begin 79 Open Cuica
+end
+
+begin 80 Mute Triangle
+end
+
+begin 81 Open Triangle
+end

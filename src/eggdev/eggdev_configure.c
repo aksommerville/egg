@@ -116,6 +116,18 @@ static void eggdev_print_help_config() {
   );
 }
 
+/* --help=dump
+ */
+ 
+static void eggdev_print_help_dump() {
+  fprintf(stderr,"\nUsage: %s dump ROM TYPE:ID\n\n",eggdev.exename);
+  fprintf(stderr,
+    "Print a hex dump of one resource to stdout.\n"
+    "If you need anything different format-wise, use 'unpack' instead. 'dump' is just a convenience.\n"
+    "\n"
+  );
+}
+
 /* --help default
  */
  
@@ -130,6 +142,7 @@ static void eggdev_print_help_default() {
     "  validate ROM|EXE|HTML|DIRECTORY\n"
     "     serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external]\n"
     "    config [KEYS...]\n"
+    "      dump ROM TYPE:ID\n"
     "\n"
   );
 }
@@ -147,6 +160,7 @@ void eggdev_print_help(const char *topic) {
   _(validate)
   _(serve)
   _(config)
+  _(dump)
   #undef _
   else eggdev_print_help_default();
 }

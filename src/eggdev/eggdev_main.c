@@ -20,6 +20,7 @@ int main(int argc,char **argv) {
   _(validate)
   _(serve)
   _(config)
+  _(dump)
   #undef _
   else {
     fprintf(stderr,"%s: Unknown command '%s'\n",eggdev.exename,eggdev.command);

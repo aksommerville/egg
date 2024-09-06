@@ -77,6 +77,7 @@ int eggdev_main_list();
 int eggdev_main_validate();
 int eggdev_main_serve();
 int eggdev_main_config();
+int eggdev_main_dump();
 
 int eggdev_compile_metadata(struct eggdev_res *res);
 int eggdev_uncompile_metadata(struct eggdev_res *res);

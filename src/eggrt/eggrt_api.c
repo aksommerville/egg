@@ -203,32 +203,50 @@ int egg_input_configure() {
  */
  
 void egg_play_sound(int rid,int index) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  if (hostio_audio_lock(eggrt.hostio)>=0) {
+    synth_play_sound(eggrt.synth,rid,index);
+    hostio_audio_unlock(eggrt.hostio);
+  }
 }
 
 /* Play song from resource.
  */
  
 void egg_play_song(int rid,int force,int repeat) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  if (hostio_audio_lock(eggrt.hostio)>=0) {
+    synth_play_song(eggrt.synth,rid,force,repeat);
+    hostio_audio_unlock(eggrt.hostio);
+  }
 }
 
 /* Generic audio event.
  */
  
 void egg_audio_event(int chid,int opcode,int a,int b,int durms) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  if (hostio_audio_lock(eggrt.hostio)>=0) {
+    synth_event(eggrt.synth,chid,opcode,a,b,durms);
+    hostio_audio_unlock(eggrt.hostio);
+  }
 }
 
 /* Audio playhead.
  */
  
 double egg_audio_get_playhead() {
-  return 0.0;
+  if (!eggrt.synth) return 0.0;
+  // No need to lock.
+  double s=synth_get_playhead(eggrt.synth);
+  if (s<=0.0) return s;
+  s-=hostio_audio_estimate_remaining_buffer(eggrt.hostio->audio);
+  if (s<=0.0) return 0.001; // This is entirely possible, when it loops. We ought to add the song's length instead.
+  return s;
 }
 
 void egg_audio_set_playhead(double s) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
+  if (hostio_audio_lock(eggrt.hostio)>=0) {
+    synth_set_playhead(eggrt.synth,s);
+    hostio_audio_unlock(eggrt.hostio);
+  }
 }
 
 /* Image decoder.
