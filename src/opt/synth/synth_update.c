@@ -4,14 +4,7 @@
  */
  
 static void synth_update_printers(struct synth *synth,int c) {
-  int i=synth->printerc;
-  while (i-->0) {
-    if (sfg_printer_update(synth->printerv[i],c)<=0) {
-      sfg_printer_del(synth->printerv[i]);
-      synth->printerc--;
-      memmove(synth->printerv+i,synth->printerv+i+1,sizeof(void*)*(synth->printerc-i));
-    }
-  }
+  //TODO Printers.
 }
 
 /* Update, floating-point, mono.
@@ -62,7 +55,7 @@ static void synth_updatef_limited(float *v,int framec,struct synth *synth) {
  */
 
 void synth_updatef(float *v,int c,struct synth *synth) {
-  synth->preprintc=c;
+  //synth->preprintc=c;
   synth_update_printers(synth,c);
   memset(v,0,sizeof(float)*c);
   int framec=c/synth->chanc;
@@ -75,7 +68,7 @@ void synth_updatef(float *v,int c,struct synth *synth) {
     synth_updatef_limited(v,framec,synth);
   }
   //TODO Routine cleanup.
-  synth->preprintc=0;
+  //synth->preprintc=0;
 }
 
 /* Update, integer, unlimited length.

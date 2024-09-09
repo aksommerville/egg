@@ -1,27 +1,43 @@
 #include "synth_internal.h"
 
-/* Delete.
+/* PCM object lifecycle.
  */
  
-static void synth_sounds_cleanup(struct synth_sounds *sounds) {
-  if (sounds->pcmv) {
-    while (sounds->pcmc-->0) sfg_pcm_del(sounds->pcmv[sounds->pcmc]);
-    free(sounds->pcmv);
-  }
+void synth_pcm_del(struct synth_pcm *pcm) {
+  if (!pcm) return;
+  if (pcm->refc-->1) return;
+  free(pcm);
 }
+
+int synth_pcm_ref(struct synth_pcm *pcm) {
+  if (!pcm) return -1;
+  if (pcm->refc<1) return -1;
+  if (pcm->refc>=INT_MAX) return -1;
+  pcm->refc++;
+  return 0;
+}
+
+struct synth_pcm *synth_pcm_new(int samplec) {
+  if (samplec<0) return 0; // Zero is legal.
+  if (samplec>SYNTH_PCM_SIZE_LIMIT) return 0;
+  struct synth_pcm *pcm=calloc(1,sizeof(struct synth_pcm)+sizeof(float)*samplec);
+  if (!pcm) return 0;
+  pcm->refc=1;
+  pcm->c=samplec;
+  return pcm;
+}
+
+/* Delete.
+ */
 
 void synth_del(struct synth *synth) {
   if (!synth) return;
   if (synth->qbuf) free(synth->qbuf);
-  if (synth->soundsv) {
-    while (synth->soundsc-->0) synth_sounds_cleanup(synth->soundsv+synth->soundsc);
-    free(synth->soundsv);
+  if (synth->soundv) {
+    while (synth->soundc-->0) synth_pcm_del(synth->soundv[synth->soundc].pcm);
+    free(synth->soundv);
   }
   if (synth->songv) free(synth->songv); // Nothing to clean up per song :)
-  if (synth->printerv) {
-    while (synth->printerc-->0) sfg_printer_del(synth->printerv[synth->printerc]);
-    free(synth->printerv);
-  }
   free(synth);
 }
 
@@ -29,108 +45,51 @@ void synth_del(struct synth *synth) {
  */
 
 struct synth *synth_new(int rate,int chanc) {
-  fprintf(stderr,"%s...\n",__func__);
   if ((rate<SYNTH_RATE_MIN)||(rate>SYNTH_RATE_MAX)) return 0;
   if ((chanc<SYNTH_CHANC_MIN)||(chanc>SYNTH_CHANC_MAX)) return 0;
   struct synth *synth=calloc(1,sizeof(struct synth));
   if (!synth) return 0;
   synth->rate=rate;
   synth->chanc=chanc;
-  fprintf(stderr,"...%s\n",__func__);
   return synth;
-}
-
-/* Add printer.
- */
- 
-int synth_printerv_add(struct synth *synth,struct sfg_printer *printer) {
-  if (!synth||!printer) return -1;
-  if (synth->printerc>=synth->printera) {
-    int na=synth->printera+16;
-    if (na>INT_MAX/sizeof(void*)) return -1;
-    void *nv=realloc(synth->printerv,sizeof(void*)*na);
-    if (!nv) return -1;
-    synth->printerv=nv;
-    synth->printera=na;
-  }
-  synth->printerv[synth->printerc++]=printer;
-  sfg_printer_update(printer,synth->preprintc);
-  return 0;
 }
 
 /* Search sounds.
  */
  
-int synth_soundsv_search(const struct synth *synth,int rid) {
-  if (!synth->soundsc||(rid>synth->soundsv[synth->soundsc-1].rid)) return -synth->soundsc-1;
-  int lo=0,hi=synth->soundsc;
+int synth_soundv_search(const struct synth *synth,int rid,int index) {
+  int lo=0,hi=synth->soundc;
   while (lo<hi) {
     int ck=(lo+hi)>>1;
-    int q=synth->soundsv[ck].rid;
-         if (rid<q) hi=ck;
-    else if (rid>q) lo=ck+1;
+    const struct synth_sound *q=synth->soundv+ck;
+         if (rid<q->rid) hi=ck;
+    else if (rid>q->rid) lo=ck+1;
+    else if (index<q->index) hi=ck;
+    else if (index>q->index) lo=ck+1;
     else return ck;
   }
   return -lo-1;
 }
 
-/* Insert sounds.
+/* Insert sound.
  */
  
-static struct synth_sounds *synth_soundsv_insert(struct synth *synth,int p,int rid) {
-  if ((p<0)||(p>synth->soundsc)) return 0;
-  if (p&&(rid<=synth->soundsv[p-1].rid)) return 0;
-  if ((p<synth->soundsc)&&(rid>=synth->soundsv[p].rid)) return 0;
-  if (synth->soundsc>=synth->soundsa) {
-    int na=synth->soundsa+8;
-    if (na>INT_MAX/sizeof(struct synth_sounds)) return 0;
-    void *nv=realloc(synth->soundsv,sizeof(struct synth_sounds)*na);
+static struct synth_sound *synth_soundv_insert(struct synth *synth,int p,int rid,int index) {
+  if ((p<0)||(p>synth->soundc)) return 0;
+  if (synth->soundc>=synth->sounda) {
+    int na=synth->sounda+8;
+    if (na>INT_MAX/sizeof(struct synth_sound)) return 0;
+    void *nv=realloc(synth->soundv,sizeof(struct synth_sound)*na);
     if (!nv) return 0;
-    synth->soundsv=nv;
-    synth->soundsa=na;
+    synth->soundv=nv;
+    synth->sounda=na;
   }
-  struct synth_sounds *sounds=synth->soundsv+p;
-  memmove(sounds+1,sounds,sizeof(struct synth_sounds)*(synth->soundsc-p));
-  synth->soundsc++;
-  memset(sounds,0,sizeof(struct synth_sounds));
-  sounds->rid=rid;
-  return sounds;
-}
-
-/* Search pcms in sounds.
- */
- 
-int synth_sounds_pcmv_search(const struct synth_sounds *sounds,int id) {
-  int lo=0,hi=sounds->pcmc;
-  while (lo<hi) {
-    int ck=(lo+hi)>>1;
-    int q=sounds->pcmv[ck]->id;
-         if (id<q) hi=ck;
-    else if (id>q) lo=ck+1;
-    else return ck;
-  }
-  return -lo-1;
-}
-
-/* Insert pcm in sounds, handoff.
- */
- 
-int synth_sounds_pcmv_insert(struct synth_sounds *sounds,int p,struct sfg_pcm *pcm) {
-  if ((p<0)||(p>sounds->pcmc)) return -1;
-  if (p&&(pcm->id<=sounds->pcmv[p-1]->id)) return -1;
-  if ((p<sounds->pcmc)&&(pcm->id>=sounds->pcmv[p]->id)) return -1;
-  if (sounds->pcmc>=sounds->pcma) {
-    int na=sounds->pcma+16;
-    if (na>INT_MAX/sizeof(void*)) return -1;
-    void *nv=realloc(sounds->pcmv,sizeof(void*)*na);
-    if (!nv) return -1;
-    sounds->pcmv=nv;
-    sounds->pcma=na;
-  }
-  memmove(sounds->pcmv+p+1,sounds->pcmv+p,sizeof(void*)*(sounds->pcmc-p));
-  sounds->pcmv[p]=pcm;
-  sounds->pcmc++;
-  return 0;
+  struct synth_sound *sound=synth->soundv+p;
+  memmove(sound+1,sound,sizeof(struct synth_sound)*(synth->soundc-p));
+  synth->soundc++;
+  memset(sound,0,sizeof(struct synth_sound));
+  sound->rid=rid;
+  return sound;
 }
 
 /* Install sounds.
@@ -139,22 +98,8 @@ int synth_sounds_pcmv_insert(struct synth_sounds *sounds,int p,struct sfg_pcm *p
 int synth_install_sounds(struct synth *synth,int rid,const void *src,int srcc) {
   fprintf(stderr,"%s rid=%d srcc=%d\n",__func__,rid,srcc);
   if (!src||(srcc<1)) return 0;
-  int p=synth_soundsv_search(synth,rid);
-  if (p>=0) {
-    struct synth_sounds *sounds=synth->soundsv+p;
-    sounds->v=src;
-    sounds->c=srcc;
-    while (sounds->pcmc>0) {
-      sounds->pcmc--;
-      free(sounds->pcmv[sounds->pcmc]);
-    }
-  } else {
-    p=-p-1;
-    struct synth_sounds *sounds=synth_soundsv_insert(synth,p,rid);
-    if (!sounds) return -1;
-    sounds->v=src;
-    sounds->c=srcc;
-  }
+  //TODO Check if (rid>highest), very likely so and we can skip the search then.
+  //TODO Split sounds resource.
   return 0;
 }
 

@@ -141,7 +141,7 @@ void egg_client_update(double elapsed) {
     _(CD)
     #undef _
     fprintf(stderr,"%.*s\n",msgc,msg);
-    if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1,35);
+    if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1,36);
     pvinstate=instate;
   }
 
@@ -156,7 +156,7 @@ void egg_client_update(double elapsed) {
 }
 
 void egg_client_render() {
-  egg_draw_clear(1,0x402010ff);
+  egg_draw_clear(1,0x604020ff);
   {
     struct egg_draw_line vtxv[]={
       {1,1,SCREENW-2,SCREENH-2,0xff,0xff,0xff,0xff}, // White NW to SE.

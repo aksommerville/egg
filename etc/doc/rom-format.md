@@ -34,8 +34,8 @@ It is beneficial to assign (rid) contiguously from 1 for each type.
 | 2       | code     | Required, rid must be 1. WebAssembly module. |
 | 3       | strings  | rid is 6 bits, with language in the top 10 bits. See strings-format.md. |
 | 4       | image    | Recommend PNG. See image-format.md. |
-| 5       | sounds   | See sounds-format.md. |
-| 6       | song     | See song-format.md. |
+| 5       | sounds   | See audio-format.md. |
+| 6       | song     | See audio-format.md. |
 | 7..15   |          | Reserved for future standard types. |
 | 16..127 |          | Reserved for client use. |
 | 128..   |          | Reserved, no plan. |

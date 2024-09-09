@@ -2,7 +2,6 @@
 #define SYNTH_INTERNAL_H
 
 #include "synth.h"
-#include "opt/sfg/sfg.h"
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -15,6 +14,20 @@
 #define SYNTH_CHANC_MAX 8 /* We'll only use the first two. */
 #define SYNTH_QBUF_SIZE_FRAMES 1024
 #define SYNTH_UPDATE_LIMIT_FRAMES 1024
+#define SYNTH_PCM_SIZE_LIMIT (1<<20) /* Hard limit in samples for safety. Outside of this, we impose a 5-second limit. */
+
+/* PCM object.
+ *******************************************************/
+ 
+struct synth_pcm {
+  int refc;
+  int c;
+  float v[];
+};
+
+void synth_pcm_del(struct synth_pcm *pcm);
+int synth_pcm_ref(struct synth_pcm *pcm);
+struct synth_pcm *synth_pcm_new(int samplec);
 
 /* Global context.
  ***************************************************************/
@@ -24,14 +37,13 @@ struct synth {
   float *qbuf; // Used only by synth_updatei().
   int qbufa;
   
-  struct synth_sounds {
-    int rid;
+  struct synth_sound {
+    int rid,index;
     const void *v;
     int c;
-    struct sfg_pcm **pcmv;
-    int pcmc,pcma;
-  } *soundsv;
-  int soundsc,soundsa;
+    struct synth_pcm *pcm; // Null until the first play.
+  } *soundv;
+  int soundc,sounda;
   
   struct synth_song {
     int rid;
@@ -40,10 +52,6 @@ struct synth {
   } *songv;
   int songc,songa;
   
-  struct sfg_printer **printerv;
-  int printerc,printera;
-  int preprintc; // New printers, immediately run for so many samples.
-  
   //TODO Song player.
   //TODO PCM printers.
   //TODO MIDI bus.
@@ -51,13 +59,7 @@ struct synth {
   //TODO Tuned voices.
 };
 
-int synth_soundsv_search(const struct synth *synth,int rid);
+int synth_soundv_search(const struct synth *synth,int rid,int index);
 int synth_songv_search(const struct synth *synth,int rid);
-
-int synth_sounds_pcmv_search(const struct synth_sounds *sounds,int id);
-int synth_sounds_pcmv_insert(struct synth_sounds *sounds,int p,struct sfg_pcm *pcm); // HANDOFF on success
-int synth_sounds_get_sound(void *dstpp,const uint8_t *v,int c,int id);
-
-int synth_printerv_add(struct synth *synth,struct sfg_printer *printer); // HANDOFF
 
 #endif

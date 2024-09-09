@@ -2,7 +2,7 @@ eggdev_MIDDIR:=mid/eggdev
 eggdev_OUTDIR:=out
 eggdev_EXE:=$(eggdev_OUTDIR)/eggdev
 
-eggdev_OPT_ENABLE+=serial fs rom image midi http sfg sfgc
+eggdev_OPT_ENABLE+=serial fs rom image midi http synth
 eggdev_CC+=$(foreach U,$(eggdev_OPT_ENABLE),-DUSE_$U=1)
 eggdev_LDPOST+=-lz -lm
 

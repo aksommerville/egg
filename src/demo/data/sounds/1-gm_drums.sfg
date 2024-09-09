@@ -1,160 +1,132 @@
-begin 35 Acoustic Bass Drum
+sound 35 Acoustic Bass Drum
+
+sound 36 Bass Drum 1
+channel 0
+  # Every channel command. (some are mutually incompatible)
   master 0.500
-  shape sine
-  harm 1.0 0 0.3333 0 0.2 0 0.1
-  fm 0.5 0 50 3.0 100 1.0 1000 0
-  fmlfo 6.0 1.0
-  freq 100 1150 40
-  freqlfo 2.0 600
-  level 0 50 1.0 100 0.200 1000 0
-  waveshaper -1 -0.800 0 0.800 1
-  gain 6.0 0.750 0.0
-  delay 200 0.5 0.5 0.5 0.5
-  detune 200 0.5
-  lopass 150.0
-  hipass 50.0
-  bpass 100.0 80.0
-  notch 120.0 20.0
-endvoice
+  pan -0.250
+  drums 4 0 0.300 1.000
+  wheel 200
+  sub 50
   shape square
-  freq 100 1000 40
-  level 0 50 1.0 100 0.200 850 0
-end
+  harmonics 1.000 0 0.333 0 0.200 0 0.080
+  fm 0.5 3.0
+  fmenv 0.0 20 1.0 50 0.200* 1000 0.0 .. 0.0 40 0.5 70 0.100* 500 0.0
+  fmlfo 1250 0.5 0
+  pitchenv 0 20 100 100 0 .. 0 40 -50 100 0
+  pitchlfo 1333 100 0
+  level 0 20 1.0 50 0.250* 1000 0 .. 0 40 0.5 60 0.100* 500 0
+  levellfo 700 0.250 0
+  gain 5.0 0.750 0
+  waveshaper -1 0 1
+  delay 250 0.5 0.5 0.5 0.5
+  detune 400 100 0
+  tremolo 200 0.3 0
+  lopass 3000
+  hipass 50
+  bpass 100 40
+  notch 60 10
+events
+  0 wheel -0.5
+  0 a4 0x40 300
+  delay 50
+  0 wheel -0.4
+  delay 50
+  0 wheel -0.3
+  delay 50
+  0 wheel -0.2
+  delay 50
+  0 wheel -0.1
+  delay 50
+  0 wheel 0
+  0 e5 0x10 100
+  
+sound 37 Side Stick
 
-begin 36 Bass Drum 1
-end
+sound 38 Acoustic Snare
 
-begin 37 Side Stick
-end
+sound 39 Hand Clap
 
-begin 38 Acoustic Snare
-end
+sound 40 Electric Snare
 
-begin 39 Hand Clap
-end
+sound 41 Low Floor Tom
 
-begin 40 Electric Snare
-end
+sound 42 Closed Hi Hat
 
-begin 41 Low Floor Tom
-end
+sound 43 High Floor Tom
 
-begin 42 Closed Hi Hat
-end
+sound 44 Pedal Hi-Hat
 
-begin 43 High Floor Tom
-end
+sound 45 Low Tom
 
-begin 44 Pedal Hi-Hat
-end
+sound 46 Open Hi-Hat
 
-begin 45 Low Tom
-end
+sound 47 Low-Mid Tom
 
-begin 46 Open Hi-Hat
-end
+sound 48 Hi Mid Tom
 
-begin 47 Low-Mid Tom
-end
+sound 49 Crash Cymbal 1
 
-begin 48 Hi Mid Tom
-end
+sound 50 High Tom
 
-begin 49 Crash Cymbal 1
-end
+sound 51 Ride Cymbal 1
 
-begin 50 High Tom
-end
+sound 52 Chinese Cymbal
 
-begin 51 Ride Cymbal 1
-end
+sound 53 Ride Bell
 
-begin 52 Chinese Cymbal
-end
+sound 54 Tambourine
 
-begin 53 Ride Bell
-end
+sound 55 Splash Cymbal
 
-begin 54 Tambourine
-end
+sound 56 Cowbell
 
-begin 55 Splash Cymbal
-end
+sound 57 Crash Cymbal 2
 
-begin 56 Cowbell
-end
+sound 58 Vibraslap
 
-begin 57 Crash Cymbal 2
-end
+sound 59 Ride Cymbal 2
 
-begin 58 Vibraslap
-end
+sound 60 Hi Bongo
 
-begin 59 Ride Cymbal 2
-end
+sound 61 Low Bongo
 
-begin 60 Hi Bongo
-end
+sound 62 Mute Hi Conga
 
-begin 61 Low Bongo
-end
+sound 63 Open Hi Conga
 
-begin 62 Mute Hi Conga
-end
+sound 64 Low Conga
 
-begin 63 Open Hi Conga
-end
+sound 65 High Timbale
 
-begin 64 Low Conga
-end
+sound 66 Low Timbale
 
-begin 65 High Timbale
-end
+sound 67 High Agogo
 
-begin 66 Low Timbale
-end
+sound 68 Low Agogo
 
-begin 67 High Agogo
-end
+sound 69 Cabasa
 
-begin 68 Low Agogo
-end
+sound 70 Maracas
 
-begin 69 Cabasa
-end
+sound 71 Short Whistle
 
-begin 70 Maracas
-end
+sound 72 Long Whistle
 
-begin 71 Short Whistle
-end
+sound 73 Short Guiro
 
-begin 72 Long Whistle
-end
+sound 74 Long Guiro
 
-begin 73 Short Guiro
-end
+sound 75 Claves
 
-begin 74 Long Guiro
-end
+sound 76 Hi Wood Block
 
-begin 75 Claves
-end
+sound 77 Low Wood Block
 
-begin 76 Hi Wood Block
-end
+sound 78 Mute Cuica
 
-begin 77 Low Wood Block
-end
+sound 79 Open Cuica
 
-begin 78 Mute Cuica
-end
+sound 80 Mute Triangle
 
-begin 79 Open Cuica
-end
-
-begin 80 Mute Triangle
-end
-
-begin 81 Open Triangle
-end
+sound 81 Open Triangle
