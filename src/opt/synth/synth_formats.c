@@ -3,11 +3,83 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
+#include <stdlib.h>
 
-#define FAIL(fmt,...) { \
-  if (!path) return -1; \
-  fprintf(stderr,"%s:%d: "fmt"\n",path,lineno,##__VA_ARGS__); \
-  return -2; \
+/* In theory, there's no limit to how long a delay event can go, we can chain them forever.
+ * But 20 seconds between events? Sounds fishy.
+ */
+#define SYNTH_UNREASONABLE_DELAY_MS 20000
+
+/* Channel Header field metadata.
+ */
+ 
+#define SYNTH_CHHDR_ARG_LIMIT 8
+#define A_NONE 0
+#define A_U08 1
+#define A_S08 2
+#define A_U16 3
+#define A_S8 4
+#define A_U8 5
+#define A_U016 6
+#define A_U88 7
+#define A_ENV 8
+#define A_S016V 9
+#define A_U016V 10
+ 
+static const struct synth_chhdr_meta {
+  uint8_t opcode;
+  const char *name;
+  uint8_t argfmtv[SYNTH_CHHDR_ARG_LIMIT];
+  const char *argnamev[SYNTH_CHHDR_ARG_LIMIT];
+} synth_chhdr_metav[]={
+  {0x00,"noop"      ,{0},{0}},
+  {0x01,"master"    ,{A_U08},{"trim"}},
+  {0x02,"pan"       ,{A_S08},{"pan"}},
+  {0x03,"drums"     ,{A_U16,A_S8,A_U08,A_U08},{"rid","bias","trimlo","trimhi"}},
+  {0x04,"wheel"     ,{A_U16},{"cents"}},
+  {0x05,"sub"       ,{A_U16},{"width(hz)"}},
+  {0x06,"shape"     ,{A_U8},{"shape"}},
+  {0x07,"harmonics" ,{A_U016V},{"coefficients"}},
+  {0x08,"fm"        ,{A_U88,A_U88},{"rate","range"}},
+  {0x09,"fmenv"     ,{A_ENV},{"env"}},
+  {0x0a,"fmlfo"     ,{A_U16,A_U016,A_U08},{"ms","depth","phase"}},
+  {0x0b,"pitchenv"  ,{A_ENV},{"env"}},
+  {0x0c,"pitchlfo"  ,{A_U16,A_U16,A_U08},{"ms","cents","phase"}},
+  {0x0d,"level"     ,{A_ENV},{"env"}},
+  {0x80,"gain"      ,{A_U88,A_U08,A_U08},{"gain","clip","gate"}},
+  {0x81,"waveshaper",{A_S016V},{"levels"}},
+  {0x82,"delay"     ,{A_U16,A_U08,A_U08,A_U08,A_U08},{"ms","dry","wet","store","feedback"}},
+  {0x83,"detune"    ,{A_U16,A_U16,A_U08},{"ms","cents","phase"}},
+  {0x84,"tremolo"   ,{A_U16,A_U016,A_U08},{"ms","depth","phase"}},
+  {0x85,"lopass"    ,{A_U16},{"hz"}},
+  {0x86,"hipass"    ,{A_U16},{"hz"}},
+  {0x87,"bpass"     ,{A_U16,A_U16},{"hz","width"}},
+  {0x88,"notch"     ,{A_U16,A_U16},{"hz","width"}},
+};
+
+static int synth_chhdr_opcode_eval(const char *src,int srcc) {
+  if (!src) return -1;
+  if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
+  const struct synth_chhdr_meta *meta=synth_chhdr_metav;
+  int i=sizeof(synth_chhdr_metav)/sizeof(synth_chhdr_metav[0]);
+  for (;i-->0;meta++) {
+    if (memcmp(meta->name,src,srcc)) continue;
+    if (meta->name[srcc]) continue;
+    return meta->opcode;
+  }
+  int n;
+  if ((sr_int_eval(&n,src,srcc)>=2)&&(n>=0)&&(n<=0xff)) return n;
+  return -1;
+}
+
+static const char *synth_chhdr_opcode_repr(int opcode) {
+  const struct synth_chhdr_meta *meta=synth_chhdr_metav;
+  int i=sizeof(synth_chhdr_metav)/sizeof(synth_chhdr_metav[0]);
+  for (;i-->0;meta++) {
+    if (opcode==meta->opcode) return meta->name;
+  }
+  return 0;
 }
 
 /* Note id.
@@ -59,1081 +131,469 @@ static int synth_noteid_eval(const char *src,int srcc) {
   return -1;
 }
 
-/* Named wave shapes, also we allow numbers 0..255.
- */
- 
-static int synth_shape_eval(const char *src,int srcc) {
-  if (!src) return -1;
-  if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
-  if ((srcc==4)&&!memcmp(src,"sine",4)) return 0;
-  if ((srcc==6)&&!memcmp(src,"square",6)) return 1;
-  if ((srcc==3)&&!memcmp(src,"saw",3)) return 0;
-  if ((srcc==8)&&!memcmp(src,"triangle",8)) return 0;
-  int v;
-  if ((sr_int_eval(&v,src,srcc)>=2)&&(v>=0)&&(v<0x100)) return v;
-  return -1;
+static int synth_noteid_repr(char *dst,int dsta,int noteid) {
+  if (!dst||(dsta<0)) dsta=0;
+  if ((noteid<0)||(noteid>0x7f)) return -1;
+  int octave=noteid/12-1;
+  int tone=noteid%12;
+  char name;
+  int dstc=0;
+  #define OUT(ch) { if (dstc<dsta) dst[dstc]=(ch); dstc++; }
+  // I'm phrasing all the accidentals as flat, because "b" looks nicer than "#" or "s".
+  switch (tone) {
+    case 0: OUT('c') break;
+    case 1: OUT('d') OUT('b') break;
+    case 2: OUT('d') break;
+    case 3: OUT('e') OUT('b') break;
+    case 4: OUT('e') break;
+    case 5: OUT('f') break;
+    case 6: OUT('g') OUT('b') break;
+    case 7: OUT('g') break;
+    case 8: OUT('a') OUT('b') break;
+    case 9: OUT('a') break;
+    case 10: OUT('b') OUT('b') break;
+    case 11: OUT('b') break;
+  }
+  if (octave<0) {
+    OUT('-')
+    OUT('1')
+  } else if (octave<10) {
+    OUT('0'+octave)
+  } else return -1;
+  #undef OUT
+  if (dstc<dsta) dst[dstc]=0;
+  return dstc;
 }
 
-/* Compile envelope in beeeeep header command.
- * Input: VALUE [MS VALUE...] [.. VALUE [MS VALUE...]]
- * One VALUE may have a star after it to denote sustain point -- must be the same index on both sides.
- * (srcrange) negative if signed. We'll emit biased such that 0x8000 means 0.0.
+/* Compile EGS events.
  */
  
-static int synth_beeeeep_compile_env(
-  struct sr_encoder *dst,
-  const char *src,int srcc,
-  double srcrange,
-  const char *path,int lineno
-) {
-  #define ENV_POINT_LIMIT 32
-  struct env_point {
-    uint16_t mslo,mshi;
-    uint16_t vlo,vhi;
-  } pointv[ENV_POINT_LIMIT];
-  int pointc=0;
-  int susp=-1;
-  int srcp=0;
+static int synth_egs_compile_event_delay(struct sr_encoder *dst,const char *src,int srcc,const char *path,int lineno) {
+  int ms;
+  // We allow zero, and don't emit anything.
+  // Also a high sanity limit, just to help detect mistakes.
+  if ((sr_int_eval(&ms,src,srcc)<2)||(ms<0)||(ms>SYNTH_UNREASONABLE_DELAY_MS)) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Expected delay in milliseconds, found '%.*s'\n",path,lineno,srcc,src);
+    return -2;
+  }
+  if (ms<1) return 0;
+  // Coarse delay (01xxxxxx) is 64..4096 inclusive, in increments of 64.
+  while (ms>4096) {
+    if (sr_encode_u8(dst,0x7f)<0) return -1;
+    ms-=4096;
+  }
+  if (ms>=64) {
+    if (sr_encode_u8(dst,0x40|((ms-1)>>6))<0) return -1;
+    ms&=0x3f;
+  }
+  // Fine delay (00xxxxxx) is 1..63.
+  if (ms>0) {
+    if (sr_encode_u8(dst,ms)<0) return -1;
+  }
+  return 0;
+}
+ 
+static int synth_egs_compile_event_note(struct sr_encoder *dst,const char *src,int srcc,const char *path,int lineno) {
+  int srcp=0,tokenc;
+  const char *token;
+  
+  token=src+srcp;
+  tokenc=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
   while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
-  
-  #define RDMS(fld) { \
-    const char *token=src+srcp; \
-    int tokenc=0; \
-    while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++; \
-    while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++; \
-    int v; \
-    if ((sr_int_eval(&v,token,tokenc)<2)||(v<0)||(v>0xffff)) { \
-      FAIL("Expected envelope point delay in 0..65535 (ms), found '%.*s'",tokenc,token) \
-    } \
-    fld=v; \
+  int chid;
+  if ((sr_int_eval(&chid,token,tokenc)<2)||(chid<0)||(chid>=0x10)) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Expected channel id in 0..15, found '%.*s'\n",path,lineno,tokenc,token);
+    return -2;
   }
-  // RDVALUE evaluates true if it's marked as the sustain point.
-  #define RDVALUE(fld) ({ \
-    const char *token=src+srcp; \
-    int tokenc=0; \
-    while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++; \
-    while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++; \
-    int _result=0; \
-    if ((tokenc>=1)&&(token[tokenc-1]=='*')) { _result=1; tokenc--; } \
-    double f; \
-    int v; \
-    if (srcrange<0.0) { \
-      if ((sr_double_eval(&f,token,tokenc)<0)||(f<srcrange)||(f>-srcrange)) { \
-        FAIL("Expected envelope value in %.0f..%.0f, found '%.*s'",srcrange,-srcrange,tokenc,token) \
-      } \
-      v=(int)(((f-srcrange)*32768.0)/-srcrange); \
-    } else { \
-      if ((sr_double_eval(&f,token,tokenc)<0)||(f<0.0)||(f>srcrange)) { \
-        FAIL("Expected envelope value in 0..%.0f, found '%.*s'",srcrange,tokenc,token) \
-      } \
-      v=(int)((f*65536.0)/srcrange); \
-    } \
-    if (v<0) v=0; else if (v>0xffff) v=0xffff; \
-    fld=v; \
-    _result; \
-  })
   
-  // Start with the initial lo value.
-  pointv[0].mslo=0;
-  if (RDVALUE(pointv[0].vlo)) susp=0;
-  pointc=1;
+  token=src+srcp;
+  tokenc=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+  int noteid=synth_noteid_eval(token,tokenc);
+  if (noteid<0) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Expected noteid (0..127 or eg 'a#4'), found '%.*s'\n",path,lineno,tokenc,token);
+    return -2;
+  }
   
-  // Add points, lo side only.
-  for (;;) {
-    if (srcp>srcc-2) break;
-    if ((src[srcp]=='.')&&(src[srcp+1]=='.')) break;
-    if (pointc>=ENV_POINT_LIMIT) FAIL("Too many envelope points, artificial limit of %d.",ENV_POINT_LIMIT)
-    RDMS(pointv[pointc].mslo)
-    if (RDVALUE(pointv[pointc].vlo)) {
-      if (susp>=0) FAIL("Multiple sustain points in envelope.")
-      susp=pointc;
+  token=src+srcp;
+  tokenc=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+  int velocity;
+  if (!tokenc) {
+    velocity=0x40;
+  } else if ((sr_int_eval(&velocity,token,tokenc)<2)||(velocity<0)||(velocity>0x7f)) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Expected velocity in 0..127, found '%.*s'\n",path,lineno,tokenc,token);
+    return -2;
+  }
+  
+  token=src+srcp;
+  tokenc=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+  int duration;
+  if (!tokenc) {
+    duration=0;
+  } else if ((sr_int_eval(&duration,token,tokenc)<2)||(duration<0)) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Expected duration in ms, found '%.*s'\n",path,lineno,tokenc,token);
+    return -2;
+  }
+  
+  if (srcp<srcc) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Unexpected tokens after 'note' event: '%.*s'\n",path,lineno,srcc-srcp,src+srcp);
+    return -2;
+  }
+  
+  /* We accept any duration >=0. But what we're able to emit is actually pretty limited:
+   * 0..15     : 1000cccc nnnnnnnv vvvvvvxx : Fire and Forget. (c) chid, (n) noteid, (v) velocity.
+   * 16..512   : 1001cccc nnnnnnnv vvvttttt : Short Note. (c) chid, (n) noteid, (v) velocity 4-bit, (t) hold time (t+1)*16ms
+   * 128..4096 : 1010cccc nnnnnnnv vvvttttt : Long Note. (c) chid, (n) noteid, (v) velocity 4-bit, (t) hold time (t+1)*128ms
+   */
+  if (duration<16) { // Zero duration and high-resolution velocity.
+    if (sr_encode_u8(dst,0x80|chid)<0) return -1;
+    if (sr_encode_u8(dst,(noteid<<1)|(velocity>>6))<0) return -1;
+    if (sr_encode_u8(dst,(velocity<<2))<0) return -1;
+  } else if (duration<=512) { // Short Note.
+    if (sr_encode_u8(dst,0x90|chid)<0) return -1;
+    if (sr_encode_u8(dst,(noteid<<1)|(velocity>>6))<0) return -1;
+    if (sr_encode_u8(dst,((velocity<<2)&0xe0)|((duration>>4)-1))<0) return -1;
+  } else { // Long Note.
+    if (duration>4096) {
+      if (path) fprintf(stderr,"%s:%d:WARNING: Clamping note duration from %d to 4096 ms.\n",path,lineno,duration);
+      duration=4096;
     }
-    pointc++;
+    if (sr_encode_u8(dst,0xa0|chid)<0) return -1;
+    if (sr_encode_u8(dst,(noteid<<1)|(velocity>>6))<0) return -1;
+    if (sr_encode_u8(dst,((velocity<<2)&0xe0)|((duration>>7)-1))<0) return -1;
   }
   
-  // If the next token is "..", read the hi side.
-  if ((srcp<=srcc-2)&&(src[srcp]=='.')&&(src[srcp+1]=='.')) {
-    srcp+=2;
-    while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
-    int hisusp=-1;
-    pointv[0].mshi=0;
-    if (RDVALUE(pointv[0].vhi)) hisusp=0;
-    int hic=1;
-    for (;;) {
-      if (srcp>=srcc) break;
-      if (hic>=ENV_POINT_LIMIT) FAIL("Too many envelope points, artificial limit of %d.",ENV_POINT_LIMIT)
-      RDMS(pointv[hic].mshi)
-      if (RDVALUE(pointv[hic].vhi)) {
-        if (hisusp>=0) FAIL("Multiple sustain points in envelope.")
-        hisusp=hic;
-      }
-      hic++;
-    }
-    if (pointc!=hic) FAIL("Envelope lo and hi must be the same length, have %d and %d.",pointc,hic)
-    if (susp<0) susp=hisusp;
-    else if (hisusp<0) ;
-    else if (susp!=hisusp) FAIL("Different index indicated for sustain point lo vs hi. Mark the same point, or omit one side.")
-    
-  // No hi side, so duplicate all the lo values.
-  } else {
-    struct env_point *point=pointv;
-    int i=pointc;
-    for (;i-->0;point++) {
-      point->mshi=point->mslo;
-      point->vhi=point->vlo;
-    }
-  }
-  
-  // Encode it.
-  if (sr_encode_intbe(dst,pointv[0].vlo,2)<0) return -1;
-  if (sr_encode_intbe(dst,pointv[0].vhi,2)<0) return -1;
-  if (sr_encode_u8(dst,susp)<0) return -1;
-  int i=1; for (;i<pointc;i++) {
-    if (sr_encode_intbe(dst,pointv[i].mslo,2)<0) return -1;
-    if (sr_encode_intbe(dst,pointv[i].mshi,2)<0) return -1;
-    if (sr_encode_intbe(dst,pointv[i].vlo,2)<0) return -1;
-    if (sr_encode_intbe(dst,pointv[i].vhi,2)<0) return -1;
-  }
-  
-  #undef RDMS
-  #undef RDVALUE
-  #undef ENV_POINT_LIMIT
-  return srcp;
+  return 0;
 }
-
-/* Compile one Channel Header line to beeeeep from text.
- * Caller must hold on to a synth_beeeeep_chctx and zero it at the start of each Channel Header.
- * The format is largely context-free: Each line in the text becomes one instruction appended to the binary.
- * But there are some extra requirements around uniqueness and order, we need the context to enforce those.
- */
  
-struct synth_beeeeep_chctx {
-  int TODO;
-};
- 
-static int synth_beeeeep_compile_header_line(
-  struct sr_encoder *dst,
-  struct synth_beeeeep_chctx *chctx,
-  const char *kw,int kwc,
-  const char *args,int argsc,
-  const char *path,int lineno
-) {
-  int argsp=0,lenp=-1;
-  while ((argsp<argsc)&&((unsigned char)args[argsp]<=0x20)) argsp++;
-  #define RDTOKEN const char *token=args+argsp; int tokenc=0; { \
-    while ((argsp<argsc)&&((unsigned char)args[argsp++]>0x20)) tokenc++; \
-    while ((argsp<argsc)&&((unsigned char)args[argsp]<=0x20)) argsp++; \
-  }
-  #define ARG_U08(name) { \
-    RDTOKEN \
-    double f; \
-    if ((sr_double_eval(&f,token,tokenc)<0)||(f<0.0)||(f>1.0)) { \
-      FAIL("Expected 0..1 for %s, found '%.*s'",name,tokenc,token) \
-    } \
-    int i=lround(f*255.0); \
-    if (i<0) i=0; else if (i>0xff) i=0xff; \
-    if (sr_encode_u8(dst,i)<0) return -1; \
-  }
-  #define ARG_U88(name) { \
-    RDTOKEN \
-    double f; \
-    if ((sr_double_eval(&f,token,tokenc)<0)||(f<0.0)||(f>256.0)) { \
-      FAIL("Expected 0.0..256.0 for %s, found '%.*s'",name,tokenc,token) \
-    } \
-    int i=lround(f*255.0); \
-    if (i<0) i=0; else if (i>0xffff) i=0xffff; \
-    if (sr_encode_intbe(dst,i,2)<0) return -1; \
-  }
-  #define ARG_U016(name) { \
-    RDTOKEN \
-    double f; \
-    if ((sr_double_eval(&f,token,tokenc)<0)||(f<0.0)||(f>1.0)) { \
-      FAIL("Expected 0..1 for %s, found '%.*s'",name,tokenc,token) \
-    } \
-    int i=lround(f*65535.0); \
-    if (i<0) i=0; else if (i>0xffff) i=0xffff; \
-    if (sr_encode_intbe(dst,i,2)<0) return -1; \
-  }
-  #define ARG_S016(name) { \
-    RDTOKEN \
-    double f; \
-    if ((sr_double_eval(&f,token,tokenc)<0)||(f<-1.0)||(f>1.0)) { \
-      FAIL("Expected -1..1 for %s, found '%.*s'",name,tokenc,token) \
-    } \
-    int i=lround(f*32767.0); \
-    if (i<-32768) i=-32768; else if (i>32767) i=32767; \
-    if (sr_encode_intbe(dst,i,2)<0) return -1; \
-  }
-  #define ARG_U16(name) { \
-    RDTOKEN \
-    int v; \
-    if ((sr_int_eval(&v,token,tokenc)<2)||(v<0)||(v>0xffff)) { \
-      FAIL("Expected 0..65535 for %s, found '%.*s'",name,tokenc,token) \
-    } \
-    if (sr_encode_intbe(dst,v,2)<0) return -1; \
-  }
-  #define ARG_S8(name) { \
-    RDTOKEN \
-    int v; \
-    if ((sr_int_eval(&v,token,tokenc)<2)||(v<-128)||(v>127)) { \
-      FAIL("Expected -128..127 for %s, found '%.*s'",name,tokenc,token) \
-    } \
-    if (sr_encode_u8(dst,v)<0) return -1; \
-  }
-  #define START(opcode) { \
-    if (sr_encode_u8(dst,opcode)<0) return -1; \
-    lenp=dst->c; \
-    if (sr_encode_u8(dst,0)<0) return -1; \
-  }
-  #define FINISH { \
-    if (lenp<0) return -1; \
-    int len=dst->c-lenp-1; \
-    if (len>0xff) FAIL("'%.*s' too long (%d, limit 255)",kwc,kw,len) \
-    ((uint8_t*)dst->v)[lenp]=len; \
-    if (argsp<argsc) FAIL("Unexpected tokens after '%.*s' command: '%.*s'",kwc,kw,argsc-argsp,args+argsp) \
-    return 0; \
-  }
-
-  if ((kwc==6)&&!memcmp(kw,"master",6)) {
-    START(0x01)
-    ARG_U08("trim")
-    FINISH
+static int synth_egs_compile_event_wheel(struct sr_encoder *dst,const char *src,int srcc,uint8_t *state,const char *path,int lineno) {
+  int srcp=0,tokenc;
+  const char *token;
+  
+  token=src+srcp;
+  tokenc=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+  int chid;
+  if ((sr_int_eval(&chid,token,tokenc)<2)||(chid<0)||(chid>=0x10)) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Expected channel id in 0..15, found '%.*s'\n",path,lineno,tokenc,token);
+    return -2;
   }
   
-  if ((kwc==3)&&!memcmp(kw,"pan",3)) {
-    // pan has a special OOB value "mono"=>0
-    START(0x02)
-    RDTOKEN
-    if ((tokenc==4)&&!memcmp(token,"mono",4)) {
-      if (sr_encode_u8(dst,0)<0) return -1;
-    } else {
-      double f;
-      if ((sr_double_eval(&f,token,tokenc)<0)||(f<-1.0)||(f>1.0)) {
-        FAIL("Expected -1..1 or 'mono' for pan, found '%.*s'",tokenc,token)
-      }
-      int i=(int)((f+1.0)*128.0);
-      if (i<1) i=1; else if (i>0xff) i=0xff;
-      if (sr_encode_u8(dst,i)<0) return -1;
-    }
-    FINISH
+  token=src+srcp;
+  tokenc=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+  double norm;
+  if ((sr_double_eval(&norm,token,tokenc)<0)||(norm<-1.0)||(norm>1.0)) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Expected wheel position in -1..1, found '%.*s'\n",path,lineno,tokenc,token);
+    return -2;
   }
   
-  if ((kwc==5)&&!memcmp(kw,"drums",5)) {
-    START(0x03)
-    ARG_U16("rid")
-    ARG_S8("bias")
-    ARG_U08("trimlo")
-    ARG_U08("trimhi")
-    FINISH
+  if (srcp<srcc) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Unexpected tokens after 'wheel' event: '%.*s'\n",path,lineno,srcc-srcp,src+srcp);
+    return -2;
   }
   
-  if ((kwc==5)&&!memcmp(kw,"wheel",5)) {
-    START(0x04)
-    ARG_U16("cents")
-    FINISH
+  int iv=(int)((norm+1.0)*128.0);
+  if (iv<0) iv=0; else if (iv>0xff) iv=0xff;
+  if (iv==state[chid]) {
+    //TODO Does this even warrant a warning?
+    if (path) fprintf(stderr,"%s:%d:WARNING: Dropping redundant 'wheel' event.\n",path,lineno);
+    return 0;
   }
+  state[chid]=iv;
   
-  if ((kwc==3)&&!memcmp(kw,"sub",3)) {
-    START(0x05)
-    ARG_U16("width (hz)")
-    FINISH
-  }
+  if (sr_encode_u8(dst,0xb0|chid)<0) return -1;
+  if (sr_encode_u8(dst,iv)<0) return -1;
   
-  if ((kwc==5)&&!memcmp(kw,"shape",5)) {
-    START(0x06)
-    RDTOKEN
-    int v=synth_shape_eval(token,tokenc);
-    if (v<0) FAIL("Expected 'sine', 'square', 'saw', 'triangle', or 0..255, found '%.*s'",tokenc,token)
-    if (sr_encode_u8(dst,v)<0) return -1;
-    FINISH
-  }
-  
-  if ((kwc==9)&&!memcmp(kw,"harmonics",9)) {
-    START(0x07)
-    while (argsp<argsc) {
-      ARG_U016("coefficient")
-    }
-    FINISH
-  }
-  
-  if ((kwc==2)&&!memcmp(kw,"fm",2)) {
-    START(0x08)
-    ARG_U88("fm rate")
-    ARG_U88("fm range")
-    FINISH
-  }
-  
-  if ((kwc==5)&&!memcmp(kw,"fmenv",5)) {
-    START(0x09)
-    int err=synth_beeeeep_compile_env(dst,args+argsp,argsc-argsp,1.0,path,lineno);
-    if (err<0) return err;
-    argsp+=err;
-    FINISH
-  }
-  
-  if ((kwc==5)&&!memcmp(kw,"fmlfo",5)) {
-    START(0x0a)
-    ARG_U16("period (ms)")
-    ARG_U08("depth")
-    ARG_U08("phase")
-    FINISH
-  }
-  
-  if ((kwc==8)&&!memcmp(kw,"pitchenv",8)) {
-    START(0x0b)
-    int err=synth_beeeeep_compile_env(dst,args+argsp,argsc-argsp,-2400.0,path,lineno);
-    if (err<0) return err;
-    argsp+=err;
-    FINISH
-  }
-  
-  if ((kwc==8)&&!memcmp(kw,"pitchlfo",8)) {
-    START(0x0c)
-    ARG_U16("period (ms)")
-    ARG_U16("cents")
-    ARG_U08("phase")
-    FINISH
-  }
-  
-  if ((kwc==5)&&!memcmp(kw,"level",5)) {
-    START(0x0d)
-    int err=synth_beeeeep_compile_env(dst,args+argsp,argsc-argsp,1.0,path,lineno);
-    if (err<0) return err;
-    argsp+=err;
-    FINISH
-  }
-  
-  if ((kwc==8)&&!memcmp(kw,"levellfo",8)) {
-    START(0x0e)
-    ARG_U16("period (ms)")
-    ARG_U08("depth")
-    ARG_U08("phase")
-    FINISH
-  }
-  
-  if ((kwc==4)&&!memcmp(kw,"gain",4)) {
-    START(0x80)
-    ARG_U88("gain")
-    ARG_U08("clip")
-    ARG_U08("gate")
-    FINISH
-  }
-  
-  if ((kwc==10)&&!memcmp(kw,"waveshaper",10)) {
-    START(0x81)
-    int ptc=0;
-    while (argsp<argsc) {
-      ARG_S016("level")
-      ptc++;
-    }
-    if (ptc<2) FAIL("'waveshaper' must have at least 2 control points")
-    FINISH
-  }
-  
-  if ((kwc==5)&&!memcmp(kw,"delay",5)) {
-    START(0x82)
-    ARG_U16("period (ms)")
-    ARG_U08("dry")
-    ARG_U08("wet")
-    ARG_U08("store")
-    ARG_U08("feedback")
-    FINISH
-  }
-  
-  if ((kwc==6)&&!memcmp(kw,"detune",6)) {
-    START(0x83)
-    ARG_U16("period (ms)")
-    ARG_U16("cents")
-    ARG_U08("phase")
-    FINISH
-  }
-  
-  if ((kwc==7)&&!memcmp(kw,"tremolo",7)) {
-    START(0x84)
-    ARG_U16("period (ms)")
-    ARG_U016("depth")
-    ARG_U08("phase")
-    FINISH
-  }
-  
-  if ((kwc==6)&&!memcmp(kw,"lopass",6)) {
-    START(0x85)
-    ARG_U16("cutoff (hz)")
-    FINISH
-  }
-  
-  if ((kwc==6)&&!memcmp(kw,"hipass",6)) {
-    START(0x86)
-    ARG_U16("cutoff (hz)")
-    FINISH
-  }
-  
-  if ((kwc==5)&&!memcmp(kw,"bpass",5)) {
-    START(0x87)
-    ARG_U16("center (hz)")
-    ARG_U16("width (hz)")
-    FINISH
-  }
-  
-  if ((kwc==5)&&!memcmp(kw,"notch",5)) {
-    START(0x88)
-    ARG_U16("center (hz)")
-    ARG_U16("width (hz)")
-    FINISH
-  }
-  
-  // Finally, we accept raw hex dumps. The "keyword" must be a token of two chars. After that, we only require an even total length.
-  if (kwc==2) {
-    int hi=sr_digit_eval(kw[0]);
-    int lo=sr_digit_eval(kw[1]);
-    if ((hi>=0)&&(hi<16)&&(lo>=0)&&(lo<16)) {
-      START((hi<<4)|lo)
-      hi=-1;
-      for (;argsp<argsc;argsp++) {
-        char ch=args[argsp];
-        if ((unsigned char)ch<=0x20) continue;
-        int digit=sr_digit_eval(ch);
-        if ((digit<0)||(digit>=16)) goto _not_hexdump_;
-        if (hi<0) hi=digit;
-        else {
-          if (sr_encode_u8(dst,(hi<<4)|digit)<0) return -1;
-          hi=-1;
-        }
-      }
-      if (hi>=0) goto _not_hexdump_;
-      FINISH
-    }
-   _not_hexdump_:;
-  }
-
-  #undef RDTOKEN
-  #undef ARG_U08
-  #undef ARG_U88
-  #undef ARG_U016
-  #undef ARG_S016
-  #undef ARG_U16
-  #undef ARG_S8
-  #undef START
-  #undef FINISH
-  FAIL("Unexpected command '%.*s'",kwc,kw)
-}
-
-/* Binary song or single sound from text.
- */
- 
-static int synth_beeeeep_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *path,int lineno) {
-  if (sr_encode_raw(dst,"\xbe\xee\xeep",4)<0) return -1;
-  struct sr_decoder decoder={.v=src,.c=srcc};
-  const char *line;
-  int linec;
-  int stage=-1; // -1:init, -2:events, >=0:channel
-  int chlenp=0; // Position in (dst) of channel header length, when (stage>=0).
-  int chc=0;
-  struct synth_beeeeep_chctx chctx={0};
-  
-  #define ENDCHANNEL if (stage>=0) { \
-    /*TODO Validate context. */ \
-    int chlen=dst->c-chlenp-2; \
-    if (chlen<=0) { \
-      /* Emit an End of Header byte so the header's length isn't zero. */ \
-      if (sr_encode_u8(dst,0x00)<0) return -1; \
-      chlen=1; \
-    } \
-    if (chlen>0xffff) FAIL("Channel Header too long (%d, limit 65535)",chlen) \
-    ((uint8_t*)dst->v)[chlenp]=chlen>>8; \
-    ((uint8_t*)dst->v)[chlenp+1]=chlen; \
-  }
-  
-  for (;(linec=sr_decode_line(&line,&decoder))>0;lineno++) {
-    while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
-    while (linec&&((unsigned char)line[0]<=0x20)) { linec--; line++; }
-    if (!linec) continue;
-    if (line[0]=='#') continue;
-    
-    const char *kw=line;
-    int linep=0,kwc=0;
-    while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) kwc++;
-    while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
-    const char *args=line+linep;
-    int argsc=linec-linep;
-    
-    // "channel CHID" to begin a Channel Header.
-    if ((kwc==7)&&!memcmp(kw,"channel",7)) {
-      ENDCHANNEL
-      if (stage<=-2) FAIL("'channel' not permitted after 'events'")
-      int chid;
-      if ((sr_int_eval(&chid,args,argsc)<2)||(chid<0)) FAIL("Expected channel id, found '%.*s'",argsc,args)
-      if ((stage>=0)&&(chid<=stage)) FAIL("Channels out of order. Found %d but expected at least %d.",chid,stage+1)
-      if (chid>=8) FAIL("Channel ID must be in 0..7, found %d",chid) // The format allows >=8 in headers, but not in events.
-      stage++;
-      while (stage<chid) { // Emit dummy Channel Headers if provided chid are sparse.
-        if (sr_encode_raw(dst,"\0\1\0",3)<0) return -1;
-        stage++;
-      }
-      chlenp=dst->c;
-      if (sr_encode_raw(dst,"\0\0",2)<0) return -1;
-      chc=stage+1;
-      memset(&chctx,0,sizeof(chctx));
-      continue;
-    }
-    
-    // "events" to finalize Channel Headers and begin receiving Events.
-    if ((kwc==6)&&!memcmp(kw,"events",6)) {
-      if (argsc) FAIL("Unexpected argument to 'events'")
-      if (stage<=-2) FAIL("Redundant 'events'")
-      ENDCHANNEL
-      if (sr_encode_raw(dst,"\0\0",2)<0) return -1; // Channel Headers terminator.
-      stage=-2;
-      // It's tempting to assert (chc>0) here, but let's allow that the sound might be a specific duration of silence.
-      continue;
-    }
-    
-    // In the outer scope, only "channel" and "events" are legal.
-    if (stage==-1) FAIL("Expected 'channel' or 'events', found '%.*s'",kwc,kw)
-    
-    // In the Events block, there are three commands: delay, wheel, note.
-    if (stage<=-2) {
-      if ((kwc==5)&&!memcmp(kw,"delay",5)) {
-        int ms;
-        if ((sr_int_eval(&ms,args,argsc)<2)||(ms<1)) FAIL("Expected delay in milliseconds, found '%.*s'",argsc,args)
-        if (ms>=10000) FAIL("Unreasonably long delay %d ms. Artificially limited to 9999.",ms)
-        while (ms>=0x80) {
-          if (sr_encode_u8(dst,0x7f)<0) return -1;
-          ms-=0x7f;
-        }
-        if (sr_encode_u8(dst,ms)<0) return -1;
-        continue;
-      }
-      // Wheel and Note both begin with chid.
-      int chid;
-      if ((sr_int_eval(&chid,kw,kwc)<2)||(chid<0)||(chid>=chc)) {
-        FAIL("Expected 'delay' or channel ID (<%d), found '%.*s'",chc,argsc,args)
-      }
-      // Second token distinguishes Wheel from Note.
-      const char *op=args;
-      int opc=0,argsp=0;
-      while ((argsp<argsc)&&((unsigned char)args[argsp++]>0x20)) opc++;
-      while ((argsp<argsc)&&((unsigned char)args[argsp]<=0x20)) argsp++;
-      if ((opc==5)&&!memcmp(op,"wheel",5)) {
-        double v;
-        if ((sr_double_eval(&v,args+argsp,argsc-argsp)<0)||(v<-1.0)||(v>1.0)) {
-          FAIL("Expected wheel value in -1..1, found '%.*s'",argsc-argsp,args+argsp)
-        }
-        int vi=(int)(v*512.0);
-        if (vi<-512) vi=-512;
-        else if (vi>511) vi=511;
-        if (sr_encode_u8(dst,0xe0|(chid<<2)|((vi>>8)&0x03))<0) return -1;
-        if (sr_encode_u8(dst,vi)<0) return -1;
-        continue;
-      }
-      // Note: "CHID NOTEID VELOCITY DURMS"
-      int noteid=synth_noteid_eval(op,opc);
-      if (noteid<0) FAIL("Expected 'wheel' or note, found '%.*s'",opc,op)
-      op=args+argsp;
-      opc=0;
-      while ((argsp<argsc)&&((unsigned char)args[argsp++]>0x20)) opc++;
-      while ((argsp<argsc)&&((unsigned char)args[argsp]<=0x20)) argsp++;
-      int velocity;
-      if ((sr_int_eval(&velocity,op,opc)<2)||(velocity<0)||(velocity>0x7f)) {
-        FAIL("Expected velocity in 0..127, found '%.*s'",opc,op)
-      }
-      int durms=0;
-      if (argsp<argsc) {
-        if ((sr_int_eval(&durms,args+argsp,argsc-argsp)<2)||(durms<0)) {
-          FAIL("Expected duration in milliseconds, found '%.*s'",argsc-argsp,args+argsp)
-        }
-      }
-      if (!durms) {
-        if (sr_encode_u8(dst,0x80|(chid<<2)|(noteid>>5))<0) return -1;
-        if (sr_encode_u8(dst,(noteid<<3)|(velocity>>4))<0) return -1;
-      } else if (durms<=0x100) {
-        if (sr_encode_u8(dst,0xa0|(chid<<2)|(noteid>>5))<0) return -1;
-        if (sr_encode_u8(dst,(noteid<<3)|(velocity>>4))<0) return -1;
-        if (sr_encode_u8(dst,durms-1)<0) return -1;
-      } else {
-        durms-=0x100;
-        durms=(durms+16)/32;
-        durms-=1;
-        if ((durms>0xff)&&path) {
-          fprintf(stderr,"%s:%d:WARNING: Note duration too long. Clamping to %d ms.\n",path,lineno,256*33);
-          durms=0xff;
-        }
-        if (sr_encode_u8(dst,0xc0|(chid<<2)|(noteid>>5))<0) return -1;
-        if (sr_encode_u8(dst,(noteid<<3)|(velocity>>4))<0) return -1;
-        if (sr_encode_u8(dst,durms)<0) return -1;
-      }
-      continue;
-    }
-    
-    // We are in a Channel Header.
-    int err=synth_beeeeep_compile_header_line(dst,&chctx,kw,kwc,args,argsc,path,lineno);
-    if (err<0) return err;
-  }
-  ENDCHANNEL
-  if (stage>-2) {
-    if (sr_encode_raw(dst,"\0\0",2)<0) return -1; // Channel Headers terminator.
-  }
-  #undef ENDCHANNEL
   return 0;
 }
 
-/* Either binary format from text.
+/* EGS from text, usually from inside MSF text, and without the 'song' or 'sound' introducer.
  */
  
-int synth_egg_from_text(struct sr_encoder *dst,const void *src,int srcc,const char *path) {
+static int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *path,int lineno) {
+  if (sr_encode_raw(dst,"\0EGS",4)<0) return -1;
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
-  int linec,lineno=1;
+  int linec;
+  int chid=-1; // -1=init, -2=events, >=0=channel currently configuring
+  int chlenp=0;
+  uint8_t wheelstate[16]={0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80};
   
-  // Skip lines until the first that isn't empty.
+  #define TERMCH { \
+    if (chid>=0) { \
+      int len=dst->c-chlenp-2; \
+      if (len<1) { \
+        if (sr_encode_raw(dst,"\0\0",2)<0) return -1; \
+        len=2; \
+      } \
+      if (len>0xffff) { \
+        if (!path) return -1; \
+        fprintf(stderr,"%s:%d: Channel Header too long (%d, limit 65535)\n",path,lineno,len); \
+        return -2; \
+      } \
+      ((uint8_t*)dst->v)[chlenp]=len>>8; \
+      ((uint8_t*)dst->v)[chlenp+1]=len; \
+    } \
+  }
+  
   for (;(linec=sr_decode_line(&line,&decoder))>0;lineno++) {
     while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
     while (linec&&((unsigned char)line[0]<=0x20)) { linec--; line++; }
-    if (!linec) continue;
-    if (line[0]=='#') continue;
-    break;
-  }
-  
-  // If the whole line is "song", the remainder of input is a single sound.
-  if ((linec==4)&&!memcmp(line,"song",4)) {
-    return synth_beeeeep_from_text(dst,(char*)decoder.v+decoder.p,decoder.c-decoder.p,path,lineno);
-  }
-  
-  // We'll be producing a multi-sound resource.
-  if (sr_encode_raw(dst,"\0ESS",4)<0) return -1;
-  int pvindex=0;
-  while (linec>0) {
+    if (!linec||(line[0]=='#')) continue;
     
     const char *kw=line;
     int kwc=0,linep=0;
     while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) kwc++;
     while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
-    const char *ixtoken=line+linep;
-    int ixtokenc=0;
-    while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) ixtokenc++;
-    while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
-    const char *name=line+linep;
-    int namec=linec-linep;
-    if ((kwc!=5)||memcmp(kw,"sound",5)) FAIL("Expected 'sound INDEX [NAME]'.")
-    int index;
-    if ((sr_int_eval(&index,ixtoken,ixtokenc)<2)||(index<=pvindex)||(index>0xffff)) {
-      FAIL("Invalid sound index '%.*s', expected %d..65535.",ixtokenc,ixtoken,pvindex+1)
-    }
     
-    int d=index-pvindex;
-    while (d>256) {
-      if (sr_encode_raw(dst,"\xff\0\0",3)<0) return -1;
-      d-=256;
-    }
-    if (d<1) return -1;
-    if (sr_encode_u8(dst,d-1)<0) return -1;
-    int lenp=dst->c;
-    if (sr_encode_raw(dst,"\0\0",2)<0) return -1;
-    pvindex=index;
-    
-    // Skip lines until the end or the next "sound".
-    int srcp0=decoder.p;
-    int lineno0=lineno+1;
-    int introp=decoder.p;
-    for (;(linec=sr_decode_line(&line,&decoder))>0;) {
-      lineno++;
-      introp=decoder.p-linec;
-      while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
-      while (linec&&((unsigned char)line[0]<=0x20)) { linec--; line++; }
-      if (!linec) continue;
-      if (line[0]=='#') continue;
-      if ((linec>5)&&!memcmp(line,"sound",5)&&((unsigned char)line[5]<=0x20)) break;
-    }
-    
-    // Compile a beeeeep with whatever we skipped.
-    const char *bsrc=(char*)decoder.v+srcp0;
-    int bsrcc=introp-srcp0;
-    int err=synth_beeeeep_from_text(dst,bsrc,bsrcc,path,lineno0);
-    if (err<0) return err;
-    int len=dst->c-lenp-2;
-    if ((len<0)||(len>0xffff)) FAIL("Invalid sound length %d",len)
-    uint8_t *lendst=(uint8_t*)dst->v+lenp;
-    lendst[0]=len>>8;
-    lendst[1]=len;
-  }
-  return 0;
-}
-
-/* Text from encoded envelope.
- */
- 
-static int synth_beeeeep_uncompile_env(struct sr_encoder *dst,const uint8_t *src,int srcc,double srcrange) {
-  if (srcc<5) return -1;
-  if ((srcc-5)&7) return -1;
-  int ptc=(srcc-5)>>3;
-  int susp=src[4];
-  
-  #define TIME(srcp) { \
-    int v=(src[srcp]<<8)|src[(srcp)+1]; \
-    if (sr_encode_fmt(dst," %d",v)<0) return -1; \
-  }
-  #define VALUE(p,index) { \
-    int vi=(src[p]<<8)|src[(p)+1]; \
-    double vf; \
-    if (srcrange<0.0) { \
-      vf=(double)(vi-0x8000)/32768.0; \
-    } else { \
-      vf=((double)vi*srcrange)/65536.0; \
-    } \
-    if (sr_encode_fmt(dst," %f",vf)<0) return -1; \
-    if ((index)==susp) { \
-      if (sr_encode_u8(dst,'*')<0) return -1; \
-    } \
-  }
-  
-  // Emit the lo side, simple enough.
-  VALUE(0,0)
-  int srcp=5,index=1;
-  for (;srcp<srcc;srcp+=8,index++) {
-    TIME(srcp)
-    VALUE(srcp+4,index)
-  }
-  
-  // Check for identical hi and lo. That's pretty common, and no sense emitting the hi side if identical.
-  int identical=1;
-  if ((src[0]!=src[2])||(src[1]!=src[3])) {
-    identical=0;
-  } else {
-    for (srcp=5;srcp<srcc;srcp+=4) { // step by 4: time and value are distinct passes here
-      if ((src[srcp]!=src[srcp+2])||(src[srcp+1]!=src[srcp+3])) {
-        identical=0;
-        break;
+    // "channel" begins a Channel Header and ends current one if any.
+    if ((kwc==7)&&!memcmp(kw,"channel",7)) {
+      if (chid==-2) return -1;
+      TERMCH
+      int nchid;
+      if ((sr_int_eval(&nchid,line+linep,linec-linep)<2)||(nchid<=chid)||(nchid>=16)) {
+        if (!path) return -1;
+        fprintf(stderr,"%s:%d: Expected channel id in %d..15, found '%.*s'\n",path,lineno,chid+1,linec-linep,line+linep);
+        return -2;
       }
-    }
-  }
-  
-  // Only if not identical, emit the hi side.
-  if (!identical) {
-    if (sr_encode_raw(dst," ..",3)<0) return -1;
-    VALUE(2,0)
-    for (srcp=7,index=1;srcp<srcc;srcp+=8,index++) { // Same as lo side but 2 bytes further in.
-      TIME(srcp)
-      VALUE(srcp+4,index)
-    }
-  }
-  
-  #undef VALUE
-  return srcc;
-}
-
-/* Text from beeeeep channel header, not including the introducer line.
- */
- 
-static int synth_text_from_beeeeep_header(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *path) {
-  int srcp=0;
-  
-  #define ARG_U08 { \
-    if (srcp>srcc-1) return -1; \
-    double v=src[srcp++]/255.0; \
-    if (sr_encode_fmt(dst," %f",v)<0) return -1; \
-  }
-  #define ARG_U88 { \
-    if (srcp>srcc-2) return -1; \
-    double v=((src[srcp]<<8)|src[srcp+1])/255.0; \
-    srcp+=2; \
-    if (sr_encode_fmt(dst," %f",v)<0) return -1; \
-  }
-  #define ARG_U016 { \
-    if (srcp>srcc-2) return -1; \
-    int v=(src[srcp]<<8)|src[srcp+1]; \
-    srcp+=2; \
-    if (sr_encode_fmt(dst," %f",(double)v/65535.0)<0) return -1; \
-  }
-  #define ARG_S016 { \
-    if (srcp>srcc-2) return -1; \
-    int16_t v=(src[srcp]<<8)|src[srcp+1]; \
-    srcp+=2; \
-    double vf=(double)v/32767.0; \
-    if (vf<-1.0) vf=-1.0; else if (vf>1.0) vf=1.0; \
-    if (sr_encode_fmt(dst," %f",vf)<0) return -1; \
-  }
-  #define ARG_S8 { \
-    if (srcp>srcc-1) return -1; \
-    int8_t v=src[srcp++]; \
-    if (sr_encode_fmt(dst," %d",v)<0) return -1; \
-  }
-  #define ARG_U16 { \
-    if (srcp>srcc-2) return -1; \
-    int v=(src[srcp]<<8)|src[srcp+1]; \
-    srcp+=2; \
-    if (sr_encode_fmt(dst," %d",v)<0) return -1; \
-  }
-  
-  while (srcp<srcc) {
-    if (srcp>srcc-2) return -1;
-    uint8_t opcode=src[srcp++];
-    uint8_t len=src[srcp++];
-    fprintf(stderr,"hdr 0x%02x len=%d @%d/%d\n",opcode,len,srcp,srcc);
-    if (srcp>srcc-len) return -1;
-    if (!opcode) break;
-    int nextp=srcp+len;
-    switch (opcode) {
-
-      case 0x01: {
-          if (sr_encode_raw(dst,"master",6)<0) return -1;
-          ARG_U08
-        } break;
-        
-      case 0x02: {
-          if (sr_encode_raw(dst,"pan",3)<0) return -1;
-          if (srcp>=srcc) return -1;
-          if (src[srcp]==0) {
-            if (sr_encode_raw(dst," mono",5)<0) return -1;
-          } else {
-            if (sr_encode_fmt(dst," %f",(src[srcp]-0x80)/128.0)<0) return -1;
-          }
-          srcp++;
-        } break;
-        
-      case 0x03: {
-          if (sr_encode_raw(dst,"drums",5)<0) return -1;
-          ARG_U16
-          ARG_S8
-          ARG_U08
-          ARG_U08
-        } break;
-        
-      case 0x04: {
-          if (sr_encode_raw(dst,"wheel",5)<0) return -1;
-          ARG_U16
-        } break;
-        
-      case 0x05: {
-          if (sr_encode_raw(dst,"sub",3)<0) return -1;
-          ARG_U16
-        } break;
-        
-      case 0x06: {
-          if (sr_encode_raw(dst,"shape",5)<0) return -1;
-          if (srcp>=srcc) return -1;
-          switch (src[srcp]) {
-            case 0: if (sr_encode_raw(dst," sine",5)<0) return -1; break;
-            case 1: if (sr_encode_raw(dst," square",7)<0) return -1; break;
-            case 2: if (sr_encode_raw(dst," saw",4)<0) return -1; break;
-            case 3: if (sr_encode_raw(dst," triangle",9)<0) return -1; break;
-            default: if (sr_encode_fmt(dst," %d",src[srcp])<0) return -1; break;
-          }
-          srcp++;
-        } break;
-        
-      case 0x07: {
-          if (sr_encode_raw(dst,"harmonics",9)<0) return -1;
-          if (len&1) return -1;
-          int coefc=len>>1;
-          while (coefc-->0) {
-            ARG_U016
-          }
-        } break;
-        
-      case 0x08: {
-          if (sr_encode_raw(dst,"fm",2)<0) return -1;
-          ARG_U88
-          ARG_U88
-        } break;
-        
-      case 0x09: {
-          if (sr_encode_raw(dst,"fmenv",5)<0) return -1;
-          if (synth_beeeeep_uncompile_env(dst,src+srcp,len,1.0)<0) return -1;
-        } break;
-        
-      case 0x0a: {
-          if (sr_encode_raw(dst,"fmlfo",5)<0) return -1;
-          ARG_U16
-          ARG_U016
-          ARG_U08
-        } break;
-        
-      case 0x0b: {
-          if (sr_encode_raw(dst,"pitchenv",8)<0) return -1;
-          if (synth_beeeeep_uncompile_env(dst,src+srcp,len,-2400.0)<0) return -1;
-        } break;
-        
-      case 0x0c: {
-          if (sr_encode_raw(dst,"pitchlfo",8)<0) return -1;
-          ARG_U16
-          ARG_U16
-          ARG_U08
-        } break;
-        
-      case 0x0d: {
-          if (sr_encode_raw(dst,"level",5)<0) return -1;
-          if (synth_beeeeep_uncompile_env(dst,src+srcp,len,1.0)<0) return -1;
-        } break;
-        
-      case 0x0e: {
-          if (sr_encode_raw(dst,"levellfo",8)<0) return -1;
-          ARG_U16
-          ARG_U016
-          ARG_U08
-        } break;
-        
-      case 0x80: {
-          if (sr_encode_raw(dst,"gain",4)<0) return -1;
-          ARG_U88
-          ARG_U08
-          ARG_U08
-        } break;
-        
-      case 0x81: {
-          if (sr_encode_raw(dst,"waveshaper",10)<0) return -1;
-          if (len&1) return -1;
-          int i=len>>1;
-          while (i-->0) {
-            ARG_S016
-          }
-        } break;
-        
-      case 0x82: {
-          if (sr_encode_raw(dst,"delay",5)<0) return -1;
-          ARG_U16
-          ARG_U08
-          ARG_U08
-          ARG_U08
-          ARG_U08
-        } break;
-        
-      case 0x83: {
-          if (sr_encode_raw(dst,"detune",6)<0) return -1;
-          ARG_U16
-          ARG_U16
-          ARG_U08
-        } break;
-        
-      case 0x84: {
-          if (sr_encode_raw(dst,"tremolo",7)<0) return -1;
-          ARG_U16
-          ARG_U016
-          ARG_U08
-        } break;
-        
-      case 0x85: {
-          if (sr_encode_raw(dst,"lopass",6)<0) return -1;
-          ARG_U16
-        } break;
-        
-      case 0x86: {
-          if (sr_encode_raw(dst,"hipass",6)<0) return -1;
-          ARG_U16
-        } break;
-        
-      case 0x87: {
-          if (sr_encode_raw(dst,"bpass",5)<0) return -1;
-          ARG_U16
-          ARG_U16
-        } break;
-        
-      case 0x88: {
-          if (sr_encode_raw(dst,"notch",5)<0) return -1;
-          ARG_U16
-          ARG_U16
-        } break;
-      
-      default: {
-          // Unknown Channel Header opcode is OK. We can emit a generic hexdump.
-          if (sr_encode_fmt(dst,"%02x",opcode)<0) return -1;
-          int i=0; for (;i<len;i++) {
-            if (sr_encode_fmt(dst," %02x",src[srcp+i])<0) return -1;
-          }
-        }
-    }
-    if (sr_encode_u8(dst,0x0a)<0) return -1;
-    srcp=nextp;
-  }
-  #undef ARG_U08
-  #undef ARG_U88
-  #undef ARG_U016
-  #undef ARG_S016
-  #undef ARG_S8
-  #undef ARG_U16
-  return 0;
-}
-
-/* Text from beeeeep, no introducer.
- */
- 
-static int synth_text_from_beeeeep(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *path) {
-  fprintf(stderr,"%s srcc=%d...\n",__func__,srcc);
-  if ((srcc<4)||memcmp(src,"\xbe\xee\xeep",4)) return -1;
-  int srcp=4,err;
-  
-  // Channel Headers.
-  int chid=-1;
-  while (srcp<=srcc-2) {
-    chid++;
-    int len=(src[srcp]<<8)|src[srcp+1];
-    srcp+=2;
-    if (!len) break;
-    if (srcp>srcc-len) return -1;
-    if (!len) continue;
-    fprintf(stderr,"channel headers chid=%d len=%d...\n",chid,len);
-    if (sr_encode_fmt(dst,"channel %d\n",chid)<0) return -1;
-    if ((err=synth_text_from_beeeeep_header(dst,src+srcp,len,path))<0) return err;
-    srcp+=len;
-  }
-  
-  // Events.
-  if (sr_encode_raw(dst,"events\n",7)<0) return -1;
-  while (srcp<srcc) {
-    uint8_t lead=src[srcp++];
-    fprintf(stderr,"event 0x%02x\n",lead);
-    if (!lead) break; // End of Song.
-    if (!(lead&0x80)) {
-      if (sr_encode_fmt(dst,"delay %d\n",lead)<0) return -1;
+      int delta=nchid-chid;
+      while (delta>1) {
+        if (sr_encode_raw(dst,"\0\2\0\0",4)<0) return -1;
+        delta--;
+      }
+      chid=nchid;
+      chlenp=dst->c;
+      if (sr_encode_raw(dst,"\0\0",2)<0) return -1;
       continue;
     }
-    switch (lead&0xe0) {
-      case 0x80: {
-          if (srcp>srcc-1) return -1;
-          uint8_t c1=src[srcp++];
-          int chid=(lead>>2)&7;
-          int noteid=((lead&3)<<5)|(c1>>3);
-          int velocity=(c1&7)<<4;
-          velocity|=velocity>>3;
-          velocity|=velocity>>6;
-          if (sr_encode_fmt(dst,"%d %d %d 0\n",chid,noteid,velocity)<0) return -1;
-        } break;
-      case 0xa0: {
-          if (srcp>srcc-2) return -1;
-          uint8_t c1=src[srcp++];
-          uint8_t c2=src[srcp++];
-          int chid=(lead>>2)&7;
-          int noteid=((lead&3)<<5)|(c1>>3);
-          int velocity=(c1&7)<<4;
-          velocity|=velocity>>3;
-          velocity|=velocity>>6;
-          int dur=c2+1;
-          if (sr_encode_fmt(dst,"%d %d %d %d\n",chid,noteid,velocity,dur)<0) return -1;
-        } break;
-      case 0xc0: {
-          if (srcp>srcc-2) return -1;
-          uint8_t c1=src[srcp++];
-          uint8_t c2=src[srcp++];
-          int chid=(lead>>2)&7;
-          int noteid=((lead&3)<<5)|(c1>>3);
-          int velocity=(c1&7)<<4;
-          velocity|=velocity>>3;
-          velocity|=velocity>>6;
-          int dur=(c2+1)*32+256;
-          if (sr_encode_fmt(dst,"%d %d %d %d\n",chid,noteid,velocity,dur)<0) return -1;
-        } break;
-      case 0xe0: { // 111cccvv vvvvvvvv          : Pitch Wheel.
-          if (srcp>srcc-1) return -1;
-          uint8_t c1=src[srcp++];
-          int chid=(lead>>2)&7;
-          int v=((lead&3)<<8)|c1;
-          if (v&0x200) v|=~0x3ff; // s10
-          double vf=(double)v/512.0;
-          if (vf<-1.0) vf=-1.0; else if (vf>1.0) vf=1.0;
-          if (sr_encode_fmt(dst,"%d wheel %f\n",chid,vf)<0) return -1;
-        } break;
+    
+    // "events" begins the Event stream, and ends current Channel Header if any.
+    if ((kwc==6)&&!memcmp(kw,"events",6)) {
+      if (chid==-2) return -1;
+      TERMCH
+      if (sr_encode_raw(dst,"\0\0",2)<0) return -1;
+      chid=-2;
+      continue;
+    }
+    
+    // From initial state, next line must be "channel" or "events".
+    if (chid==-1) {
+      if (!path) return -1;
+      fprintf(stderr,"%s:%d: Expected 'channel' or 'events', found '%.*s'\n",path,lineno,kwc,kw);
+      return -2;
+    }
+    
+    // Three commands are valid in Event stream.
+    if (chid<0) {
+      int err;
+      if ((kwc==5)&&!memcmp(kw,"delay",5)) {
+        if ((err=synth_egs_compile_event_delay(dst,line+linep,linec-linep,path,lineno))<0) return err;
+      } else if ((kwc==4)&&!memcmp(kw,"note",4)) {
+        if ((err=synth_egs_compile_event_note(dst,line+linep,linec-linep,path,lineno))<0) return err;
+      } else if ((kwc==5)&&!memcmp(kw,"wheel",5)) {
+        if ((err=synth_egs_compile_event_wheel(dst,line+linep,linec-linep,wheelstate,path,lineno))<0) return err;
+      } else {
+        if (!path) return -1;
+        fprintf(stderr,"%s:%d: Expected 'delay', 'note', or 'wheel'. Found '%.*s'\n",path,lineno,kwc,kw);
+        return -2;
+      }
+      continue;
+    }
+    
+    // In the Channel Header, everything is processed generically.
+    int opcode=synth_chhdr_opcode_eval(kw,kwc);
+    if (opcode<0) {
+      if (!path) return -1;
+      fprintf(stderr,"%s:%d: Not a known Channel Header opcode: '%.*s'\n",path,lineno,kwc,kw);
+      return -2;
+    }
+    if (sr_encode_u8(dst,opcode)<0) return -1;
+    int lenp=dst->c;
+    if (sr_encode_u8(dst,0)<0) return -1;
+    int hi=-1;
+    for (;linep<linec;linep++) {
+      if ((unsigned char)line[linep]<=0x20) continue;
+      int digit=sr_digit_eval(line[linep]);
+      if ((digit<0)||(digit>=0x10)) {
+        if (!path) return -1;
+        fprintf(stderr,"%s:%d: Unexpected character '%c' in hex dump.\n",path,lineno,line[linep]);
+        return -2;
+      }
+      if (hi<0) {
+        hi=digit;
+      } else {
+        if (sr_encode_u8(dst,(hi<<4)|digit)<0) return -1;
+        hi=-1;
+      }
+    }
+    if (hi>=0) {
+      if (!path) return -1;
+      fprintf(stderr,"%s:%d: Uneven count of digits\n",path,lineno);
+      return -2;
+    }
+    int len=dst->c-lenp-1;
+    if (len>0xff) {
+      if (!path) return -1;
+      fprintf(stderr,"%s:%d: Channel Header field payload too long (%d, limit 255)\n",path,lineno,len);
+      return -2;
+    }
+    ((uint8_t*)dst->v)[lenp]=len;
+  }
+  TERMCH
+  #undef TERMCH
+  return 0;
+}
+
+/* Either egg binary, from text.
+ */
+ 
+int synth_egg_from_text(struct sr_encoder *dst,const void *src,int srcc,const char *path) {
+  if (!dst||!src||(srcc<0)) return -1;
+  struct synth_text_reader reader={.src=src,.srcc=srcc};
+  const char *subsrc;
+  int index,lineno,subsrcc;
+  int pvindex=0; // Last MSF index we emitted. Haven't emitted anything if zero.
+  while ((subsrcc=synth_text_reader_next(&index,&lineno,&subsrc,&reader))>0) {
+    if (!index) {
+      if (pvindex) { subsrcc=-1; break; }
+      return synth_egs_from_text(dst,subsrc,subsrcc,path,lineno);
+    } else if (index<=pvindex) {
+      if (!path) return -1;
+      fprintf(stderr,"%s:%d: Sound index %d can't come after the previous, %d.\n",path,lineno,index,pvindex);
+      return -2;
+    } else {
+      if (!pvindex) {
+        if (sr_encode_raw(dst,"\0MSF",4)<0) return -1;
+      }
+      int delta=index-pvindex;
+      pvindex=index;
+      while (delta>256) {
+        if (sr_encode_raw(dst,"\xff\0\0\0",4)<0) return -1;
+        delta-=256;
+      }
+      if (sr_encode_u8(dst,delta-1)<0) return -1;
+      int lenp=dst->c;
+      if (sr_encode_raw(dst,"\0\0\0",3)<0) return -1;
+      int err=synth_egs_from_text(dst,subsrc,subsrcc,path,lineno);
+      if (err<0) return err;
+      int len=dst->c-lenp-3;
+      if (len<0) return -1;
+      if (len>0xffffff) {
+        if (!path) return -1;
+        fprintf(stderr,"%s:%d: Sound length %d exceeds limit 16777215.\n",path,lineno,len);
+        return -2;
+      }
+      ((uint8_t*)dst->v)[lenp]=len>>16;
+      ((uint8_t*)dst->v)[lenp+1]=len>>8;
+      ((uint8_t*)dst->v)[lenp+2]=len;
     }
   }
-  
+  if (subsrcc<0) {
+    if (!path) return -1;
+    fprintf(stderr,"%s:%d: Malformed synth text. Check your 'song' and 'sound' framing.\n",path,reader.lineno);
+    return -2;
+  }
+  if (!pvindex) {
+    // Empty input => Empty MSF.
+    if (sr_encode_raw(dst,"\0MSF",4)<0) return -1;
+  }
+  return 0;
+}
+
+/* Text from EGS Channel Header with no introducer line.
+ */
+ 
+static int synth_text_from_egs_header(struct sr_encoder *dst,const uint8_t *src,int srcc) {
+  struct synth_song_channel_reader reader={.src=src,.srcc=srcc};
+  int opcode,bodyc;
+  const uint8_t *body;
+  while ((bodyc=synth_song_channel_reader_next(&opcode,&body,&reader))>=0) {
+    if (sr_encode_raw(dst,"  ",2)<0) return -1;
+    const char *opname=synth_chhdr_opcode_repr(opcode);
+    if (opname&&opname[0]) {
+      if (sr_encode_raw(dst,opname,-1)<0) return -1;
+    } else {
+      if (sr_encode_fmt(dst,"%d",opcode)<0) return -1;
+    }
+    for (;bodyc-->0;body++) {
+      if (sr_encode_fmt(dst," %02x",*body)<0) return -1;
+    }
+    if (sr_encode_u8(dst,0x0a)<0) return -1;
+  }
+  return 0;
+}
+
+/* Text from EGS Events with no introducer line.
+ */
+ 
+static int synth_text_from_egs_events(struct sr_encoder *dst,const uint8_t *src,int srcc) {
+  struct synth_song_event event;
+  int err;
+  while ((err=synth_song_event_next(&event,src,srcc))>0) {
+    src+=err;
+    srcc-=err;
+    switch (event.opcode) {
+      case 0: { // Delay.
+          if (sr_encode_fmt(dst,"  delay %d\n",event.duration)<0) return -1;
+        } break;
+      case 0x90: { // Note.
+          char notename[16];
+          int notenamec=synth_noteid_repr(notename,sizeof(notename),event.noteid);
+          if ((notenamec<1)||(notenamec>sizeof(notename))) return -1;
+          if (sr_encode_fmt(dst,"  note %d %.*s %d %d\n",event.chid,notenamec,notename,event.velocity,event.duration)<0) return -1;
+        } break;
+      case 0xe0: { // Wheel.
+          double norm=(event.wheel-0x2000)/8192.0;
+          if (sr_encode_fmt(dst,"  wheel %d %f\n",event.chid,norm)<0) return -1;
+        } break;
+      default: return -1;
+    }
+  }
+  if (err<0) return -1;
+  return 0;
+}
+
+/* Text from EGS with no introducer line.
+ */
+ 
+static int synth_text_from_egs(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *path) {
+  struct synth_song_parts parts={0};
+  if (synth_song_split(&parts,src,srcc)<0) return -1;
+  int chid=0,err;
+  for (;chid<16;chid++) {
+    const uint8_t *chv=parts.channels[chid].v;
+    int chc=parts.channels[chid].c;
+    while ((chc>=2)&&(chv[0]==0x00)) {
+      int len=chv[1];
+      chv+=2+len;
+      chc-=2+len;
+    }
+    if (chc<2) continue;
+    if (sr_encode_fmt(dst,"channel %d\n",chid)<0) return -1;
+    if ((err=synth_text_from_egs_header(dst,chv,chc))<0) return err;
+  }
+  if (parts.eventsc>0) {
+    if (sr_encode_raw(dst,"events\n",7)<0) return -1;
+    if ((err=synth_text_from_egs_events(dst,parts.events,parts.eventsc))<0) return err;
+  }
   return 0;
 }
 
@@ -1141,36 +601,285 @@ static int synth_text_from_beeeeep(struct sr_encoder *dst,const uint8_t *src,int
  */
 
 int synth_text_from_egg(struct sr_encoder *dst,const void *src,int srcc,const char *path) {
-
-  if ((srcc>=4)&&!memcmp(src,"\xbe\xee\xeep",4)) {
-    if (sr_encode_raw(dst,"song\n",5)<0) return -1;
-    return synth_text_from_beeeeep(dst,src,srcc,path);
-  }
+  if (!dst||(srcc<0)||(srcc&&!src)) return -1;
   
-  if ((srcc>=4)&&!memcmp(src,"\0ESS",4)) {
-    int srcp=4,index=0;
-    const uint8_t *SRC=src;
-    while (srcp<srcc) {
-      int delta=SRC[srcp++];
-      if (srcp>srcc-2) return -1;
-      int len=(SRC[srcp]<<8)|SRC[srcp+1];
-      srcp+=2;
-      if (srcp>srcc-len) return -1;
-      index+=delta+1;
-      if (index>0xffff) return -1;
+  /* Empty => Empty, why not.
+   */
+  if (!srcc) return 0;
+  
+  /* Unpack MSF with 'sound ID' before each.
+   * If we encounter a member that isn't EGS, fail.
+   */
+  if ((srcc>=4)&&!memcmp(src,"\0MSF",4)) {
+    struct synth_sounds_reader reader;
+    if (synth_sounds_reader_init(&reader,src,srcc)<0) return -1;
+    int index,subsrcc;
+    const void *subsrc;
+    while ((subsrcc=synth_sounds_reader_next(&index,&subsrc,&reader))>0) {
       if (sr_encode_fmt(dst,"\nsound %d\n",index)<0) return -1;
-      if (synth_text_from_beeeeep(dst,SRC+srcp,len,path)<0) return -1;
-      srcp+=len;
+      if (synth_text_from_egs(dst,subsrc,subsrcc,path)<0) return -1;
     }
+    if (subsrcc<0) return -1;
     return 0;
   }
   
-  return -1;
+  /* EGS with 'song' preamble.
+   */
+  if ((srcc>=4)&&!memcmp(src,"\0EGS",4)) {
+    if (sr_encode_raw(dst,"song\n",5)<0) return -1;
+    return synth_text_from_egs(dst,src,srcc,path);
+  }
+  
+  return 0;
 }
 
-/* MIDI from binary song.
+/* Parse text file.
+ */
+ 
+int synth_text_reader_next(int *index,int *lineno,void *dstpp,struct synth_text_reader *reader) {
+  int startp=0; // Nonzero if we're reading a sound block.
+  for (;;) {
+    if (reader->srcp>=reader->srcc) {
+      if (startp) return reader->srcc-startp;
+      return 0;
+    }
+    reader->lineno++;
+    int srcp0=reader->srcp;
+    const char *line=reader->src+reader->srcp;
+    int linec=0;
+    while ((reader->srcp<reader->srcc)&&(reader->src[reader->srcp++]!=0x0a)) linec++;
+    while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
+    while (linec&&((unsigned char)line[0]<=0x20)) { linec--; line++; }
+    if (!linec||(line[0]=='#')) continue;
+    
+    const char *kw=line;
+    int kwc=0,linep=0;
+    while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) kwc++;
+    while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
+    
+    if (startp) {
+      if ((kwc!=5)||memcmp(kw,"sound",5)) continue;
+      // Unread this line, then return what we've skipped.
+      reader->srcp=srcp0;
+      reader->lineno--;
+      return srcp0-startp;
+    }
+    
+    if ((kwc==5)&&!memcmp(kw,"sound",5)) {
+      const char *token=line+linep;
+      int tokenc=0;
+      while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
+      if (!index) return -1;
+      if ((sr_int_eval(index,token,tokenc)<2)||(*index<1)||(*index>0xfff)) return -1;
+      if (lineno) *lineno=reader->lineno+1;
+      if (dstpp) *(const void**)dstpp=reader->src+reader->srcp;
+      startp=reader->srcp;
+      continue;
+    }
+    
+    if ((kwc==4)&&!memcmp(kw,"song",4)) {
+      if (index) *index=0;
+      if (lineno) *lineno=reader->lineno+1;
+      if (dstpp) *(const void**)dstpp=reader->src+reader->srcp;
+      int len=reader->srcc-reader->srcp;
+      reader->srcp=reader->srcc;
+      return len;
+    }
+    
+    return -1;
+  }
+}
+
+/* MSF writer.
+ */
+ 
+void synth_sounds_writer_cleanup(struct synth_sounds_writer *writer) {
+  sr_encoder_cleanup(&writer->dst);
+}
+
+int synth_sounds_writer_init(struct synth_sounds_writer *writer) {
+  memset(writer,0,sizeof(struct synth_sounds_writer));
+  if (sr_encode_raw(&writer->dst,"\0MSF",4)<0) return -1;
+  return 0;
+}
+
+int synth_sounds_writer_add(struct synth_sounds_writer *writer,const void *src,int srcc,int index,const char *path) {
+  if ((srcc<0)||(srcc&&!src)) return -1;
+  if (srcc>0xffffff) return -1;
+  if (index<=writer->pvindex) return -1;
+  if (index>0xfff) return -1;
+  int delta=index-writer->pvindex;
+  while (delta>256) {
+    if (sr_encode_raw(&writer->dst,"\xff\0\0\0",4)<0) return -1;
+    delta-=256;
+  }
+  if (sr_encode_u8(&writer->dst,delta-1)<0) return -1;
+  if (sr_encode_intbe(&writer->dst,srcc,3)<0) return -1;
+  if (sr_encode_raw(&writer->dst,src,srcc)<0) return -1;
+  writer->pvindex=index;
+  return 0;
+}
+
+/* MSF reader.
  */
 
-int synth_midi_from_egg(struct sr_encoder *dst,const void *src,int srcc,const char *path) {
-  return -1;//TODO
+int synth_sounds_reader_init(struct synth_sounds_reader *reader,const void *src,int srcc) {
+  if (!reader||(srcc<0)||(srcc&&!src)) return -1;
+  reader->src=src;
+  reader->srcc=srcc;
+  reader->srcp=0;
+  reader->index=0;
+  if ((srcc>=4)&&!memcmp(src,"\0MSF",4)) {
+    // Typical case, it's an MSF file. Point ourselves beyond the signature.
+    // (srcp==0) will be the signal that we got a non-MSF file.
+    reader->srcp=4;
+  }
+  return 0;
+}
+
+int synth_sounds_reader_next(
+  int *index,void *dstpp,
+  struct synth_sounds_reader *reader
+) {
+  if (reader->srcp>=reader->srcc) return 0;
+  if (!reader->srcp) { // Not MSF, return the whole thing in one go.
+    if (index) *index=0;
+    *(const void**)dstpp=reader->src;
+    reader->srcp=reader->srcc;
+    return reader->srcc;
+  }
+  for (;;) {
+    if (reader->srcp>reader->srcc-4) {
+      reader->srcp=reader->srcc;
+      return 0;
+    }
+    int delta=reader->src[reader->srcp++]+1;
+    int len=reader->src[reader->srcp++]<<16;
+    len|=reader->src[reader->srcp++]<<8;
+    len|=reader->src[reader->srcp++];
+    if (reader->srcp>reader->srcc-len) {
+      reader->srcp=reader->srcc;
+      return 0;
+    }
+    reader->index+=delta;
+    if (!len) continue;
+    if (index) *index=reader->index;
+    *(const void**)dstpp=reader->src+reader->srcp;
+    reader->srcp+=len;
+    return len;
+  }
+}
+
+/* Split up an EGGSND's Channel Headers and Events.
+ */
+
+int synth_song_split(struct synth_song_parts *parts,const void *src,int srcc) {
+  if (!src||(srcc<4)||memcmp(src,"\0EGS",4)) return -1;
+  memset(parts,0,sizeof(struct synth_song_parts));
+  
+  // Channel Headers in order, and the first zero length ends the set.
+  const uint8_t *SRC=src;
+  int srcp=4,chid=0;
+  for (;;chid++) {
+    if (srcp>srcc-2) { srcp=srcc; break; }
+    int len=(SRC[srcp]<<8)|SRC[srcp+1];
+    srcp+=2;
+    if (!len) break;
+    if (srcp>srcc-len) return -1;
+    if (chid<16) {
+      parts->channels[chid].v=SRC+srcp;
+      parts->channels[chid].c=len;
+    }
+    srcp+=len;
+  }
+  
+  // Everything else is Events.
+  parts->events=SRC+srcp;
+  parts->eventsc=srcc-srcp;
+  return 0;
+}
+
+/* Iterate Channel Header.
+ */
+ 
+int synth_song_channel_reader_next(
+  int *opcode,void *dstpp,
+  struct synth_song_channel_reader *reader
+) {
+  if (reader->srcp>reader->srcc-2) return -1;
+  if (opcode) *opcode=reader->src[reader->srcp];
+  reader->srcp++;
+  int len=reader->src[reader->srcp++];
+  if (reader->srcp>reader->srcc-len) {
+    reader->srcp=reader->srcc;
+    return -1;
+  }
+  if (dstpp) *(const void**)dstpp=reader->src+reader->srcp;
+  reader->srcp+=len;
+  return len;
+}
+
+/* Next song event.
+ */
+ 
+int synth_song_event_next(struct synth_song_event *event,const void *src,int srcc) {
+  if (!src) return 0;
+  if (srcc<1) return 0;
+  const uint8_t *SRC=src;
+  uint8_t lead=SRC[0];
+  
+  // Explicit EOS?
+  if (!lead) return 0;
+  
+  // Delays. There are two event types, and both are single bytes.
+  if (!(lead&0x80)) {
+    int srcp=0,delay=0;
+    while ((srcp<srcc)&&!(SRC[srcp]&0x80)) {
+      if (SRC[srcp]&0x40) { // Coarse
+        delay+=((SRC[srcp]&0x3f)+1)*64;
+      } else if (!SRC[srcp]) { // EOS, stop reading.
+        break;
+      } else { // Fine
+        delay+=SRC[srcp];
+      }
+      srcp++;
+    }
+    event->opcode=0;
+    event->duration=delay;
+    return srcp;
+  }
+  
+  // The three Note forms, and Wheel, are distinguished by their 4 high bits.
+  switch (lead&0xf0) {
+    case 0x80:
+    case 0x90:
+    case 0xa0: { // FF, Short, and Long. Shapes are mostly similar.
+        if (srcc<3) return -1;
+        event->opcode=0x90;
+        event->chid=lead&0x0f;
+        event->noteid=SRC[1]>>1;
+        if ((lead&0xf0)==0x80) { // Fire and Forget: High resolution velocity and fixed zero duration.
+          event->velocity=((SRC[1]&1)<<6)|(SRC[2]>>2);
+          event->duration=0;
+        } else { // Short and Long: 4-bit velocity and 5-bit duration.
+          event->velocity=((SRC[1]&1)<<6)|((SRC[2]&0xe0)>>2);
+          event->velocity|=event->velocity>>4;
+          event->duration=(SRC[2]&0x1f);
+          if ((lead&0xf0)==0x90) { // Short
+            event->duration=(event->duration+1)*16;
+          } else { // Long
+            event->duration=(event->duration+1)*128;
+          }
+        }
+      } return 3;
+      
+    case 0xb0: { // Wheel.
+        if (srcc<2) return -1;
+        event->opcode=0xe0;
+        event->chid=lead&0x0f;
+        event->wheel=SRC[1]<<6;
+        event->wheel|=((event->wheel&0x1fe0)>>7); // Ignore the MSB, so 0 becomes 0, 0x80 becomes 0x2000, and 0xff becomes 0x3fff.
+      } return 2;
+  }
+  return -1; // eg Reserved event.
 }

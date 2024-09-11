@@ -47,6 +47,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synth helper. Maybe as part of 'serve'.
 - - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - - [ ] Sounds compiler: Validate Channel Headers more aggressively. See synth_formats.c:synth_beeeeep_chctx
+- - [ ] Let MIDI=>EGS conversion access predefined instruments at build time. See synth_formats_midi.c:synth_egg_from_midi_header
 - [ ] Editor.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.

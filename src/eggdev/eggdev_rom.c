@@ -553,6 +553,29 @@ int eggdev_rom_parse_path(
     parsed->rid|=lang<<6;
   }
   
+  // For sounds only, rid may be followed by "-INDEX", which we shift 16 and combine with rid.
+  if (parsed->tid==EGG_TID_sounds) {
+    if ((basep<=basec-2)&&(base[basep]=='-')&&(base[basep+1]>='0')&&(base[basep+1]<='9')) {
+      basep++;
+      int index=0;
+      while (basep<basec) {
+        if ((base[basep]=='-')||(base[basep]=='.')) break;
+        if ((base[basep]<'0')||(base[basep]>'9')) {
+          fprintf(stderr,"%s: Malformed sounds basename. Expected 'RID[-INDEX][-NAME][.FORMAT]'\n",path);
+          return -2;
+        }
+        index*=10;
+        index+=base[basep++]-'0';
+        if (index>0xfff) break;
+      }
+      if ((index<1)||(index>0xfff)) {
+        fprintf(stderr,"%s: Sounds index must be in 1..4095\n",path);
+        return -2;
+      }
+      parsed->rid|=index<<16;
+    }
+  }
+  
   // If there's a dash, it's followed by name.
   if ((basep<basec)&&(base[basep]=='-')) {
     basep++;
@@ -661,7 +684,7 @@ int eggdev_rom_search(const struct eggdev_rom *rom,int tid,int rid) {
 struct eggdev_res *eggdev_rom_insert(struct eggdev_rom *rom,int p,int tid,int rid) {
   if ((p<0)||(p>rom->resc)) return 0;
   if ((tid<1)||(tid>0xff)) return 0;
-  if ((rid<1)||(rid>0xffff)) return 0;
+  if (rid<1) return 0; // Allow too-high rids. sounds uses them, temporarily.
   if (p) {
     const struct eggdev_res *q=rom->resv+p-1;
     if (tid<q->tid) return 0;

@@ -1,177 +1,163 @@
 # Egg Audio Formats
 
 There are two resource types "sounds" and "song".
-They are actually the same thing, except "sounds" contains multiple resources, and has a few extra constraints.
+They are almost the same thing.
 
 By convention, sounds:1 should contain the GM drum kit in 35..81.
 
-## Sounds, Binary Format
+## Multi-Sound File
 
-Starts with 4-byte signature: "\0ESS"
+`sounds` resources are always in this MSF format.
+It's a dumb archive that indexes members by a 12-bit nonzero ID.
+Members should be in EGGSND or WAV format. (though the MSF itself doesn't care).
+Size limit 16 MB per member.
 
-Read the rest with a state machine:
-```
-u16 index = 0
-```
+Rationale for using an extra layer of archiving is that you'll often want all the MIDI drums packed together.
+And it might help when sharing assets.
 
-Then read sounds:
+Starts with 4-byte signature: "\0MSF"
+
+Read the rest with a state machine: `u16 index = 0`
+
+Rest of file is sounds, each starting with a 4-byte introducer:
 ```
 u8 index delta - 1
-u16 length
-... payload
+u24 length
+... body
 ```
 
-It is not possible for index to be out of order, duplicated, or <1.
-Index >0xffff is an error.
-Zero length is legal and necessary, if you need to skip more than 256 indices.
-Zero length should be treated as "missing".
-Payload of each sound is a song as defined below. (including its own signature and everything)
-Extra constraints:
-- Mono output only. Channel pans are ignored, and all post ops emit mono.
-- Drum channels are forbidden.
-- Length limit 5 seconds.
+## MSF/EGGSND Text
 
-## Song, Binary Format
+Line-oriented text.
+'#' begins a line comment, start of line only.
 
-- 4-byte signature: "\xbe\xee\xeep"
-- Channel Headers:
-- - u16 length.
-- - Any number of Channel Header fields, each starting (u8 id,u8 len).
-- 2 zero bytes to terminate Channel Headers.
-- Events.
+If the first non-empty line is exactly "song", the remainder is a single EGGSND.
+Otherwise, the remainder is organized into blocks beginning `sound INDEX [NAME]`.
+INDEX in 1..4095 and must be in order.
 
-Up to 8 channels are allowed, and you can't skip IDs.
-The header list does not implicitly terminate after the eighth, and decoders should tolerate extra headers.
+Lines "channel CHID" begin a Channel Header section.
+Channel Headers must come before Events, and must be in order by CHID.
+It's OK to skip CHIDs.
+See the table below ("EGGSND Channel Headers").
+Lines may begin with a `name` or `fldid` from there.
+After that key, the rest of the line is a hex dump.
+I've resisted the temptation to provide sensible per-field argument formats,
+reasoning that even if we got that right, it would still be painful to actually use.
+Use the GUI editor.
 
-| CHFID | Length | Description |
-|-------|--------|-------------|
-| 0x00  | 0      | End of Header. Skip the remainder. |
-| 0x01  | 1      | (u0.8) Master. |
-| 0x02  | 1      | (u8) Pan. 0=mono, 1=left..128=center..255=right. |
-| 0x03  | 5      | (u16 rid,s8 bias,u8 trimlo,u8 trimhi) Drums. |
-| 0x04  | 2      | (u16) Wheel Range, cents. |
-| 0x05  | 2      | (u16) Subtractive Bandwidth, hz. |
-| 0x06  | 1      | (u8) Shape. 0..3 = sine,square,saw,triangle |
-| 0x07  | ...    | (u0.16...) Harmonics. |
-| 0x08  | 4      | (u8.8 rate,u8.8 maxrange) FM. |
-| 0x09  | ...    | FM Range Env. Values 0..1. |
-| 0x0a  | 5      | FM Range LFO. |
-| 0x0b  | ...    | Pitch Env. Values signed, cents. |
-| 0x0c  | 5      | Pitch LFO. Values in cents. |
-| 0x0d  | ...    | Level Env. Values 0..1. |
-| 0x0e  | 5      | Level LFO. |
-| 0x80  | 4      | (u8.8 gain,u0.8 clip,u0.8 gate) Gain. |
-| 0x81  | ...    | (s0.16...) Waveshaper. |
-| 0x82  | 6      | (u16 ms,u0.8 dry,u0.8 wet,u0.8 store,u0.8 feedback) Delay. |
-| 0x83  | 5      | (u16 ms,u16 cents,u0.8 phase) Detune. |
-| 0x84  | 5      | (u16 ms,u0.16 depth,u0.8 phase) Tremolo. |
-| 0x85  | 2      | (u16 hz) Lopass. |
-| 0x86  | 2      | (u16 hz) Hipass. |
-| 0x87  | 4      | (u16 hz,u16 width) Bandpass. |
-| 0x88  | 4      | (u16 hz,u16 width) Notch. |
-
-All "Env" fields have the same shape, terminated implicitly:
-```
-  2 init lo.
-  2 init hi.
-  1 Sustain index, OOB for no sustain. [0] is the 'init' point; first proper point is [1].
-  ... Points:
-       2 ms lo.
-       2 ms hi.
-       2 value lo.
-       2 value hi.
-```
-
-All "LFO" fields have the same shape:
-```
-  2 Period, ms.
-  2 Depth.
-  1 Phase.
-```
-
-Fields 0x00..0x7f may only appear once each.
-
-If field 0x03 (Drums) is present, fields 0x04..0x0e are forbidden.
-
-If field 0x05 (Subtractive Bandwidth) is present, fields 0x06..0x0c are forbidden.
-
-Field 0x0d (Level Env) is required, unless 0x03 (Drums) in play.
-
-Order is significant for fields 0x80 and above, and no field <0x80 is permitted after the first >=0x80.
-
-Fields 0x40..0x7f and 0xc0..0xff are reserved and decoders must fail if unknown.
-Other unknown fields may be ignored.
-
-Events are identifiable by their leading byte:
-```
-00000000                   : End of Song.
-0mmmmmmm                   : (m) nonzero. Delay (m) ms.
-100cccnn nnnnnvvv          : Fire and Forget.
-101cccnn nnnnnvvv dddddddd : Short Note. (d+1) ms.
-110cccnn nnnnnvvv dddddddd : Long Note. (d+1) 32ms +256.
-111cccvv vvvvvvvv          : Pitch Wheel.
-```
-
-## Input From MIDI Files
-
-By and large, you can give eggdev plain MIDI files and it will produce a sensible song.
-
-- Meta 0xf0 contains a single Channel Header verbatim. Precede with Meta 0x20 Channel Prefix.
-- Control 0x07 (Volume) and 0x0a (Pan) at time zero override any prior Channel Header.
-- Bank Select and Program Change may be used to select Channel Headers defined elsewhere at build time. TODO Define the mechanism for this.
-- Aftertouch and most Control Change are discarded.
-- Notes can't be held longer than 2.25 seconds.
-- Pitch Wheel and Velocity quantize a bit coarser than MIDI.
-- Only channels 0..7 can be used. Our compiler will change channel IDs if necessary, and fail only if more than 8 channels are actually used.
-
-## Input From Text Files
-
-Sounds should be stored in plain text files.
-These are not intended for human consumption; we're only using text because it's a little easier on version control and web tooling.
-Line-oriented text, '#' begins a comment at start of line only.
-
-Single-sound files must begin with "song" on its own line.
-
-Multi-sound files must precede each sound with "sound INDEX [NAME]".
-INDEX in 1..65535 and must be in order.
-NAME is dropped at compile, used only by editor.
-
-Sound begins with Channel Headers, each beginning with "channel CHID".
-Must be in order. Gaps are permitted (NB not permitted in binary).
-
-In Channel Header, each line corresponds to one field:
-```
-0x01: master TRIM(0..1)
-0x02: pan PAN(-1..1 or "mono")
-0x03: drums RID BIAS(-128..127) TRIMLO(0..1) TRIMHI(0..1)
-0x04: wheel CENTS(0..65535)
-0x05: sub HZ(0..65535)
-0x06: shape sine|square|saw|triangle|U8
-0x07: harmonics COEF(0..1)...
-0x08: fm RATE(u8.8) RANGE(u8.8)
-0x09: fmenv INITLO [MS VLO...] [.. INITHI [MS VHI...]] # '*' after one value to mark sustain
-0x0a: fmlfo MS(0..65535) DEPTH(0..1) PHASE(0..1)
-0x0b: pitchenv CENTSLO [MS CENTSLO...] [.. CENTSHI [MS CENTSHI...]] # '*' after one value to mark sustain
-0x0c: pitchlfo MS(0..65535) CENTS(0..65535) PHASE(0..1)
-0x0d: level ZERO [MS VLO...] [.. ZERO [MS VHI...]] # '*' after one value to mark sustain; First and last value must be zero.
-0x0e: levellfo MS(0..65535) DEPTH(0..1) PHASE(0..1)
-0x80: gain GAIN(u8.8) CLIP(0..1) GATE(0..1)
-0x81: waveshaper LEVEL(s0.16)...
-0x82: delay MS(0..65535) DRY(0..1) WET(0..1) STORE(0..1) FEEDBACK(0..1)
-0x83: detune MS(0..65535) CENTS(0..65535) PHASE(0..1)
-0x84: tremolo MS(0..65535) DEPTH(0..1) PHASE(0..1)
-0x85: lopass HZ(0..65535)
-0x86: hipass HZ(0..65535)
-0x87: bpass HZ(0..65535) WIDTH(0..65535)
-0x88: notch HZ(0..65535) WIDTH(0..65535)
-```
-
-Channel Header lines may also be a plain hex dump, including opcode but excluding length.
-(this is only provided so that the return trip, binary to text, has a universal fallback).
-
-After Channel Headers, "events" on its own line to begin events:
+A line containing exactly "events" ends the channel headers and begins event dump:
 ```
 delay MS
-CHID wheel V(-1.0..1.0)
-CHID NOTEID VELOCITY(0..127) DURMS
+note CHID NOTEID VELOCITY(0..127) DURATION
+wheel CHID 0..128..255
 ```
+
+## EGGSND Binary Songs and Sounds
+
+Our preferred format EGGSND is suitable for both sound effects and songs.
+It comprises up to 16 channel headers, followed by an arbitrary event stream.
+Timing inside the song is always in milliseconds and we don't preserve tempo information.
+
+Starts with 4-byte signature: "\0EGS"
+
+Followed by Channel Headers, sequentially:
+```
+u16 length, nonzero
+... body
+```
+Followed by 2 zero bytes as a terminator.
+The Channel Headers list implicitly terminates only at EOF, ie if you don't have a terminator there can't be any events.
+But a file consisting only of the signature is legal.
+Decoders must accept and ignore Channel Headers above chid 15.
+
+Followed by Events, distinguishable by their leading byte:
+```
+00000000                   : End of Song.
+00tttttt                   : Fine Delay, (t) ms. (t) nonzero.
+01tttttt                   : Coarse Delay, ((t+1)*64) ms.
+1000cccc nnnnnnnv vvvvvvxx : Fire and Forget. (c) chid, (n) noteid, (v) velocity.
+1001cccc nnnnnnnv vvvttttt : Short Note. (c) chid, (n) noteid, (v) velocity 4-bit, (t) hold time (t+1)*16ms
+1010cccc nnnnnnnv vvvttttt : Long Note. (c) chid, (n) noteid, (v) velocity 4-bit, (t) hold time (t+1)*128ms
+1011cccc wwwwwwww          : Pitch Wheel. (c) chid, (w) wheel position. 0x80 is neutral.
+11xxxxxx                   : Reserved, decoder must fail.
+```
+
+A song's duration is the sum of its Delay events.
+It's technically possible for Note events to throw their hold time beyond that duration.
+That is an error, and decoders' behavior in that case is undefined.
+The most sensible thing for a decoder to do is clamp hold times to end of song.
+
+### EGGSND Channel Headers
+
+The header is a stream of fields, each beginning:
+```
+u8 fldid
+u8 length
+```
+Decoder is free to pad fields with zeroes to reach its expected length, and also free to truncate fields.
+Fields 0x80 and above are post-process operations that execute in order, against the mixed voices.
+Fields 0x60..0x7f and 0xe0..0xff are reserved for "critical" fields that decoders must not ignore.
+Others may be ignored if unknown.
+(note that most fields currently defined should be "critical"; that's not necessary because this is the first version of this spec)
+
+| fldid | Name        | Args                            | Desc |
+|-------|-------------|---------------------------------|------|
+| 0x00  | noop        | ()                              | Dummy. |
+| 0x01  | master      | (u0.8)                          | Trim to apply at the very end. MIDI Control Change 0x07. |
+| 0x02  | pan         | (s0.8)                          | Natural zero means "mono". Else 1..128..255 = left..center..right. MIDI Control Change 0x0a. |
+| 0x03  | drums       | (u16 rid,s8 bias,u0.8 trimlo,u0.8 trimhi) | Set up as a drum channel. Each note is a sound effect. Most other fields become illegal. |
+| 0x04  | wheel       | (u16 cents)                     | Range of pitch wheel. |
+| 0x05  | sub         | (u16 width(hz))                 | Set up as subtractive synth. Most other fields become illegal. |
+| 0x06  | shape       | (u8)                            | Initial wave shape. 0,1,2,3 = sine,square,saw,triangle. Default sine. |
+| 0x07  | harmonics   | (u0.16...)                      | Replace wave with harmonics of itself. |
+| 0x08  | fm          | (u8.8 rate,u8.8 range)          | Set up as FM. (rate) relative to note rate. |
+| 0x09  | fmenv       | (env...)                        | FM range envelope, normalized values. |
+| 0x0a  | fmlfo       | (u16 ms,u0.16 depth,u0.8 phase) | FM range LFO. Shared among the channel's voices. |
+| 0x0b  | pitchenv    | (env...)                        | Per-note pitch adjust envelope. Values in cents. |
+| 0x0c  | pitchlfo    | (u16 ms,u16 cents,u0.8 phase)   | Pitch LFO. Shared among the channel's voices. |
+| 0x0d  | level       | (env...)                        | Per-note level envelope. Required, except for drums. |
+| 0x80  | gain        | (u8.8 gain,u0.8 clip,u0.8 gate) | Multiply and clamp, for crude distortion. |
+| 0x81  | waveshaper  | (s0.16...)                      | Signal linearly interpolates between two adjacent values here, for more refined distortion. |
+| 0x82  | delay       | (u16 ms,u0.8 dry,u0.8 wet,u0.8 store,u0.8 feedback) | Simple delay with feedback. |
+| 0x83  | detune      | (u16 ms,u16 cents,u0.8 phase)   | Disturb pitch by ping-ponging back in time. |
+| 0x84  | tremolo     | (u16 ms,u0.16 depth,u0.8 phase) | Attenuate combined output per LFO. |
+| 0x85  | lopass      | (u16 hz)                        | Attenuate frequencies above arg. |
+| 0x86  | hipass      | (u16 hz)                        | Attenuate frequencies below arg. |
+| 0x87  | bpass       | (u16 hz,u16 width)              | Attenuate frequencies outside this band. |
+| 0x88  | notch       | (u16 hz,u16 width)              | Attenuate frequencies within this band. |
+
+Envelopes:
+```
+u8 sustain index, OOB for none
+u16 init lo
+u16 init hi
+repeat:
+  u16 delay lo
+  u16 delay hi
+  u16 level lo
+  u16 level hi
+```
+
+## Standard Formats
+
+WAV files may be merged into sounds resources.
+Name them `"RID-INDEX[-NAME].wav"`.
+
+MIDI files are recommended for music.
+You may configure channels in the MIDI file, via Meta 0xf0.
+Meta 0xf0 must contain a binary Channel Header verbatim.
+You should precede it with Meta 0x20 MIDI Channel Prefix, to identify the channel.
+
+Regular MIDI configuration events at time zero override the verbatim Channel Header:
+- Control 0x07 Volume.
+- Control 0x0a Pan.
+- Control 0x00 Bank Select MSB.
+- Control 0x20 Bank Select LSB.
+- Program Change.
+
+MIDI files *must* include at least one config event at time zero for each channel,
+otherwise we will discard all of that channel's events.
+Similarly, if you explicitly set Volume zero for a channel, we discard it.
+
+TODO: Provide some mechanism for predefined Channel Headers accessible at pack time, via Program Change events.
+

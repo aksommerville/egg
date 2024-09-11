@@ -51,6 +51,7 @@ int eggdev_rom_add_manifest_file(struct eggdev_rom *rom,const char *path);
 
 /* Extract the meaningful components from a loose resource file's path.
  * If we're in a directory, we'll use types from the manifest file.
+ * (rid) may come out >0xffff for sounds only, with the index in the upper 16 bits.
  */
 struct eggdev_path {
   int tid;

@@ -51,6 +51,9 @@ DATAROOT/
   code.wasm
   strings/
     LANG-RID[-RNAME]
+  sounds/
+    RID[-RNAME].eggsnd      ; Multiple sounds in one file.
+    RID-INDEX[-SNDNAME].wav ; Allow multiple files to combine during pack.
   TNAME/
     RID[-RNAME][[.COMMENT].FORMAT]
 ```
