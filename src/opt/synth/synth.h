@@ -16,12 +16,14 @@ void synth_del(struct synth *synth);
  */
 struct synth *synth_new(int rate,int chanc);
 
-/* Any time after construction, you may replace encoded sounds and song resources.
- * Doing this is dirt cheap. We don't actually decode anything until it's needed.
- * We borrow the buffers weakly: Caller must keep them in scope and unchanged throughout synth's lifetime.
- * It's expected that these are inside the ROM file, which is never allowed to change.
- * You can replace resources even if they are currently playing; anything playing right now will not be affected.
- * sounds:1 should contain the GM drum kit in indices 35..81.
+/* You have one opportunity to install sounds and songs, immediately after construction.
+ * We don't allow replacing after.
+ * (technically, we don't prevent installing things after the first update, but might enforce that eventually).
+ * MSF sounds will be split and accessible via the rid supplied here and the >0 index stored in the file.
+ * Non-MSF sounds will have index zero.
+ * Installation is cheap and dumb. We don't assert valid formatting at this point.
+ * BEWARE: Buffers are borrowed weakly. You must not free or modify anything delivered to synth this way.
+ * We assume that everything you supply comes from the ROM.
  */
 int synth_install_sounds(struct synth *synth,int rid,const void *src,int srcc);
 int synth_install_song(struct synth *synth,int rid,const void *src,int srcc);
@@ -63,5 +65,10 @@ void synth_event(struct synth *synth,uint8_t chid,uint8_t opcode,uint8_t a,uint8
  */
 double synth_get_playhead(const struct synth *synth);
 void synth_set_playhead(struct synth *synth,double s);
+
+float synth_multiplier_from_cents(int cents);
+void synth_rates_generate_hz(float *fv/*128*/); // Constant, but we do calculate from scratch when you ask.
+void synth_rates_normalizeip(float *fv/*128*/,int mainratehz);
+void synth_rates_quantize(uint32_t *iv/*128*/,const float *fv/*128*/);
 
 #endif

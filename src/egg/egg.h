@@ -165,6 +165,7 @@ int egg_input_configure();
  * Sounds and songs are pulled from the ROM file; you just supply their ID.
  * egg_audio_event() allows you to send raw MIDI events into the bus.
  * Beware that they may conflict with the song; avoiding that is up to you.
+ * (durms) is only used by the non-MIDI event 0x98, indicating Note On now and a deferred Note Off.
  */
 void egg_play_sound(int rid,int index);
 void egg_play_song(int rid,int force,int repeat);

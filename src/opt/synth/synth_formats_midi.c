@@ -50,17 +50,51 @@ struct channel {
   int volume; // Control 0x07, if after Meta 0xf0. <0 by default.
   int pan; // Control 0x0a, if after Meta 0xf0, <0 by default.
   int pid; // Fully qualified (include Bank MSB and Bank LSB). Used only if Meta 0xf0 absent. <0 by default.
+  int notec; // How many Note On events. No matter what else, a channel with
 };
 
 /* EGS binary from MIDI: Single Channel Header.
  * Caller takes care of the leading length, and must tolerate empty output.
+ * May modify (channel).
  */
  
-static int synth_egg_from_midi_header(struct sr_encoder *dst,struct channel *channel,const char *path) {
+static int synth_egg_from_midi_header(
+  struct sr_encoder *dst,
+  struct channel *channel,const char *path,
+  int (*cb_program)(void *dstpp,int fqpid,void *userdata),
+  void *userdata
+) {
 
-  if (channel->pid>=0) {
-    //TODO Find some way to look up predefined instruments. Outside synth's scope, but they should pass in somehow from eggdev.
+  if (!channel->c&&(channel->pid<0)) {
+    // If there's no explicit configuration or pid, call it Acoustic Grand Piano.
+    channel->pid=0;
+  }
+
+  if ((channel->pid>=0)&&cb_program) {
     // If a pid is present and it matches something, replace (channel->v) entirely.
+    const void *nv=0;
+    int nc=cb_program(&nv,channel->pid,userdata);
+    if (nv&&(nc>0)) {
+      if (channel->c&&path) {
+        fprintf(stderr,"%s:WARNING: %d-byte Channel Header is ignored due to Program Change (%d)\n",path,channel->c,channel->pid);
+      }
+      channel->v=nv;
+      channel->c=nc;
+    }
+  }
+  
+  if (!channel->c&&channel->pid&&cb_program) {
+    // Still no config, and pid is not zero? Try looking up shared config for program zero.
+    const void *nv=0;
+    int nc=cb_program(&nv,0,userdata);
+    if (nv&&(nc>0)) {
+      if (path) {
+        if (channel->pid) fprintf(stderr,"%s:WARNING: Substituting Program 0, as Program %d was not found.\n",path,channel->pid);
+        else fprintf(stderr,"%s:WARNING: Using Program 0 for unconfigured channel.\n",path);
+      }
+      channel->v=nv;
+      channel->c=nc;
+    }
   }
   
   if ((channel->volume>=0)||(channel->pan>=0)) {
@@ -105,7 +139,12 @@ static int synth_egg_from_midi_header(struct sr_encoder *dst,struct channel *cha
  * On success, returns a 16-bit mask of channels in use, little-endian.
  */
  
-static int synth_egg_from_midi_headers(struct sr_encoder *dst,struct synth_midi_reader *reader,const char *path) {
+static int synth_egg_from_midi_headers(
+  struct sr_encoder *dst,
+  struct synth_midi_reader *reader,const char *path,
+  int (*cb_program)(void *dstpp,int fqpid,void *userdata),
+  void *userdata
+) {
   if (sr_encode_raw(dst,"\0EGS",4)<0) return -1;
   
   struct channel channelv[16]={0};
@@ -118,13 +157,15 @@ static int synth_egg_from_midi_headers(struct sr_encoder *dst,struct synth_midi_
   }
   
   /* Read all time-zero events and update our state in (channelv) before writing anything.
+   * Unfortunately we also have to read the rest of the song too, to determine whether Note On events exist.
    */
   for (;;) {
     struct synth_midi_event event={0};
-    if (synth_midi_reader_next(&event,reader)) break; // Error, EOF, or delay.
+    if (synth_midi_reader_next(&event,reader)<0) break; // Error or EOF.
     if (event.chid>=0x10) continue; // Only interested in events with a valid channel.
     channel=channelv+event.chid;
     switch (event.opcode) {
+      case 0x90: channel->notec++; break; // Note On.
       case 0xb0: switch (event.a) { // Control Change.
           case 0x00: { // Bank MSB.
               if (channel->pid<0) channel->pid=0;
@@ -159,6 +200,7 @@ static int synth_egg_from_midi_headers(struct sr_encoder *dst,struct synth_midi_
   int channelc=16;
   while (channelc) {
     channel=channelv+channelc-1;
+    if (!channel->notec) channel->volume=0; // No notes, we don't care whether they claim to configure it.
     if (!channel->volume) { // If they explicitly set its volume zero, don't configure it.
       channelc--;
       continue;
@@ -168,12 +210,13 @@ static int synth_egg_from_midi_headers(struct sr_encoder *dst,struct synth_midi_
     if (channel->volume>=0) break;
     if (channel->pan>=0) break;
     if (channel->pid>=0) break;
+    if (channel->notec) break;
     channelc--;
   }
   int chusage=0;
   for (i=0,channel=channelv;i<channelc;i++,channel++) {
     if (!channel->volume) continue;
-    if (channel->c||(channel->volume>=0)||(channel->pan>=0)||(channel->pid>=0)) chusage|=1<<i;
+    if (channel->c||(channel->volume>=0)||(channel->pan>=0)||(channel->pid>=0)||channel->notec) chusage|=1<<i;
   }
   
   /* Emit each Channel Header.
@@ -185,7 +228,7 @@ static int synth_egg_from_midi_headers(struct sr_encoder *dst,struct synth_midi_
     } else {
       int lenp=dst->c;
       if (sr_encode_raw(dst,"\0\0",2)<0) return -1;
-      int err=synth_egg_from_midi_header(dst,channel,path);
+      int err=synth_egg_from_midi_header(dst,channel,path,cb_program,userdata);
       if (err<0) return err;
       int len=dst->c-lenp-2;
       if ((len<0)||(len>0xffff)) return -1;
@@ -237,7 +280,6 @@ static int synth_egg_from_midi_events(struct sr_encoder *dst,struct synth_midi_r
   for (;;) {
     struct synth_midi_event event={0};
     int delay=synth_midi_reader_next(&event,reader);
-    //fprintf(stderr,"%s:%s: delay=%d\n",__func__,path,delay);
     if (delay==SYNTH_MIDI_EOF) break;
     if (delay<0) return -1;
     if (delay>0) {
@@ -335,7 +377,12 @@ static int synth_egg_from_midi_events(struct sr_encoder *dst,struct synth_midi_r
 /* EGS binary from MIDI.
  */
  
-int synth_egg_from_midi(struct sr_encoder *dst,const void *src,int srcc,const char *path) {
+int synth_egg_from_midi(
+  struct sr_encoder *dst,
+  const void *src,int srcc,const char *path,
+  int (*cb_program)(void *dstpp,int fqpid,void *userdata),
+  void *userdata
+) {
   /* Header content and Events can be interleaved at time zero.
    * There's nothing we can do about that: In a multi-track file, we get all the time-zero events for the first MTrk before anything from the second MTrk.
    * So we're going to do one pass with the reader, picking off Header things only, until it leaves time zero.
@@ -343,7 +390,7 @@ int synth_egg_from_midi(struct sr_encoder *dst,const void *src,int srcc,const ch
    */
   struct synth_midi_reader *reader=synth_midi_reader_new(src,srcc);
   if (!reader) return -1;
-  int chusage=synth_egg_from_midi_headers(dst,reader,path);
+  int chusage=synth_egg_from_midi_headers(dst,reader,path,cb_program,userdata);
   if (chusage<0) {
     synth_midi_reader_del(reader);
     return chusage;
@@ -518,6 +565,7 @@ struct synth_midi_reader {
   int division; // ticks/qnote
   int usperqnote;
   double mspertick;
+  double fdelay; // Fractional carry. Important, when division is high (eg Logic uses 480 by default).
   struct synth_midi_track {
     const uint8_t *v;
     int c;
@@ -627,7 +675,7 @@ static int synth_midi_reader_event(
               const uint8_t *b=event->v;
               reader->usperqnote=(b[0]<<16)|(b[1]<<8)|b[2];
               reader->mspertick=(double)reader->usperqnote/((double)reader->division*1000.0);
-              if (reader->mspertick<1.0) reader->mspertick=1.0;
+              if (reader->mspertick<0.001) reader->mspertick=0.001;
             }
           } break;
       } break;
@@ -674,6 +722,7 @@ static int synth_midi_read_event(
     case 0xe0: if (track->p>track->c-2) return -1; event->a=track->v[track->p++]; event->b=track->v[track->p++]; break;
     case 0xf0: {
         track->status=0;
+        event->opcode=lead;
         event->chid=track->chpfx;
         if (lead==0xff) {
           if (track->p>=track->c) return -1;
@@ -712,8 +761,10 @@ int synth_midi_reader_next(
     if (track->delay<mindelay) mindelay=track->delay;
   }
   if (mindelay>=0x10000000) return SYNTH_MIDI_EOF; // No events or delays -- we're done.
-  int ms=lround(reader->mspertick*(double)mindelay);
-  if (ms<1) return 1;
+  reader->fdelay+=reader->mspertick*(double)mindelay;
+  int ms=(int)reader->fdelay;
+  if (ms<1) ms=1;
+  reader->fdelay-=(double)ms;
   for (track=reader->trackv,i=reader->trackc;i-->0;track++) {
     if (track->p>=track->c) continue;
     if (track->delay<0) continue;

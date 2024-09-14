@@ -49,6 +49,7 @@ DATAROOT/
   manifest
   metadata
   code.wasm
+  instruments               ; See audio-format.md.
   strings/
     LANG-RID[-RNAME]
   sounds/

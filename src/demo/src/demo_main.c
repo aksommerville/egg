@@ -111,7 +111,8 @@ void egg_client_quit(int status) {
 
 int egg_client_init() {
   fprintf(stderr,"%d function %s was called, around %s:%d. %d!\n",123,__func__,__FILE__,__LINE__,789);
-  test_full_api();
+  //test_full_api();
+  egg_play_song(1,0,1);
   return 0;
 }
 

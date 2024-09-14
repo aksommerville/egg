@@ -1,16 +1,24 @@
 #include "eggdev_internal.h"
 #include "opt/synth/synth_formats.h"
 
+/* Fetch shared program.
+ */
+ 
+static int eggdev_compile_song_cb_program(void *dstpp,int fqpid,void *userdata) {
+  struct eggdev_rom *rom=userdata;
+  return eggdev_rom_get_instrument(dstpp,rom,fqpid);
+}
+
 /* Main entry points.
  */
  
-int eggdev_compile_song(struct eggdev_res *res) {
+int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
 
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0EGS",4)) return 0;
 
   if ((res->serialc>=4)&&!memcmp(res->serial,"MThd",4)) {
     struct sr_encoder dst={0};
-    int err=synth_egg_from_midi(&dst,res->serial,res->serialc,res->path);
+    int err=synth_egg_from_midi(&dst,res->serial,res->serialc,res->path,eggdev_compile_song_cb_program,rom);
     if (err<0) {
       sr_encoder_cleanup(&dst);
       return err;
@@ -35,7 +43,7 @@ int eggdev_compile_song(struct eggdev_res *res) {
   return 0;
 }
 
-int eggdev_uncompile_song(struct eggdev_res *res) {
+int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
 
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0EGS",4)) {
     struct sr_encoder dst={0};

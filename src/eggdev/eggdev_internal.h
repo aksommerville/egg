@@ -79,18 +79,18 @@ int eggdev_main_serve();
 int eggdev_main_config();
 int eggdev_main_dump();
 
-int eggdev_compile_metadata(struct eggdev_res *res);
-int eggdev_uncompile_metadata(struct eggdev_res *res);
-static inline int eggdev_compile_code(struct eggdev_res *res) { return 0; }
-static inline int eggdev_uncompile_code(struct eggdev_res *res) { return 0; }
-int eggdev_compile_strings(struct eggdev_res *res);
-int eggdev_uncompile_strings(struct eggdev_res *res);
-int eggdev_compile_image(struct eggdev_res *res);
-int eggdev_uncompile_image(struct eggdev_res *res);
-int eggdev_compile_sounds(struct eggdev_res *res);
-int eggdev_uncompile_sounds(struct eggdev_res *res);
-int eggdev_compile_song(struct eggdev_res *res);
-int eggdev_uncompile_song(struct eggdev_res *res);
+int eggdev_compile_metadata(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_metadata(struct eggdev_res *res,struct eggdev_rom *rom);
+static inline int eggdev_compile_code(struct eggdev_res *res,struct eggdev_rom *rom) { return 0; }
+static inline int eggdev_uncompile_code(struct eggdev_res *res,struct eggdev_rom *rom) { return 0; }
+int eggdev_compile_strings(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_strings(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_image(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_image(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_sounds(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_sounds(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom);
 
 int eggdev_metadata_get(void *dstpp,const void *src,int srcc,const char *k,int kc);
 int eggdev_strings_get(void *dstpp,const struct eggdev_rom *rom,int rid,int index);

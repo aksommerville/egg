@@ -165,6 +165,24 @@ static int synth_noteid_repr(char *dst,int dsta,int noteid) {
   return dstc;
 }
 
+/* Fully-Qualified Program ID.
+ */
+ 
+static int synth_fqpid_eval(const char *src,int srcc) {
+  int i=0;
+  for (;i<srcc;i++) {
+    if (src[i]==':') {
+      int bank,pid;
+      if ((sr_int_eval(&bank,src,i)<2)||(bank<0)||(bank>0x3fff)) return -1;
+      if ((sr_int_eval(&pid,src+i+1,srcc-i-1)<2)||(pid<0)||(pid>0x7f)) return -1;
+      return (bank<<7)|pid;
+    }
+  }
+  if (sr_int_eval(&i,src,srcc)<2) return -1;
+  if ((i<0)||(i>0x1fffff)) return -1;
+  return i;
+}
+
 /* Compile EGS events.
  */
  
@@ -328,8 +346,7 @@ static int synth_egs_compile_event_wheel(struct sr_encoder *dst,const char *src,
 /* EGS from text, usually from inside MSF text, and without the 'song' or 'sound' introducer.
  */
  
-static int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *path,int lineno) {
-  if (sr_encode_raw(dst,"\0EGS",4)<0) return -1;
+int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,int channel_header_only,const char *path,int lineno) {
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
   int linec;
@@ -337,8 +354,14 @@ static int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,c
   int chlenp=0;
   uint8_t wheelstate[16]={0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80};
   
+  if (channel_header_only) {
+    chid=0;
+  } else {
+    if (sr_encode_raw(dst,"\0EGS",4)<0) return -1;
+  }
+  
   #define TERMCH { \
-    if (chid>=0) { \
+    if (!channel_header_only&&(chid>=0)) { \
       int len=dst->c-chlenp-2; \
       if (len<1) { \
         if (sr_encode_raw(dst,"\0\0",2)<0) return -1; \
@@ -365,7 +388,7 @@ static int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,c
     while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
     
     // "channel" begins a Channel Header and ends current one if any.
-    if ((kwc==7)&&!memcmp(kw,"channel",7)) {
+    if (!channel_header_only&&(kwc==7)&&!memcmp(kw,"channel",7)) {
       if (chid==-2) return -1;
       TERMCH
       int nchid;
@@ -386,7 +409,7 @@ static int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,c
     }
     
     // "events" begins the Event stream, and ends current Channel Header if any.
-    if ((kwc==6)&&!memcmp(kw,"events",6)) {
+    if (!channel_header_only&&(kwc==6)&&!memcmp(kw,"events",6)) {
       if (chid==-2) return -1;
       TERMCH
       if (sr_encode_raw(dst,"\0\0",2)<0) return -1;
@@ -474,7 +497,7 @@ int synth_egg_from_text(struct sr_encoder *dst,const void *src,int srcc,const ch
   while ((subsrcc=synth_text_reader_next(&index,&lineno,&subsrc,&reader))>0) {
     if (!index) {
       if (pvindex) { subsrcc=-1; break; }
-      return synth_egs_from_text(dst,subsrc,subsrcc,path,lineno);
+      return synth_egs_from_text(dst,subsrc,subsrcc,0,path,lineno);
     } else if (index<=pvindex) {
       if (!path) return -1;
       fprintf(stderr,"%s:%d: Sound index %d can't come after the previous, %d.\n",path,lineno,index,pvindex);
@@ -492,7 +515,7 @@ int synth_egg_from_text(struct sr_encoder *dst,const void *src,int srcc,const ch
       if (sr_encode_u8(dst,delta-1)<0) return -1;
       int lenp=dst->c;
       if (sr_encode_raw(dst,"\0\0\0",3)<0) return -1;
-      int err=synth_egs_from_text(dst,subsrc,subsrcc,path,lineno);
+      int err=synth_egs_from_text(dst,subsrc,subsrcc,0,path,lineno);
       if (err<0) return err;
       int len=dst->c-lenp-3;
       if (len<0) return -1;
@@ -633,6 +656,31 @@ int synth_text_from_egg(struct sr_encoder *dst,const void *src,int srcc,const ch
   return 0;
 }
 
+/* Quick test for noop encoded sound.
+ */
+ 
+int synth_sound_is_empty(const void *src,int srcc) {
+
+  // Empty input is definitely empty.
+  if (!src) return 1;
+  if (srcc<1) return 1;
+  const uint8_t *SRC=src;
+  
+  if ((srcc>=4)&&!memcmp(src,"\0EGS",4)) {
+    // An EGS file containing only zeroes after the signature, or just the signature alone, is definitely noop.
+    // Anything nonzero, assume there's real sound production.
+    int srcp=4;
+    for (;srcp<srcc;srcp++) {
+      if (SRC[srcp]) return 0;
+    }
+    return 1;
+  }
+  
+  // I guess we could do the same check for WAV? No samples, or all samples zero.
+  // Seems like too much work, getting at those samples.
+  return 0;
+}
+
 /* Parse text file.
  */
  
@@ -658,11 +706,22 @@ int synth_text_reader_next(int *index,int *lineno,void *dstpp,struct synth_text_
     while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
     
     if (startp) {
-      if ((kwc!=5)||memcmp(kw,"sound",5)) continue;
-      // Unread this line, then return what we've skipped.
-      reader->srcp=srcp0;
-      reader->lineno--;
-      return srcp0-startp;
+      if (
+        ((kwc==5)&&!memcmp(kw,"sound",5))||
+        ((kwc==10)&&!memcmp(kw,"instrument",10))
+      ) {
+        // Unread this line, then return what we've skipped.
+        reader->srcp=srcp0;
+        reader->lineno--;
+        // Don't let it be zero! eg if you have an empty block followed immediately by the next block.
+        if (startp==srcp0) {
+          if (dstpp) *(const void**)dstpp=" ";
+          return 1;
+        }
+        return srcp0-startp;
+      } else {
+        continue;
+      }
     }
     
     if ((kwc==5)&&!memcmp(kw,"sound",5)) {
@@ -671,6 +730,19 @@ int synth_text_reader_next(int *index,int *lineno,void *dstpp,struct synth_text_
       while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
       if (!index) return -1;
       if ((sr_int_eval(index,token,tokenc)<2)||(*index<1)||(*index>0xfff)) return -1;
+      if (lineno) *lineno=reader->lineno+1;
+      if (dstpp) *(const void**)dstpp=reader->src+reader->srcp;
+      startp=reader->srcp;
+      continue;
+    }
+    
+    if ((kwc==10)&&!memcmp(kw,"instrument",10)) {
+      const char *token=line+linep;
+      int tokenc=0;
+      while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
+      int fqpid=synth_fqpid_eval(token,tokenc);
+      if (fqpid<0) return -1;
+      if (index) *index=fqpid;
       if (lineno) *lineno=reader->lineno+1;
       if (dstpp) *(const void**)dstpp=reader->src+reader->srcp;
       startp=reader->srcp;

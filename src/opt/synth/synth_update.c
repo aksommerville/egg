@@ -12,22 +12,47 @@ static void synth_update_printers(struct synth *synth,int c) {
  */
  
 static void synth_updatef_mono(float *v,int c,struct synth *synth) {
-  //TODO Update synthesizer.
+  int i=synth->busc;
+  while (i-->0) {
+    struct synth_node *bus=synth->busv[i];
+    if (bus->chanc!=1) continue;
+    bus->update(v,c,bus);
+    if (bus->finished) {
+      fprintf(stderr,"%s:%d: Dropping bus %p due to finished.\n",__FILE__,__LINE__,bus);
+      synth->busc--;
+      memmove(synth->busv+i,synth->busv+i+1,sizeof(void*)*(synth->busc-i));
+      synth_node_del(bus);
+      synth_unlist_bus(synth,bus);
+    }
+  }
 }
 
 /* Update, floating-point, stereo.
  */
  
 static void synth_updatef_stereo(float *v,int framec,struct synth *synth) {
-  //TODO Stereo synth. For now I'm just going to run mono and copy it to both channels.
-  synth_updatef_mono(v,framec,synth);
-  const float *src=v+framec;
-  float *dst=v+(framec<<1);
-  while (framec-->0) {
-    src--;
-    *(--dst)=*src;
-    *(--dst)=*src;
-  }
+  #if 0 //TODO Stereo synth. For now I'm just going to run mono and copy it to both channels.
+    synth_updatef_mono(v,framec,synth);
+    const float *src=v+framec;
+    float *dst=v+(framec<<1);
+    while (framec-->0) {
+      src--;
+      *(--dst)=*src;
+      *(--dst)=*src;
+    }
+  #else
+    int i=synth->busc;
+    while (i-->0) {
+      struct synth_node *bus=synth->busv[i];
+      if (bus->chanc!=2) continue;
+      bus->update(v,framec,bus);
+      if (bus->finished) {
+        synth->busc--;
+        memmove(synth->busv+i,synth->busv+i+1,sizeof(void*)*(synth->busc-i));
+        synth_node_del(bus);
+      }
+    }
+  #endif
 }
 
 /* Update, floating-point, limited length, any channel count.

@@ -155,9 +155,8 @@ Regular MIDI configuration events at time zero override the verbatim Channel Hea
 - Control 0x20 Bank Select LSB.
 - Program Change.
 
-MIDI files *must* include at least one config event at time zero for each channel,
-otherwise we will discard all of that channel's events.
-Similarly, if you explicitly set Volume zero for a channel, we discard it.
+If you explicitly set Volume zero for a channel, we discard it.
+Headers for channels with no notes are also discarded.
 
-TODO: Provide some mechanism for predefined Channel Headers accessible at pack time, via Program Change events.
-
+A special file `DATAROOT/instruments` contains definitions for instruments accessible by Program ID.
+The format is basically MSF text, except each block is introduced: `instrument [BANK:]PID [NAME]`, and is followed by a single Channel Header.

@@ -113,7 +113,7 @@ static int eggdev_imgcvt_inner(struct eggdev_imgcvt *ctx,int to_rom) {
 /* Main entry points.
  */
  
-int eggdev_compile_image(struct eggdev_res *res) {
+int eggdev_compile_image(struct eggdev_res *res,struct eggdev_rom *rom) {
   struct eggdev_imgcvt ctx={
     .res=res,
   };
@@ -123,7 +123,7 @@ int eggdev_compile_image(struct eggdev_res *res) {
   return err;
 }
 
-int eggdev_uncompile_image(struct eggdev_res *res) {
+int eggdev_uncompile_image(struct eggdev_res *res,struct eggdev_rom *rom) {
   struct eggdev_imgcvt ctx={
     .res=res,
   };

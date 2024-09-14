@@ -38,6 +38,10 @@ void synth_del(struct synth *synth) {
     free(synth->soundv);
   }
   if (synth->songv) free(synth->songv); // Nothing to clean up per song :)
+  if (synth->busv) {
+    while (synth->busc-->0) synth_node_del(synth->busv[synth->busc]);
+    free(synth->busv);
+  }
   free(synth);
 }
 
@@ -51,7 +55,65 @@ struct synth *synth_new(int rate,int chanc) {
   if (!synth) return 0;
   synth->rate=rate;
   synth->chanc=chanc;
+  
+  synth->fade_time_normal=rate; // 1 s
+  synth->fade_time_quick=rate>>2; // 250 ms
+  synth->new_song_delay=rate>>1; // 500 ms
+  
+  synth_rates_generate_hz(synth->ratefv);
+  synth_rates_normalizeip(synth->ratefv,synth->rate);
+  //synth_rates_quantize(synth->rateiv,synth->ratefv);
+  synth_wave_generate_sine(&synth->sine);
+  
   return synth;
+}
+
+/* Unlist bus.
+ */
+ 
+void synth_unlist_bus(struct synth *synth,struct synth_node *bus) {
+  if (synth->song==bus) synth->song=0;
+}
+
+void synth_kill_bus(struct synth *synth,struct synth_node *bus) {
+  int i=synth->busc;
+  while (i-->0) {
+    if (synth->busv[i]==bus) {
+      synth->busc--;
+      memmove(synth->busv+i,synth->busv+i+1,sizeof(void*)*(synth->busc-i));
+    }
+  }
+  synth_unlist_bus(synth,bus);
+  synth_node_del(bus);
+}
+
+/* Add bus.
+ */
+ 
+struct synth_node *synth_add_bus(struct synth *synth) {
+  if (!synth) return 0;
+  if (synth->busc>=synth->busa) {
+    int na=synth->busa+16;
+    if (na>INT_MAX/sizeof(void*)) return 0;
+    void *nv=realloc(synth->busv,sizeof(void*)*na);
+    if (!nv) return 0;
+    synth->busv=nv;
+    synth->busa=na;
+  }
+  struct synth_node *bus=synth_node_new(synth,&synth_node_type_bus,synth->chanc);
+  if (!bus) return 0;
+  synth->busv[synth->busc++]=bus;
+  return bus;
+}
+
+/* Begin printing sound if needed.
+ */
+ 
+int synth_sound_require(struct synth *synth,struct synth_sound *sound) {
+  if (!synth||!sound) return -1;
+  if (sound->pcm) return 0;
+  fprintf(stderr,"%s:%d:%s: TODO id=%d:%d c=%d\n",__FILE__,__LINE__,__func__,sound->rid,sound->index,sound->c);
+  return -1;
 }
 
 /* Search sounds.
@@ -89,17 +151,52 @@ static struct synth_sound *synth_soundv_insert(struct synth *synth,int p,int rid
   synth->soundc++;
   memset(sound,0,sizeof(struct synth_sound));
   sound->rid=rid;
+  sound->index=index;
   return sound;
+}
+
+/* Install one sound.
+ */
+ 
+static int synth_install_sound(struct synth *synth,int rid,int index,const void *src,int srcc) {
+  
+  // It is extremely likely that every time we ever get called, insertion point is at the end.
+  // So it's worth checking for that case, to avoid the search.
+  // But perfectly legal to insert anywhere, as long as the ID isn't in use yet.
+  int p;
+  if (
+    !synth->soundc||
+    (rid>synth->soundv[synth->soundc-1].rid)||
+    ((rid==synth->soundv[synth->soundc-1].rid)&&(index>synth->soundv[synth->soundc-1].index))
+  ) {
+    p=synth->soundc;
+  } else {
+    if ((p=synth_soundv_search(synth,rid,index))>=0) return -1;
+    p=-p-1;
+  }
+  
+  struct synth_sound *sound=synth_soundv_insert(synth,p,rid,index);
+  if (!sound) return -1;
+  sound->v=src;
+  sound->c=srcc;
+  
+  return 0;
 }
 
 /* Install sounds.
  */
 
 int synth_install_sounds(struct synth *synth,int rid,const void *src,int srcc) {
-  fprintf(stderr,"%s rid=%d srcc=%d\n",__func__,rid,srcc);
   if (!src||(srcc<1)) return 0;
-  //TODO Check if (rid>highest), very likely so and we can skip the search then.
-  //TODO Split sounds resource.
+  struct synth_sounds_reader reader;
+  if (synth_sounds_reader_init(&reader,src,srcc)<0) return -1;
+  int index,subsrcc;
+  const void *subsrc;
+  while ((subsrcc=synth_sounds_reader_next(&index,&subsrc,&reader))>0) {
+    if (synth_sound_is_empty(subsrc,subsrcc)) continue;
+    int err=synth_install_sound(synth,rid,index,subsrc,subsrcc);
+    if (err<0) return err;
+  }
   return 0;
 }
 
@@ -107,7 +204,7 @@ int synth_install_sounds(struct synth *synth,int rid,const void *src,int srcc) {
  */
  
 int synth_songv_search(const struct synth *synth,int rid) {
-  if (!synth->songc||(rid>synth->songv[synth->songc].rid)) return -synth->songc-1;
+  if (!synth->songc||(rid>synth->songv[synth->songc-1].rid)) return -synth->songc-1;
   int lo=0,hi=synth->songc;
   while (lo<hi) {
     int ck=(lo+hi)>>1;
@@ -146,21 +243,15 @@ static struct synth_song *synth_songv_insert(struct synth *synth,int p,int rid) 
  */
  
 int synth_install_song(struct synth *synth,int rid,const void *src,int srcc) {
-  fprintf(stderr,"%s rid=%d srcc=%d\n",__func__,rid,srcc);
-  if (!src||(srcc<1)) return 0;
+  if (synth_sound_is_empty(src,srcc)) return 0;
   if (!rid) return -1; // rid zero is forbidden, because that's our "no song" marker.
   int p=synth_songv_search(synth,rid);
-  if (p>=0) {
-    struct synth_song *song=synth->songv+p;
-    song->v=src;
-    song->c=srcc;
-  } else {
-    p=-p-1;
-    struct synth_song *song=synth_songv_insert(synth,p,rid);
-    if (!song) return -1;
-    song->v=src;
-    song->c=srcc;
-  }
+  if (p>=0) return -1;
+  p=-p-1;
+  struct synth_song *song=synth_songv_insert(synth,p,rid);
+  if (!song) return -1;
+  song->v=src;
+  song->c=srcc;
   return 0;
 }
 

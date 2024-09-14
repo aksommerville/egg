@@ -25,7 +25,7 @@ static int eggdev_pack_convert(struct eggdev_rom *rom) {
     int err=0;
     if (eggdev_res_has_comment(res,"raw",3)) continue;
     switch (res->tid) {
-      #define _(tag) case EGG_TID_##tag: err=eggdev_compile_##tag(res); break;
+      #define _(tag) case EGG_TID_##tag: err=eggdev_compile_##tag(res,rom); break;
       EGG_TID_FOR_EACH
       #undef _
     }

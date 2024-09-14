@@ -40,75 +40,75 @@ events
   wheel 0 0
   note 0 e5 0x10 100
   
-sound 37 Side Stick
+#sound 37 Side Stick
 
-sound 38 Acoustic Snare
+#sound 38 Acoustic Snare
 
-sound 39 Hand Clap
+#sound 39 Hand Clap
 
-sound 40 Electric Snare
+#sound 40 Electric Snare
 
-sound 41 Low Floor Tom
+#sound 41 Low Floor Tom
 
-sound 42 Closed Hi Hat
+#sound 42 Closed Hi Hat
 
-sound 43 High Floor Tom
+#sound 43 High Floor Tom
 
-sound 44 Pedal Hi-Hat
+#sound 44 Pedal Hi-Hat
 
-sound 45 Low Tom
+#sound 45 Low Tom
 
-sound 46 Open Hi-Hat
+#sound 46 Open Hi-Hat
 
-sound 47 Low-Mid Tom
+#sound 47 Low-Mid Tom
 
-sound 48 Hi Mid Tom
+#sound 48 Hi Mid Tom
 
-sound 49 Crash Cymbal 1
+#sound 49 Crash Cymbal 1
 
-sound 50 High Tom
+#sound 50 High Tom
 
-sound 51 Ride Cymbal 1
+#sound 51 Ride Cymbal 1
 
-sound 52 Chinese Cymbal
+#sound 52 Chinese Cymbal
 
-sound 53 Ride Bell
+#sound 53 Ride Bell
 
-sound 54 Tambourine
+#sound 54 Tambourine
 
-sound 55 Splash Cymbal
+#sound 55 Splash Cymbal
 
-sound 56 Cowbell
+#sound 56 Cowbell
 
-sound 57 Crash Cymbal 2
+#sound 57 Crash Cymbal 2
 
-sound 58 Vibraslap
+#sound 58 Vibraslap
 
-sound 59 Ride Cymbal 2
+#sound 59 Ride Cymbal 2
 
-sound 60 Hi Bongo
+#sound 60 Hi Bongo
 
-sound 61 Low Bongo
+#sound 61 Low Bongo
 
-sound 62 Mute Hi Conga
+#sound 62 Mute Hi Conga
 
-sound 63 Open Hi Conga
+#sound 63 Open Hi Conga
 
-sound 64 Low Conga
+#sound 64 Low Conga
 
-sound 65 High Timbale
+#sound 65 High Timbale
 
-sound 66 Low Timbale
+#sound 66 Low Timbale
 
-sound 67 High Agogo
+#sound 67 High Agogo
 
-sound 68 Low Agogo
+#sound 68 Low Agogo
 
-sound 69 Cabasa
+#sound 69 Cabasa
 
-sound 70 Maracas
+#sound 70 Maracas
 
-sound 71 Short Whistle
+#sound 71 Short Whistle
 
 sound 72 Long Whistle
 
@@ -120,12 +120,12 @@ sound 75 Claves
 
 sound 76 Hi Wood Block
 
-sound 77 Low Wood Block
+#sound 77 Low Wood Block
 
-sound 78 Mute Cuica
+#sound 78 Mute Cuica
 
-sound 79 Open Cuica
+#sound 79 Open Cuica
 
-sound 80 Mute Triangle
+#sound 80 Mute Triangle
 
-sound 81 Open Triangle
+#sound 81 Open Triangle

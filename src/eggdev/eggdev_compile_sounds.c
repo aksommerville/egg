@@ -4,7 +4,7 @@
 /* Binary from text or whatever.
  */
  
-int eggdev_compile_sounds(struct eggdev_res *res) {
+int eggdev_compile_sounds(struct eggdev_res *res,struct eggdev_rom *rom) {
 
   // Already Egg Sounds or WAV, keep it.
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0MSF",4)) return 0;
@@ -25,7 +25,7 @@ int eggdev_compile_sounds(struct eggdev_res *res) {
 /* Text from binary or whatever.
  */
 
-int eggdev_uncompile_sounds(struct eggdev_res *res) {
+int eggdev_uncompile_sounds(struct eggdev_res *res,struct eggdev_rom *rom) {
 
   // Egg Sounds, let synth uncompile to text.
   // Check if there are any non-EGGSND members (eg WAV), and if so, just keep it as is.

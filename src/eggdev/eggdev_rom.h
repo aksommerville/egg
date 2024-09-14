@@ -22,6 +22,12 @@ struct eggdev_rom {
   int resc,resa;
   char **tnamev; // Type name by tid for custom types, may be sparse.
   int tnamec,tnamea;
+  struct eggdev_instrument { // From song/instruments
+    int fqpid; // (Bank<<7)|Pid
+    void *v;
+    int c;
+  } *instrumentv;
+  int instrumentc,instrumenta;
   int seq;
   int totalsize; // Sum of original size of input files.
 };
@@ -98,5 +104,11 @@ int eggdev_rom_encode(struct sr_encoder *dst,const struct eggdev_rom *rom);
  * Signature with no resources doesn't count.
  */
 int eggdev_locate_rom(void *dstpp,const void *src,int srcc);
+
+/* Content of "DATAROOT/instruments", split and compiled.
+ * You shouldn't need 'require', we take care of it at 'get'.
+ */
+int eggdev_rom_require_instruments(struct eggdev_rom *rom);
+int eggdev_rom_get_instrument(void *dstpp,struct eggdev_rom *rom,int fqpid);
 
 #endif

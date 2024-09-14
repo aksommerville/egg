@@ -85,7 +85,7 @@ static int eggdev_metadata_text_from_bin(struct sr_encoder *dst,const uint8_t *s
 /* Main entry points.
  */
  
-int eggdev_compile_metadata(struct eggdev_res *res) {
+int eggdev_compile_metadata(struct eggdev_res *res,struct eggdev_rom *rom) {
 
   // Already in binary format? Perfect, keep it.
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0EM\xff",4)) return 0;
@@ -101,7 +101,7 @@ int eggdev_compile_metadata(struct eggdev_res *res) {
   return 0;
 }
 
-int eggdev_uncompile_metadata(struct eggdev_res *res) {
+int eggdev_uncompile_metadata(struct eggdev_res *res,struct eggdev_rom *rom) {
 
   // Binary format? Uncompile.
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0EM\xff",4)) {

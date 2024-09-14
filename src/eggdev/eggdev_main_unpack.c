@@ -10,7 +10,7 @@ static int eggdev_unpack_convert(struct eggdev_rom *rom,const char *srcpath) {
   for (;i-->0;res++) {
     int err=0;
     switch (res->tid) {
-      #define _(tag) case EGG_TID_##tag: err=eggdev_uncompile_##tag(res); break;
+      #define _(tag) case EGG_TID_##tag: err=eggdev_uncompile_##tag(res,rom); break;
       EGG_TID_FOR_EACH
       #undef _
     }

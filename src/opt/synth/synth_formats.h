@@ -24,12 +24,29 @@ int synth_egg_from_text(struct sr_encoder *dst,const void *src,int srcc,const ch
 int synth_text_from_egg(struct sr_encoder *dst,const void *src,int srcc,const char *path);
 
 /* Convert MIDI to EGS.
+ * Optionally provide a callback for shared programs lookup.
  */
-int synth_egg_from_midi(struct sr_encoder *dst,const void *src,int srcc,const char *path);
+int synth_egg_from_midi(
+  struct sr_encoder *dst,
+  const void *src,int srcc,const char *path,
+  int (*cb_program)(void *dstpp,int fqpid,void *userdata),
+  void *userdata
+);
 
 /* Produce a portable MIDI file from our "\0EGS" song format.
  */
 int synth_midi_from_egg(struct sr_encoder *dst,const void *src,int srcc,const char *path);
+
+/* Quick test, nonzero if the sound is definitely noop.
+ * I expect it won't be unusual for large MSF collections to contain some dummy placeholders.
+ */
+int synth_sound_is_empty(const void *src,int srcc);
+
+/* Compile one EGS sound from a chunk of text.
+ * Caller must supply the initial line number, because this is normally called as part of MSF compilation.
+ * If (channel_header_only), fences are an error and we produce a single EGS Channel Header.
+ */
+int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,int channel_header_only,const char *path,int lineno);
 
 /* Multi-sound text files, precursor to either EGS or MSF.
  *******************************************************************/
@@ -37,7 +54,8 @@ int synth_midi_from_egg(struct sr_encoder *dst,const void *src,int srcc,const ch
 /* Initialize (src,srcc) and the rest zero.
  * Nexting skips empties and returns zero at EOF, no errors.
  * For MSF files, you'll get (*index) in 1..0xfff.
- * For EGS (ie started with a "song" line), (*index) will be zero.
+ * For EGS (ie started with a "song" line), (*index) will be zero and you'll only get one result.
+ * For Instruments files, you'll get (*index) in 0..0x001fffff.
  */
 struct synth_text_reader {
   const char *src;
