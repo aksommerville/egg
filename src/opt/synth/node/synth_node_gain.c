@@ -5,6 +5,7 @@
  
 struct synth_node_gain {
   struct synth_node hdr;
+  float gain,clip,gate;
 };
 
 #define NODE ((struct synth_node_gain*)node)
@@ -19,7 +20,23 @@ static void _gain_del(struct synth_node *node) {
  */
  
 static void _gain_update(float *v,int framec,struct synth_node *node) {
-  //TODO
+  float nclip=-NODE->clip;
+  framec*=node->chanc; // We are a rare case of pure LTI filters. We don't care whether it's stereo or mono.
+  if (NODE->gate>0.0f) {
+    float ngate=-NODE->gate;
+    for (;framec-->0;v++) {
+      (*v)*=NODE->gain;
+      if (*v>NODE->clip) *v=NODE->clip;
+      else if (*v<nclip) *v=nclip;
+      if ((*v<NODE->gate)&&(*v>ngate)) *v=0.0f;
+    }
+  } else {
+    for (;framec-->0;v++) {
+      (*v)*=NODE->gain;
+      if (*v>NODE->clip) *v=NODE->clip;
+      else if (*v<nclip) *v=nclip;
+    }
+  }
 }
 
 /* Init.
@@ -27,7 +44,9 @@ static void _gain_update(float *v,int framec,struct synth_node *node) {
  
 static int _gain_init(struct synth_node *node) {
   node->update=_gain_update;
-  fprintf(stderr,"%s:%d:%s:TODO\n",__FILE__,__LINE__,__func__);
+  NODE->gain=1.0f;
+  NODE->clip=1.0f;
+  NODE->gate=0.0f;
   return 0;
 }
 
@@ -54,6 +73,11 @@ const struct synth_node_type synth_node_type_gain={
  
 int synth_node_gain_setup(struct synth_node *node,const uint8_t *arg,int argc) {
   if (!node||(node->type!=&synth_node_type_gain)||node->ready) return -1;
-  //TODO
+  if (argc<2) return 0;
+  NODE->gain=(float)((arg[0]<<8)|arg[1])/256.0f;
+  if (argc<3) return 0;
+  NODE->clip=(float)arg[2]/255.0f;
+  if (argc<4) return 0;
+  NODE->gate=(float)arg[3]/255.0f;
   return 0;
 }

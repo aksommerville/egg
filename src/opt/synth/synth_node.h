@@ -111,6 +111,7 @@ void synth_node_channel_event(struct synth_node *node,uint8_t chid,uint8_t opcod
 void synth_node_channel_terminate(struct synth_node *node,int framec);
 
 int synth_node_pcm_setup(struct synth_node *node,struct synth_pcm *pcm,float trim,float pan);
+
 int synth_node_wave_setup(
   struct synth_node *node,
   const struct synth_wave *wave,
@@ -118,9 +119,28 @@ int synth_node_wave_setup(
   const struct synth_env *env,
   float trim,float pan
 );
-
+void synth_node_wave_set_pitch_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo); // (lfo) is a shared buffer
 void synth_node_wave_adjust_rate(struct synth_node *node,float multiplier);
+
+int synth_node_fm_setup(
+  struct synth_node *node,
+  const struct synth_wave *wave,
+  float fmrate,float fmrange,
+  float rate,float velocity,int durframes,
+  const struct synth_env *env,
+  float trim,float pan
+);
+void synth_node_fm_set_pitch_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo);
+void synth_node_fm_set_modulation_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo);
 void synth_node_fm_adjust_rate(struct synth_node *node,float multiplier);
+
+int synth_node_sub_setup(
+  struct synth_node *node,
+  float width,
+  float rate,float velocity,int durframes,
+  const struct synth_env *env,
+  float trim,float pan
+);
 void synth_node_sub_adjust_rate(struct synth_node *node,float multiplier);
 
 int synth_node_pipe_add_op(struct synth_node *node,uint8_t opcode,const uint8_t *arg,int argc);

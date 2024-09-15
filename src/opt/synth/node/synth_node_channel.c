@@ -36,6 +36,8 @@ struct synth_node_channel {
   int wheelraw; // Most recent value as encoded: 0..16383.
   int wheelcents; // '' scaled by (wheelrange).
   float wheelrel; // '' as a pitch multiplier.
+  float *pitchlfo_buffer; // SYNTH_UPDATE_LIMIT_FRAMES if not null
+  float *fmlfo_buffer; // ''
   
 // Voice factory:
   const struct synth_node_type *voicetype; // pcm,sub,wave,fm
@@ -46,10 +48,9 @@ struct synth_node_channel {
   float subwidth; // norm
   float fmrate;
   float fmrange;
-  const uint8_t *pitchlfo,*fmlfo;
-  int pitchlfoc,fmlfoc;
   struct synth_env *level,*pitchenv,*fmenv;
   struct synth_wave wave;
+  struct synth_osc pitchlfo,fmlfo;
 };
 
 #define NODE ((struct synth_node_channel*)node)
@@ -64,6 +65,8 @@ static void _channel_del(struct synth_node *node) {
   }
   synth_node_del(NODE->post);
   if (NODE->buffer) free(NODE->buffer);
+  if (NODE->pitchlfo_buffer) free(NODE->pitchlfo_buffer);
+  if (NODE->fmlfo_buffer) free(NODE->fmlfo_buffer);
   if (NODE->level) free(NODE->level);
   if (NODE->pitchenv) free(NODE->pitchenv);
   if (NODE->fmenv) free(NODE->fmenv);
@@ -73,6 +76,14 @@ static void _channel_del(struct synth_node *node) {
  */
  
 static void _channel_update_direct(float *v,int c,struct synth_node *node) {
+
+  if (NODE->pitchlfo_buffer) {
+    synth_osc_update(NODE->pitchlfo_buffer,c,&NODE->pitchlfo);
+  }
+  if (NODE->fmlfo_buffer) {
+    synth_osc_update(NODE->fmlfo_buffer,c,&NODE->fmlfo);
+  }
+
   int i=NODE->voicec;
   while (i-->0) {
     struct synth_node *voice=NODE->voicev[i];
@@ -129,10 +140,20 @@ static int _channel_ready(struct synth_node *node) {
     if (!(NODE->buffer=malloc(sizeof(float)*bufa*node->chanc))) return -1;
     NODE->bufferframec=bufa;
     node->update=_channel_update_buffer;
-    //TODO When buffering, voices will use a master level of 1, and we apply master at the end of post.
+
+    // When there's a buffer, all voices use level 1. Add a gain node at the end of post to apply the master level.
+    uint8_t gainserial[4]={0,0,0xff,0x00};
+    int gaini=(int)(NODE->master*256.0f);
+    if (gaini>=0xffff) gainserial[0]=gainserial[1]=0xff;
+    else if (gaini<=0) gainserial[0]=gainserial[1]=0x00;
+    else {
+      gainserial[0]=gaini>>8;
+      gainserial[1]=gaini;
+    }
+    if (synth_node_pipe_add_op(NODE->post,0x80,gainserial,sizeof(gainserial))<0) return -1;
+
   } else {
     node->update=_channel_update_direct;
-    //TODO No buffer, so apply both master and pan in the voices.
   }
   
   if (NODE->post&&(synth_node_ready(NODE->post)<0)) return -1;
@@ -201,7 +222,6 @@ void synth_node_channel_setup(struct synth_node *node,uint8_t chid,struct synth_
 }
 
 int synth_node_channel_configure(struct synth_node *node,const void *src,int srcc) {
-  fprintf(stderr,"%s srcc=%d\n",__func__,srcc);
   if (!node||(node->type!=&synth_node_type_channel)||node->ready) return -1;
   
   // Capture the fields <128, which may only appear once, and apply globally.
@@ -260,7 +280,7 @@ int synth_node_channel_configure(struct synth_node *node,const void *src,int src
       NODE->pan=(fldv[0x02].v[0]-0x80)/127.0f;
     }
   }
-  NODE->master=SYNTH_GLOBAL_TRIM;
+  NODE->master*=SYNTH_GLOBAL_TRIM;
   
   // Wheel range is zero for drums, or provided in cents, or defaults to 200.
   if (NODE->voicetype==&synth_node_type_pcm) {
@@ -288,20 +308,20 @@ int synth_node_channel_configure(struct synth_node *node,const void *src,int src
     (NODE->voicetype==&synth_node_type_fm)||
     (NODE->voicetype==&synth_node_type_wave)
   ) {
-    #define BORROWBIN(fldname,opcode,cmin) { \
-      if (fldv[opcode].c<cmin) { \
-        NODE->fldname=synth_node_channel_spare_zeroes; \
-        NODE->fldname##c=cmin; \
-      } else { \
-        NODE->fldname=fldv[opcode].v; \
-        NODE->fldname##c=fldv[opcode].c; \
-      } \
+    if (fldv[0x0a].c) {
+      if (synth_osc_decode(&NODE->fmlfo,node->synth,fldv[0x0a].v,fldv[0x0a].c)<0) return -1;
+      if (!(NODE->fmlfo_buffer=malloc(sizeof(float)*SYNTH_UPDATE_LIMIT_FRAMES))) return -1;
     }
-    BORROWBIN(fmlfo,0x0a,5)
-    BORROWBIN(pitchlfo,0x0c,5)
-    #undef BORROWBIN
+    if (fldv[0x0c].c) {
+      if (synth_osc_decode(&NODE->pitchlfo,node->synth,fldv[0x0c].v,fldv[0x0c].c)<0) return -1;
+      NODE->pitchlfo.scale*=65536.0f;
+      if (!(NODE->pitchlfo_buffer=malloc(sizeof(float)*SYNTH_UPDATE_LIMIT_FRAMES))) return -1;
+    }
     if (fldv[0x09].c&&!(NODE->fmenv=synth_env_decode(fldv[0x09].v,fldv[0x09].c,node->synth->rate))) return -1;
-    if (fldv[0x0b].c&&!(NODE->pitchenv=synth_env_decode(fldv[0x0b].v,fldv[0x0b].c,node->synth->rate))) return -1;
+    if (fldv[0x0b].c) {
+      if (!(NODE->pitchenv=synth_env_decode(fldv[0x0b].v,fldv[0x0b].c,node->synth->rate))) return -1;
+      synth_env_adjust_values(NODE->pitchenv,-0.5f,32768.0f);
+    }
     int shape=0;
     if (fldv[0x06].c>=1) shape=fldv[0x06].v[0];
     synth_wave_synthesize(&NODE->wave,node->synth,shape,fldv[0x07].v,fldv[0x07].c);
@@ -345,17 +365,31 @@ static int synth_node_channel_init_voice(
   } else if (voice->type==&synth_node_type_wave) {
     //fprintf(stderr,"%s: WAVE: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
     float rate=node->synth->ratefv[noteid];
-    float level=NODE->bufferframec?SYNTH_GLOBAL_TRIM:NODE->master;
+    float level=NODE->bufferframec?1.0f:NODE->master;
     if (synth_node_wave_setup(voice,&NODE->wave,rate,velocity,durframes,NODE->level,level,NODE->pan)<0) return -1;
-    //TODO pitchenv
-    //TODO pitchlfo
+    if (NODE->pitchenv||NODE->pitchlfo_buffer) {
+      synth_node_wave_set_pitch_adjustment(voice,NODE->pitchenv,NODE->pitchlfo_buffer);
+    }
     synth_node_wave_adjust_rate(voice,NODE->wheelrel);
     
   } else if (voice->type==&synth_node_type_fm) {
-    fprintf(stderr,"%s: FM: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
+    //fprintf(stderr,"%s: FM: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
+    float rate=node->synth->ratefv[noteid];
+    float level=NODE->bufferframec?1.0f:NODE->master;
+    if (synth_node_fm_setup(voice,&NODE->wave,NODE->fmrate,NODE->fmrange,rate,velocity,durframes,NODE->level,level,NODE->pan)<0) return -1;
+    if (NODE->pitchenv||NODE->pitchlfo_buffer) {
+      synth_node_fm_set_pitch_adjustment(voice,NODE->pitchenv,NODE->pitchlfo_buffer);
+    }
+    if (NODE->fmenv||NODE->fmlfo_buffer) {
+      synth_node_fm_set_modulation_adjustment(voice,NODE->fmenv,NODE->fmlfo_buffer);
+    }
+    synth_node_fm_adjust_rate(voice,NODE->wheelrel);
     
   } else if (voice->type==&synth_node_type_sub) {
-    fprintf(stderr,"%s: SUB: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
+    //fprintf(stderr,"%s: SUB: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
+    float rate=node->synth->ratefv[noteid];
+    float level=NODE->bufferframec?1.0f:NODE->master;
+    if (synth_node_sub_setup(voice,NODE->subwidth,rate,velocity,durframes,NODE->level,level,NODE->pan)<0) return -1;
     
   } else {
     return -1;

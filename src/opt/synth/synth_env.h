@@ -29,6 +29,7 @@ struct synth_env_runner {
 };
 
 struct synth_env *synth_env_decode(const void *src,int srcc,int rate);
+void synth_env_adjust_values(struct synth_env *env,float bias,float scale); // 0..1 by default
 
 void synth_env_runner_init(struct synth_env_runner *runner,const struct synth_env *env,float velocity);
 

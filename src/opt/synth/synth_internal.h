@@ -4,7 +4,9 @@
 #include "synth.h"
 #include "synth_formats.h"
 #include "synth_env.h"
+#include "synth_osc.h"
 #include "synth_node.h"
+#include "synth_filters.h"
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>

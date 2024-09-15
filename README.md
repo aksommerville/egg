@@ -62,6 +62,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - [ ] Post.
 - - - [ ] Print PCM.
 - - - [ ] Provide for stereo drums. Maybe use the pan setting from sounds' channel zero, store that in the PCM object?
+- - - [ ] `synth_node_fm.c:_fm_update()`: Split out optimized implementations.
 - - [ ] Live input mapping
 - - [ ] Save and load input templates.
 - - [ ] Config files

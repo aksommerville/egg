@@ -48,6 +48,20 @@ struct synth_env *synth_env_decode(const void *src,int srcc,int rate) {
   return env;
 }
 
+/* Scale values.
+ */
+ 
+void synth_env_adjust_values(struct synth_env *env,float bias,float scale) {
+  env->initlo=(env->initlo+bias)*scale;
+  env->inithi=(env->inithi+bias)*scale;
+  struct synth_env_point *point=env->pointv;
+  int i=env->pointc;
+  for (;i-->0;point++) {
+    point->vlo=(point->vlo+bias)*scale;
+    point->vhi=(point->vhi+bias)*scale;
+  }
+}
+
 /* Initialize runner.
  */
 
