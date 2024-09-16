@@ -33,4 +33,27 @@ static inline float synth_iir3_update(struct synth_iir3 *iir3,float src) {
   return src;
 }
 
+/* Fixed-period circular buffer.
+ */
+ 
+struct synth_cbuf {
+  int p;
+  int c; // period, frames
+  float v[];
+};
+
+void synth_cbuf_del(struct synth_cbuf *cbuf);
+
+struct synth_cbuf *synth_cbuf_new(int c);
+
+static inline float synth_cbuf_read(const struct synth_cbuf *cbuf) {
+  return cbuf->v[cbuf->p];
+}
+
+// Write sample and advance position.
+static inline void synth_cbuf_write(struct synth_cbuf *cbuf,float v) {
+  cbuf->v[cbuf->p]=v;
+  if (++(cbuf->p)>=cbuf->c) cbuf->p=0;
+}
+
 #endif

@@ -35,16 +35,14 @@ void synth_play_sound(struct synth *synth,int rid,int index) {
  */
 
 void synth_play_song(struct synth *synth,int rid,int force,int repeat) {
-  fprintf(stderr,"TODO %s %d\n",__func__,rid);
-  
+
   /* If we're not forcing, and this song is already playing, keep it.
    * If it's playing but fading out, cancel any waiting song and cancel the fade-out.
    */
-  if (!force) {
+  if (!force&&rid) {
     if (synth->song) {
       int pvrid=synth_node_bus_get_songid(synth->song);
       if (pvrid==rid) {
-        fprintf(stderr,"...already playing.\n");
         return;
       }
     }
@@ -56,7 +54,6 @@ void synth_play_song(struct synth *synth,int rid,int force,int repeat) {
         synth_node_bus_cancel_fade(bus);
         synth_node_bus_fade_out(synth->song,synth->fade_time_quick,0); // Might not exist, but that's safe.
         synth->song=bus;
-        fprintf(stderr,"...cancel fade out.\n");
         return;
       }
     }
@@ -66,7 +63,6 @@ void synth_play_song(struct synth *synth,int rid,int force,int repeat) {
    */
   int outgoing=0;
   if (synth->song) {
-    fprintf(stderr,"...end current song...\n");
     synth_node_bus_fade_out(synth->song,synth->fade_time_normal,0);
     synth->song=0;
     outgoing=1;
@@ -77,7 +73,6 @@ void synth_play_song(struct synth *synth,int rid,int force,int repeat) {
    */
   int p=synth_songv_search(synth,rid);
   if (p<0) {
-    fprintf(stderr,"...song %d not found. (songc=%d)\n",rid,synth->songc);
     return;
   }
   struct synth_song *song=synth->songv+p;
@@ -86,24 +81,21 @@ void synth_play_song(struct synth *synth,int rid,int force,int repeat) {
    */
   struct synth_node *bus=synth_add_bus(synth);
   if (!bus) {
-    fprintf(stderr,"...FAILED TO ADD BUS\n");
     return;
   }
   if (synth_node_bus_configure(bus,song->v,song->c)<0) {
-    fprintf(stderr,"...FAILED TO CONFIGURE\n");
     synth_kill_bus(synth,bus);
     return;
   }
   synth_node_bus_set_songid(bus,rid,repeat);
   if (synth_node_ready(bus)<0) {
-    fprintf(stderr,"...FAILED TO READY\n");
     synth_kill_bus(synth,bus);
     return;
   }
   if (outgoing) {
     synth_node_bus_wait(bus,synth->new_song_delay);
   }
-  fprintf(stderr,"...playing.\n");
+  synth->song=bus;
 }
 
 /* Send event.

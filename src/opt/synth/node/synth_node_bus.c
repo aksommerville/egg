@@ -56,7 +56,7 @@ static void synth_node_bus_unlist_channel(struct synth_node *node,struct synth_n
  
 static void synth_node_bus_update_fade(float *v,int framec,struct synth_node *node) {
   if (node->chanc==1) {
-    if (NODE->fadeenable>0) { // Cancelling, mono.
+    if (NODE->fadeenable<0) { // Cancelling, mono.
       for (;framec-->0;v++) {
         NODE->fade+=NODE->dfade;
         if (NODE->fade>=1.0f) {
@@ -66,7 +66,7 @@ static void synth_node_bus_update_fade(float *v,int framec,struct synth_node *no
         }
         (*v)*=NODE->fade;
       }
-    } else if (NODE->fadeenable<0) { // Fading, mono.
+    } else if (NODE->fadeenable>0) { // Fading, mono.
       for (;framec-->0;v++) {
         NODE->fade+=NODE->dfade;
         if (NODE->fade<=0.0f) {
@@ -80,7 +80,7 @@ static void synth_node_bus_update_fade(float *v,int framec,struct synth_node *no
       }
     }
   } else {
-    if (NODE->fadeenable>0) { // Cancelling, stereo.
+    if (NODE->fadeenable<0) { // Cancelling, stereo.
       for (;framec-->0;v+=2) {
         NODE->fade+=NODE->dfade;
         if (NODE->fade>=1.0f) {
@@ -91,7 +91,7 @@ static void synth_node_bus_update_fade(float *v,int framec,struct synth_node *no
         v[0]*=NODE->fade;
         v[1]*=NODE->fade;
       }
-    } else if (NODE->fadeenable<0) { // Fading, stereo.
+    } else if (NODE->fadeenable>0) { // Fading, stereo.
       for (;framec-->0;v+=2) {
         NODE->fade+=NODE->dfade;
         if (NODE->fade<=0.0f) {
@@ -373,7 +373,7 @@ int synth_node_bus_get_songid(struct synth_node *node) {
  */
 
 void synth_node_bus_fade_out(struct synth_node *node,int framec,int force) {
-  if (!node||(node->type!=&synth_node_type_bus)||node->ready) return;
+  if (!node||(node->type!=&synth_node_type_bus)||!node->ready) return;
   if ((framec<1)||NODE->harddelay) { // Immediate.
     NODE->fadeenable=1;
     NODE->dfade=-1.0f;
@@ -390,7 +390,7 @@ void synth_node_bus_fade_out(struct synth_node *node,int framec,int force) {
  */
  
 void synth_node_bus_cancel_fade(struct synth_node *node) {
-  if (!node||(node->type!=&synth_node_type_bus)||node->ready||node->finished) return;
+  if (!node||(node->type!=&synth_node_type_bus)||!node->ready||node->finished) return;
   if (NODE->fadeenable>0) {
     NODE->fadeenable=-1;
     NODE->dfade=-NODE->dfade;
@@ -401,7 +401,7 @@ void synth_node_bus_cancel_fade(struct synth_node *node) {
  */
  
 void synth_node_bus_wait(struct synth_node *node,int framec) {
-  if (!node||(node->type!=&synth_node_type_bus)||node->ready) return;
+  if (!node||(node->type!=&synth_node_type_bus)||!node->ready) return;
   if (framec<0) framec=0;
   NODE->harddelay=framec;
 }

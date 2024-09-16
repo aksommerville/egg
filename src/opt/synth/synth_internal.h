@@ -1,18 +1,6 @@
 #ifndef SYNTH_INTERNAL_H
 #define SYNTH_INTERNAL_H
 
-#include "synth.h"
-#include "synth_formats.h"
-#include "synth_env.h"
-#include "synth_osc.h"
-#include "synth_node.h"
-#include "synth_filters.h"
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <stdio.h>
-#include <math.h>
-
 #define SYNTH_RATE_MIN 200
 #define SYNTH_RATE_MAX 200000
 #define SYNTH_CHANC_MIN 1
@@ -26,22 +14,17 @@
 #define SYNTH_WAVE_SIZE_SAMPLES (1<<SYNTH_WAVE_SIZE_BITS)
 #define SYNTH_WAVE_SHIFT (32-SYNTH_WAVE_SIZE_BITS)
 
-/* PCM object.
- *******************************************************/
- 
-struct synth_pcm {
-  int refc;
-  int c;
-  float v[];
-};
-
-void synth_pcm_del(struct synth_pcm *pcm);
-int synth_pcm_ref(struct synth_pcm *pcm);
-struct synth_pcm *synth_pcm_new(int samplec);
-
-struct synth_wave {
-  float v[SYNTH_WAVE_SIZE_SAMPLES];
-};
+#include "synth.h"
+#include "synth_formats.h"
+#include "synth_env.h"
+#include "synth_osc.h"
+#include "synth_node.h"
+#include "synth_filters.h"
+#include <string.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <stdio.h>
+#include <math.h>
 
 /* Global context.
  ***************************************************************/

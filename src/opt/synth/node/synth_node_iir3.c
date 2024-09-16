@@ -5,6 +5,7 @@
  
 struct synth_node_iir3 {
   struct synth_node hdr;
+  struct synth_iir3 l,r;
 };
 
 #define NODE ((struct synth_node_iir3*)node)
@@ -18,16 +19,25 @@ static void _iir3_del(struct synth_node *node) {
 /* Update.
  */
  
-static void _iir3_update(float *v,int framec,struct synth_node *node) {
-  //TODO
+static void _iir3_update_stereo(float *v,int framec,struct synth_node *node) {
+  for (;framec-->0;v+=2) {
+    v[0]=synth_iir3_update(&NODE->l,v[0]);
+    v[1]=synth_iir3_update(&NODE->r,v[1]);
+  }
+}
+ 
+static void _iir3_update_mono(float *v,int framec,struct synth_node *node) {
+  for (;framec-->0;v+=1) {
+    v[0]=synth_iir3_update(&NODE->l,v[0]);
+  }
 }
 
 /* Init.
  */
  
 static int _iir3_init(struct synth_node *node) {
-  node->update=_iir3_update;
-  fprintf(stderr,"%s:%d:%s:TODO\n",__FILE__,__LINE__,__func__);
+  if (node->chanc==2) node->update=_iir3_update_stereo;
+  else node->update=_iir3_update_mono;
   return 0;
 }
 
@@ -54,24 +64,29 @@ const struct synth_node_type synth_node_type_iir3={
  
 int synth_node_iir3_setup_lopass(struct synth_node *node,float norm) {
   if (!node||(node->type!=&synth_node_type_iir3)||node->ready) return -1;
-  //TODO
+  fprintf(stderr,"%s norm=%f rate=%d hz=%f\n",__func__,norm,node->synth->rate,norm*node->synth->rate);
+  synth_iir3_init_lopass(&NODE->l,norm);//XXX Can't possibly be right. I get some signal when the frequency is like 16 kHz but not much below
+  memcpy(&NODE->r,&NODE->l,sizeof(struct synth_iir3));
   return 0;
 }
  
 int synth_node_iir3_setup_hipass(struct synth_node *node,float norm) {
   if (!node||(node->type!=&synth_node_type_iir3)||node->ready) return -1;
-  //TODO
+  synth_iir3_init_hipass(&NODE->l,norm);
+  memcpy(&NODE->r,&NODE->l,sizeof(struct synth_iir3));
   return 0;
 }
  
 int synth_node_iir3_setup_bpass(struct synth_node *node,float norm,float width) {
   if (!node||(node->type!=&synth_node_type_iir3)||node->ready) return -1;
-  //TODO
+  synth_iir3_init_bpass(&NODE->l,norm,width);
+  memcpy(&NODE->r,&NODE->l,sizeof(struct synth_iir3));
   return 0;
 }
  
 int synth_node_iir3_setup_notch(struct synth_node *node,float norm,float width) {
   if (!node||(node->type!=&synth_node_type_iir3)||node->ready) return -1;
-  //TODO
+  synth_iir3_init_notch(&NODE->l,norm,width);
+  memcpy(&NODE->r,&NODE->l,sizeof(struct synth_iir3));
   return 0;
 }

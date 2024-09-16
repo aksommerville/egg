@@ -82,15 +82,16 @@ instrument 4:4 Electric Piano 1 (Rhodes Piano)
   gain 0c00 80 00
 
 instrument 0:5 Electric Piano 2 (Chorused Piano)
-  # Treasure of the Deep: 
-  master 20
+  # Treasure of the Deep: Bass
+  master 80
   pan 80
   wheel 00c8
   shape 00
   fm 0080 0200
   fmenv 02 8000 8000   0028 0014 a000 ffff    0032 003c 6000 c000   0080 0100 3000 6000
   level 02 0000 0000   0028 0014 8000 ffff    0032 003c 1500 4000   0080 0100 0000 0000
-  gain 0a00 60 00
+  #gain 0a00 60 00
+  waveshaper 3000 3000 3800 3c00 8000 c400 c800 d000 d000
 
 instrument 4:6 Harpsichord
   master 80
@@ -207,8 +208,10 @@ instrument 0:19 Church Organ
   harmonics c000 2000 4000 0800 1000 0010
   fm 0100 0100
   fmenv 02 c000 ffff   0028 0010 a000 c000    0032 0030 8000 a000   0080 0200 0000 0000
-  level 02 0000 0000   0028 0010 8000 ffff    0032 0030 2000 6000   0080 0200 0000 0000
-  gain 00a0 ff 00
+  level 02 0000 0000   0018 0008 8000 ffff    0022 0020 1000 2000   0080 0200 0000 0000
+  waveshaper 2f00 3000 3800 3c00 8000 c400 c800 d000 d100
+  #gain 0080 ff 00
+  delay 0100 80 80 80 c0
 
 instrument 4:20 Reed Organ
   master 80
@@ -762,11 +765,18 @@ instrument 4:86 Lead 7 (fifths)
 instrument 0:87 Lead 8 (bass + lead)
   # Treasure of the Deep: Doubled lead.
   master 80
-  pan 01
+  pan 80
   wheel 00c8
-  shape 03
-  harmonics 8000 0000 4000 0000 1000
-  level ff 0000 0000   0040 0020 4000 ffff    0030 0030 2000 6000   0100 0400 0000 0000
+  shape 00
+  fm 0100 0300
+  fmlfo 0800 c000 00
+  fmenv 02 0000 0000   0018 0010 8000 ffff    0100 0100 6000 8000   0100 0200 0000 0000
+  level 02 0000 0000   0018 0010 8000 ffff    0028 0020 0800 1000   0100 0200 0000 0000
+  pitchenv ff 8000 8100   0012 0012 8000 8000
+  waveshaper 4000 4000 4000 4100 4800 5000 8000 b000 b800 bf00 c000 c000 c000
+  #gain 0080 ff 00
+  tremolo 0100 5000 00
+  delay 0100 c0 50 80 80
 
 # --- GM 88..95: Synth Pad ---
 
@@ -861,16 +871,21 @@ instrument 4:98 FX 3 (crystal)
   gain 0c00 80 00
 
 instrument 0:99 FX 4 (atmosphere)
-  # Dust Devil, both instruments.
+  # Dust Devil: lead
   master 80
   pan 80
   wheel 00c8
   shape 00
-  fm 0080 0200
+  fm 0100 0300
   fmlfo 0800 c000 00
   fmenv 02 0000 0000   0018 0010 8000 ffff    0100 0100 6000 8000   0100 0200 0000 0000
-  level 02 0000 0000   0018 0010 8000 ffff    0032 003c 1000 2000   0100 0200 0000 0000
-  pitchenv ff 8000 82b0   0032 0032 8000 8000
+  level 02 0000 0000   0018 0010 8000 ffff    0028 0020 0800 1000   0100 0200 0000 0000
+  pitchenv ff 8000 8100   0012 0012 8000 8000
+  waveshaper 4000 4000 4000 4100 4800 5000 8000 b000 b800 bf00 c000 c000 c000
+  tremolo 0100 5000 00
+  delay 0100 c0 50 80 80
+  lopass 0400
+  #gain 0400 ff 00
 
 instrument 4:100 FX 5 (brightness)
   master 80

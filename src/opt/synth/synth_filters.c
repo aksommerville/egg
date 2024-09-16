@@ -26,6 +26,13 @@ void synth_iir3_init_lopass(struct synth_iir3 *iir3,float thresh) {
   iir3->cv[2]=(x0*k*k-x1*k+x2)/d;
   iir3->cv[3]=(2.0f*k+y1+y1*k*k-2.0f*y2*k)/d;
   iir3->cv[4]=(-k*k-y1*k+y2)/d;
+  
+  float sa=iir3->cv[0]+iir3->cv[1]+iir3->cv[2];
+  float sb=iir3->cv[3]+iir3->cv[4];
+  float gain=(1.0f-sb)/sa;
+  iir3->cv[0]*=gain;
+  iir3->cv[1]*=gain;
+  iir3->cv[2]*=gain;
 }
 
 void synth_iir3_init_hipass(struct synth_iir3 *iir3,float thresh) {
@@ -52,6 +59,13 @@ void synth_iir3_init_hipass(struct synth_iir3 *iir3,float thresh) {
   iir3->cv[2]=(x0*k*k-x1*k+x2)/d;
   iir3->cv[3]=-(2.0f*k+y1+y1*k*k-2.0f*y2*k)/d;
   iir3->cv[4]=(-k*k-y1*k+y2)/d;
+  
+  float sa=iir3->cv[0]-iir3->cv[1]+iir3->cv[2];
+  float sb=-iir3->cv[3]+iir3->cv[4];
+  float gain=(1.0f-sb)/sa;
+  iir3->cv[0]*=gain;
+  iir3->cv[1]*=gain;
+  iir3->cv[2]*=gain;
 }
 
 void synth_iir3_init_bpass(struct synth_iir3 *iir3,float mid,float width) {
@@ -87,4 +101,21 @@ void synth_iir3_init_notch(struct synth_iir3 *iir3,float mid,float width) {
   iir3->cv[2]=k;
   iir3->cv[3]=2.0f*r*cosfreq;
   iir3->cv[4]=-r*r;
+}
+
+/* Circular buffer.
+ */
+
+void synth_cbuf_del(struct synth_cbuf *cbuf) {
+  if (!cbuf) return;
+  free(cbuf);
+}
+
+struct synth_cbuf *synth_cbuf_new(int c) {
+  if (c<1) return 0;
+  if (c>1000000) return 0; // Arbitrary sanity limit.
+  struct synth_cbuf *cbuf=calloc(1,sizeof(struct synth_cbuf)+sizeof(float)*c);
+  if (!cbuf) return 0;
+  cbuf->c=c;
+  return cbuf;
 }

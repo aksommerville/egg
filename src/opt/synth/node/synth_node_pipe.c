@@ -42,6 +42,10 @@ static int _pipe_init(struct synth_node *node) {
  */
  
 static int _pipe_ready(struct synth_node *node) {
+  int i=NODE->opc;
+  while (i-->0) {
+    if (synth_node_ready(NODE->opv[i])<0) return -1;
+  }
   return 0;
 }
 
