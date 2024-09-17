@@ -40,14 +40,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
-- [x] Define data types.
-- - [x] Sound effects.
 - [ ] Dev tool.
 - - [ ] validate: sounds
 - - [ ] Synth helper. Maybe as part of 'serve'.
 - - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
-- - [ ] Sounds compiler: Validate Channel Headers more aggressively. See synth_formats.c:synth_beeeeep_chctx
-- - [ ] Let MIDI=>EGS conversion access predefined instruments at build time. See synth_formats_midi.c:synth_egg_from_midi_header
 - [ ] Editor.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.
@@ -55,18 +51,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Launch game.
 - [ ] Native runner.
 - - [ ] Synthesizer
-- - - [x] Global.
-- - - [x] Bus.
-- - - [x] Channel.
-- - - [x] Voices.
-- - - [x] Post.
-- - - [x] Print PCM.
-- - - [x] WAV
-- - - [x] Forbid 'drums' in sound effects.
-- - - [x] Provide for stereo drums. Maybe use the pan setting from sounds' channel zero, store that in the PCM object?
-- - - [ ] `synth_node_fm.c:_fm_update()`: Split out optimized implementations.
-- - - [x] `synth_node_delay.c`: Stereo.
-- - - [ ] `synth_node_detune.c`: Remove this. Too complicated to configure.
 - - - [ ] IIR filters, we probably need more than 2 poles. The lopass and hipass barely have any effect at all.
 - - - [ ] Consider DFT resampling for sounds acquired from raw PCM.
 - - [ ] Live input mapping

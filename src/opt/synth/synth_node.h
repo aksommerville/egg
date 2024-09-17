@@ -63,7 +63,6 @@ extern const struct synth_node_type synth_node_type_pipe; // Filter container.
 extern const struct synth_node_type synth_node_type_gain; // Multiply and clamp.
 extern const struct synth_node_type synth_node_type_waveshaper; // Refined gain alternative.
 extern const struct synth_node_type synth_node_type_delay; // Simple delay and feedback.
-extern const struct synth_node_type synth_node_type_detune; // Ping-pong in time.
 extern const struct synth_node_type synth_node_type_tremolo; // Level LFO.
 extern const struct synth_node_type synth_node_type_iir3; // 3-point IIR (lopass,hipass,bpass,notch).
 
@@ -153,7 +152,6 @@ int synth_node_pipe_add_op(struct synth_node *node,uint8_t opcode,const uint8_t 
 int synth_node_gain_setup(struct synth_node *node,const uint8_t *arg,int argc);
 int synth_node_waveshaper_setup(struct synth_node *node,const uint8_t *arg,int argc);
 int synth_node_delay_setup(struct synth_node *node,const uint8_t *arg,int argc);
-int synth_node_detune_setup(struct synth_node *node,const uint8_t *arg,int argc);
 int synth_node_tremolo_setup(struct synth_node *node,const uint8_t *arg,int argc);
 int synth_node_iir3_setup_lopass(struct synth_node *node,float norm);
 int synth_node_iir3_setup_hipass(struct synth_node *node,float norm);

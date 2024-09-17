@@ -79,10 +79,6 @@ static struct synth_node *synth_node_pipe_instantiate_op(struct synth *synth,int
         if (!(op=synth_node_new(synth,&synth_node_type_delay,chanc))) return 0;
         err=synth_node_delay_setup(op,arg,argc);
       } break;
-    case 0x83: {
-        if (!(op=synth_node_new(synth,&synth_node_type_detune,chanc))) return 0;
-        err=synth_node_detune_setup(op,arg,argc);
-      } break;
     case 0x84: {
         if (!(op=synth_node_new(synth,&synth_node_type_tremolo,chanc))) return 0;
         err=synth_node_tremolo_setup(op,arg,argc);

@@ -26,7 +26,6 @@ instrument 1000 Acoustic Grand Piano
   gain 0500 c0 00
   waveshaper 8000 0000 7fff
   delay 0100 80 80 80 80
-  detune 0188 0064 00
   tremolo 0188 5000 00
   lopass 0bb8
   hipass 0032

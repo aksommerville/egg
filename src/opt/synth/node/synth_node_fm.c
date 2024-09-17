@@ -35,11 +35,9 @@ static void _fm_del(struct synth_node *node) {
 }
 
 /* Update.
- * TODO The extra envelopes and LFOs are expensive, and so is checking chanc every frame.
- * Split this into various optimized cases. Current implementation works for all configs.
  */
  
-static void _fm_update(float *v,int framec,struct synth_node *node) {
+static void _fm_update_universal(float *v,int framec,struct synth_node *node) {
   const float *src=NODE->carwave->v;
   const float *msrc=NODE->modwave->v;
   const float *rlfo=NODE->rangelfo;
@@ -82,12 +80,104 @@ static void _fm_update(float *v,int framec,struct synth_node *node) {
   }
   if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
 }
+ 
+static void _fm_update_fixedpitch_stereo(float *v,int framec,struct synth_node *node) {
+  const float *src=NODE->carwave->v;
+  const float *msrc=NODE->modwave->v;
+  const float *rlfo=NODE->rangelfo;
+  for (;framec-->0;v+=2) {
+    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
+    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
+    NODE->modp+=NODE->carrate*NODE->fmrate;
+    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
+    
+    if (NODE->rangeenv_source) {
+      mod*=synth_env_runner_next(NODE->rangeenv);
+    }
+    if (NODE->rangelfo) {
+      mod*=(*rlfo);
+      rlfo++;
+    }
+    
+    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
+    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
+    
+    sample*=synth_env_runner_next(NODE->level);
+    v[0]+=sample*NODE->mixl;
+    v[1]+=sample*NODE->mixr;
+  }
+  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_fixedpitch_mono(float *v,int framec,struct synth_node *node) {
+  const float *src=NODE->carwave->v;
+  const float *msrc=NODE->modwave->v;
+  const float *rlfo=NODE->rangelfo;
+  for (;framec-->0;v+=1) {
+    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
+    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
+    NODE->modp+=NODE->carrate*NODE->fmrate;
+    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
+    
+    if (NODE->rangeenv_source) {
+      mod*=synth_env_runner_next(NODE->rangeenv);
+    }
+    if (NODE->rangelfo) {
+      mod*=(*rlfo);
+      rlfo++;
+    }
+    
+    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
+    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
+    
+    sample*=synth_env_runner_next(NODE->level);
+    v[0]+=sample*NODE->mixl;
+  }
+  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_fixedpitch_fixedrange_stereo(float *v,int framec,struct synth_node *node) {
+  const float *src=NODE->carwave->v;
+  const float *msrc=NODE->modwave->v;
+  for (;framec-->0;v+=2) {
+    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
+    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
+    NODE->modp+=NODE->carrate*NODE->fmrate;
+    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
+    
+    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
+    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
+    
+    sample*=synth_env_runner_next(NODE->level);
+    v[0]+=sample*NODE->mixl;
+    v[1]+=sample*NODE->mixr;
+  }
+  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_fixedpitch_fixedrange_mono(float *v,int framec,struct synth_node *node) {
+  const float *src=NODE->carwave->v;
+  const float *msrc=NODE->modwave->v;
+  for (;framec-->0;v+=1) {
+    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
+    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
+    NODE->modp+=NODE->carrate*NODE->fmrate;
+    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
+    
+    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
+    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
+    
+    sample*=synth_env_runner_next(NODE->level);
+    v[0]+=sample*NODE->mixl;
+  }
+  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
+}
 
 /* Init.
  */
  
 static int _fm_init(struct synth_node *node) {
-  node->update=_fm_update;
+  node->update=_fm_update_universal;
   return 0;
 }
 
@@ -101,6 +191,28 @@ static int _fm_ready(struct synth_node *node) {
   synth_env_runner_release_later(&NODE->rangeenv,NODE->durframes);
   synth_env_runner_init(&NODE->pitchenv,NODE->pitchenv_source,NODE->velocity);
   synth_env_runner_release_later(&NODE->pitchenv,NODE->durframes);
+  
+  /* _fm_update_universal is selected by default and it's OK to keep that, no matter how we're configured.
+   * A few common cases have more efficient updaters, we'll check for those here.
+   */
+  if (node->chanc==2) {
+    if (!NODE->pitchlfo&&!NODE->pitchenv_source) {
+      if (!NODE->rangelfo&&!NODE->rangeenv_source) {
+        node->update=_fm_update_fixedpitch_fixedrange_stereo;
+      } else {
+        node->update=_fm_update_fixedpitch_stereo;
+      }
+    }
+  } else if (node->chanc==1) {
+    if (!NODE->pitchlfo&&!NODE->pitchenv_source) {
+      if (!NODE->rangelfo&&!NODE->rangeenv_source) {
+        node->update=_fm_update_fixedpitch_fixedrange_mono;
+      } else {
+        node->update=_fm_update_fixedpitch_mono;
+      }
+    }
+  }
+  
   return 0;
 }
 

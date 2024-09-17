@@ -50,7 +50,7 @@ static const struct synth_chhdr_meta {
   {0x80,"gain"      ,{A_U88,A_U08,A_U08},{"gain","clip","gate"}},
   {0x81,"waveshaper",{A_S016V},{"levels"}},
   {0x82,"delay"     ,{A_U16,A_U08,A_U08,A_U08,A_U08},{"ms","dry","wet","store","feedback"}},
-  {0x83,"detune"    ,{A_U16,A_U16,A_U08},{"ms","cents","phase"}},
+//  {0x83,"detune"    ,{A_U16,A_U16,A_U08},{"ms","cents","phase"}}, // Removed. 0x83 is available.
   {0x84,"tremolo"   ,{A_U16,A_U016,A_U08},{"ms","depth","phase"}},
   {0x85,"lopass"    ,{A_U16},{"hz"}},
   {0x86,"hipass"    ,{A_U16},{"hz"}},

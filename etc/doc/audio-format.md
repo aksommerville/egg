@@ -119,7 +119,7 @@ Others may be ignored if unknown.
 | 0x80  | gain        | (u8.8 gain,u0.8 clip,u0.8 gate) | Multiply and clamp, for crude distortion. |
 | 0x81  | waveshaper  | (s0.16...)                      | Signal linearly interpolates between two adjacent values here, for more refined distortion. |
 | 0x82  | delay       | (u16 ms,u0.8 dry,u0.8 wet,u0.8 store,u0.8 feedback) | Simple delay with feedback. |
-| 0x83  | detune      | (u16 ms,u16 cents,u0.8 phase)   | Disturb pitch by ping-ponging back in time. |
+| 0x83  | ---         | ()                              | Unused (formerly detune) |
 | 0x84  | tremolo     | (u16 ms,u0.16 depth,u0.8 phase) | Attenuate combined output per LFO. |
 | 0x85  | lopass      | (u16 hz)                        | Attenuate frequencies above arg. |
 | 0x86  | hipass      | (u16 hz)                        | Attenuate frequencies below arg. |
