@@ -5,7 +5,7 @@
  
 struct synth_node_delay {
   struct synth_node hdr;
-  struct synth_cbuf *cbuf;
+  struct synth_cbuf *cbufl,*cbufr;
   float dry,wet,sto,fbk;
 };
 
@@ -15,29 +15,32 @@ struct synth_node_delay {
  */
  
 static void _delay_del(struct synth_node *node) {
-  synth_cbuf_del(NODE->cbuf);
+  synth_cbuf_del(NODE->cbufl);
+  synth_cbuf_del(NODE->cbufr);
 }
 
 /* Update.
  */
  
 static void _delay_update_stereo(float *v,int framec,struct synth_node *node) {
-  //TODO Do we want separate buffers for each channel?
   for (;framec-->0;v+=2) {
-    float wet=synth_cbuf_read(NODE->cbuf);
-    float dry=(v[0]+v[1])/2.0f;
-    v[0]=v[0]*NODE->dry+wet*NODE->wet;
-    v[1]=v[1]*NODE->dry+wet*NODE->wet;
-    synth_cbuf_write(NODE->cbuf,dry*NODE->sto+wet*NODE->fbk);
+    float wetl=synth_cbuf_read(NODE->cbufl);
+    float wetr=synth_cbuf_read(NODE->cbufr);
+    float dryl=v[0];
+    float dryr=v[1];
+    v[0]=v[0]*NODE->dry+wetl*NODE->wet;
+    v[1]=v[1]*NODE->dry+wetr*NODE->wet;
+    synth_cbuf_write(NODE->cbufl,dryl*NODE->sto+wetl*NODE->fbk);
+    synth_cbuf_write(NODE->cbufr,dryr*NODE->sto+wetr*NODE->fbk);
   }
 }
  
 static void _delay_update_mono(float *v,int framec,struct synth_node *node) {
   for (;framec-->0;v+=1) {
-    float wet=synth_cbuf_read(NODE->cbuf);
+    float wet=synth_cbuf_read(NODE->cbufl);
     float dry=v[0];
     v[0]=dry*NODE->dry+wet*NODE->wet;
-    synth_cbuf_write(NODE->cbuf,dry*NODE->sto+wet*NODE->fbk);
+    synth_cbuf_write(NODE->cbufl,dry*NODE->sto+wet*NODE->fbk);
   }
 }
 
@@ -54,7 +57,8 @@ static int _delay_init(struct synth_node *node) {
  */
  
 static int _delay_ready(struct synth_node *node) {
-  if (!NODE->cbuf) return -1;
+  if (!NODE->cbufl) return -1;
+  if ((node->chanc==2)&&!NODE->cbufr) return -1;
   return 0;
 }
 
@@ -80,8 +84,12 @@ int synth_node_delay_setup(struct synth_node *node,const uint8_t *arg,int argc) 
   int ms=(src[0]<<8)|src[1];
   int framec=(ms*node->synth->rate)/1000;
   if (framec<1) framec=1;
-  synth_cbuf_del(NODE->cbuf);
-  if (!(NODE->cbuf=synth_cbuf_new(framec))) return -1;
+  synth_cbuf_del(NODE->cbufl);
+  if (!(NODE->cbufl=synth_cbuf_new(framec))) return -1;
+  if (node->chanc==2) {
+    synth_cbuf_del(NODE->cbufr);
+    if (!(NODE->cbufr=synth_cbuf_new(framec))) return -1;
+  }
   NODE->dry=src[2]/255.0f;
   NODE->wet=src[3]/255.0f;
   NODE->sto=src[4]/255.0f;

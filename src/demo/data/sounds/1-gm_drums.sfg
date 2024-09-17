@@ -1,48 +1,61 @@
 sound 35 Acoustic Bass Drum
+# Just screwing around...
+channel 0
+  master 80
+  pan 60
+  wheel 00c8
+  #drums 0001 0000 00 ff
+channel 1
+  master 80
+  pan 80
+  wheel 1100
+  shape 00
+  fm 0080 0040
+  fmenv 00 0000 0000   00b0 00b0 ffff ffff   00b0 00b0 0000 0000
+  level 01 0000 0000   0020 0020 ffff ffff   0040 0040 4000 4000   0100 0100 0000 0000
+  pitchenv 00 7800 7800   0160 0160 8800 8800
+events
+  note 0 0x24 0x40 0
+  wheel 1 -0.5
+  note 1 a4 0x40 300
+  delay 50
+  wheel 1 -0.4
+  delay 50
+  wheel 1 -0.3
+  delay 50
+  wheel 1 -0.2
+  delay 50
+  wheel 1 -0.1
+  delay 50
+  wheel 1 0
+  note 1 e5 0x10 100
 
 sound 36 Bass Drum 1
 channel 0
-  # Every channel command. (some are mutually incompatible)
   master 80
-  pan 60
-  drums 0004 00 50 ff
-  wheel 00c8
-  sub 0032
-  shape 01
-  harmonics ffff 0000 5555 0000 3333 0000 1000
-  fm 0080 0300
-  fmenv 02 0000 0000   0014 0028 ffff 8000   0032 0046 3333 2222   0400 0200 0000 0000
-  fmlfo 0410 8000 80
-  pitchenv ff 8000 8000   0014 0028 8064 7fc0   0064 0064 0000 0000
-  pitchlfo 0420 0064 00
-  level 02 0000 0000   0014 0028 ffff 8000    0032 003c 4000 1500   0400 0200 0000 0000
-  gain 0500 c0 00
-  waveshaper 8000 0000 7fff
-  delay 0100 80 80 80 80
-  detune 0188 0064 00
-  tremolo 0188 5000 00
-  lopass 0bb8
-  hipass 0032
-  bpass 0064 0028
-  notch 003c 000a
+  pan c0
+  shape 00
+  harmonics c000 0800 4000 0010 1000
+  level ff 0000 0000   0018 0018 ffff ffff   0020 0020 2000 2000   0080 0080 0000 0000
+  pitchenv ff a000 a000   00b8 00b8 6000 6000
+  waveshaper 4000 4000 4100 4400 8000 bc00 bf00 c000 c000
+  gain 0300 ff 00
 events
-  wheel 0 -0.5
-  note 0 a4 0x40 300
-  delay 50
-  wheel 0 -0.4
-  delay 50
-  wheel 0 -0.3
-  delay 50
-  wheel 0 -0.2
-  delay 50
-  wheel 0 -0.1
-  delay 50
-  wheel 0 0
-  note 0 e5 0x10 100
+  note 0 0x10 0x7f 0
+  delay 250
   
 #sound 37 Side Stick
 
-#sound 38 Acoustic Snare
+sound 38 Acoustic Snare
+channel 0
+  master 80
+  pan 60
+  sub 0100
+  level ff 0000 0000   000a 000a ffff ffff   0010 0010 1000 1000   0100 0100 0000 0000
+  gain 2000 ff 00
+events
+  note 0 0x40 0x7f 0
+  delay 300
 
 #sound 39 Hand Clap
 
@@ -50,7 +63,16 @@ events
 
 #sound 41 Low Floor Tom
 
-#sound 42 Closed Hi Hat
+sound 42 Closed Hi Hat
+channel 0
+  master 80
+  pan 40
+  fm 0633 0700
+  fmenv ff ffff ffff   0060 0060 f000 f000   0100 0100 1000 1000
+  level ff 0000 0000   000c 000c ffff ffff   0020 0020 1000 1000   0100 0100 0000 0000
+events
+  note 0 0x40 0x7f 0
+  delay 300
 
 #sound 43 High Floor Tom
 

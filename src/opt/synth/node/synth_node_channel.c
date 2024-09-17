@@ -38,6 +38,7 @@ struct synth_node_channel {
   float wheelrel; // '' as a pitch multiplier.
   float *pitchlfo_buffer; // SYNTH_UPDATE_LIMIT_FRAMES if not null
   float *fmlfo_buffer; // ''
+  int sounds_constraint;
   
 // Voice factory:
   const struct synth_node_type *voicetype; // pcm,sub,wave,fm
@@ -130,6 +131,13 @@ static int _channel_init(struct synth_node *node) {
 static int _channel_ready(struct synth_node *node) {
   if (!NODE->bus) return -1;
   if (!NODE->voicetype) return -1;
+  
+  if (NODE->sounds_constraint) {
+    if (NODE->voicetype==&synth_node_type_pcm) {
+      fprintf(stderr,"ERROR: Sound effect attempted to use a drums channel.\n");
+      return -1;
+    }
+  }
   
   /* Decide whether to use a private buffer.
    * If a post is in play, definitely yes.
@@ -345,7 +353,6 @@ static int synth_node_channel_init_voice(
     if (durframes<0) durframes=0;
   }
   if (voice->type==&synth_node_type_pcm) {
-    fprintf(stderr,"%s: DRUM: 0x%02x *%f\n",__func__,noteid,velocity);
     int sndid=noteid+NODE->drumsbias;
     int p=synth_soundv_search(node->synth,NODE->drumsrid,sndid);
     if (p<0) {
@@ -358,12 +365,13 @@ static int synth_node_channel_init_voice(
     float level;
     if (velocity<=0.0f) level=NODE->drumstrimlo;
     else if (velocity>=1.0f) level=NODE->drumstrimhi;
-    else level=velocity*NODE->drumstrimlo+(1.0f-velocity)*NODE->drumstrimhi;
+    else level=(1.0f-velocity)*NODE->drumstrimlo+velocity*NODE->drumstrimhi;
     if (!NODE->bufferframec) level*=NODE->master;
-    if (synth_node_pcm_setup(voice,pcm,level,NODE->pan)<0) return -1;
+    float pan=node->synth->soundv[p].pan+NODE->pan;
+    if (pan<-1.0f) pan=-1.0f; else if (pan>1.0f) pan=1.0f;
+    if (synth_node_pcm_setup(voice,pcm,level,pan)<0) return -1;
     
   } else if (voice->type==&synth_node_type_wave) {
-    //fprintf(stderr,"%s: WAVE: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
     float rate=node->synth->ratefv[noteid];
     float level=NODE->bufferframec?1.0f:NODE->master;
     if (synth_node_wave_setup(voice,&NODE->wave,rate,velocity,durframes,NODE->level,level,NODE->pan)<0) return -1;
@@ -373,7 +381,6 @@ static int synth_node_channel_init_voice(
     synth_node_wave_adjust_rate(voice,NODE->wheelrel);
     
   } else if (voice->type==&synth_node_type_fm) {
-    //fprintf(stderr,"%s: FM: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
     float rate=node->synth->ratefv[noteid];
     float level=NODE->bufferframec?1.0f:NODE->master;
     if (synth_node_fm_setup(voice,&NODE->wave,NODE->fmrate,NODE->fmrange,rate,velocity,durframes,NODE->level,level,NODE->pan)<0) return -1;
@@ -386,15 +393,29 @@ static int synth_node_channel_init_voice(
     synth_node_fm_adjust_rate(voice,NODE->wheelrel);
     
   } else if (voice->type==&synth_node_type_sub) {
-    //fprintf(stderr,"%s: SUB: 0x%02x *%f durms=%d\n",__func__,noteid,velocity,durms);
     float rate=node->synth->ratefv[noteid];
     float level=NODE->bufferframec?1.0f:NODE->master;
     if (synth_node_sub_setup(voice,NODE->subwidth,rate,velocity,durframes,NODE->level,level,NODE->pan)<0) return -1;
+    synth_node_sub_adjust_rate(voice,NODE->wheelrel);
     
   } else {
     return -1;
   }
   return synth_node_ready(voice);
+}
+
+/* Update voice rates, after wheel change.
+ */
+ 
+static void synth_node_channel_update_voice_rates(struct synth_node *node) {
+  struct synth_node **p=NODE->voicev;
+  int i=NODE->voicec;
+  for (;i-->0;p++) {
+    struct synth_node *voice=*p;
+    if (voice->type==&synth_node_type_wave) synth_node_wave_adjust_rate(voice,NODE->wheelrel);
+    else if (voice->type==&synth_node_type_fm) synth_node_fm_adjust_rate(voice,NODE->wheelrel);
+    else if (voice->type==&synth_node_type_sub) synth_node_sub_adjust_rate(voice,NODE->wheelrel);
+  }
 }
 
 /* Receive event.
@@ -424,7 +445,8 @@ void synth_node_channel_event(struct synth_node *node,uint8_t chid,uint8_t opcod
         }
         struct synth_node *voice=synth_node_new(node->synth,NODE->voicetype,node->chanc);
         if (!voice) return;
-        if (synth_node_channel_init_voice(node,voice,a,(float)b/255.0f,durms)<0) {
+        if (b>0x7f) b=0x7f;
+        if (synth_node_channel_init_voice(node,voice,a,(float)b/127.0f,durms)<0) {
           synth_node_del(voice);
           return;
         }
@@ -440,7 +462,24 @@ void synth_node_channel_event(struct synth_node *node,uint8_t chid,uint8_t opcod
         if (cents==NODE->wheelcents) return;
         NODE->wheelcents=cents;
         NODE->wheelrel=synth_multiplier_from_cents(cents);
-        fprintf(stderr,"%s:%d: TODO Apply wheel 0x%04x => %d c => *%f\n",__FILE__,__LINE__,raw,cents,NODE->wheelrel);
+        synth_node_channel_update_voice_rates(node);
       } break;
   }
+}
+
+/* Add "sounds" constraint.
+ */
+ 
+int synth_node_channel_constrain_for_sounds(struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_channel)||node->ready) return -1;
+  NODE->sounds_constraint=1;
+  return 0;
+}
+
+/* Default pan.
+ */
+
+float synth_node_channel_get_default_pan(const struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_channel)) return 0.0f;
+  return NODE->pan;
 }

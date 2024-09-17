@@ -113,7 +113,7 @@ void egg_client_quit(int status) {
 int egg_client_init() {
   fprintf(stderr,"%d function %s was called, around %s:%d. %d!\n",123,__func__,__FILE__,__LINE__,789);
   //test_full_api();
-  egg_play_song(songid=1,0,1);
+  //egg_play_song(songid=1,0,1);
   return 0;
 }
 
@@ -145,7 +145,7 @@ void egg_client_update(double elapsed) {
     fprintf(stderr,"%.*s\n",msgc,msg);
     if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1,36);
     if ((instate&EGG_BTN_WEST)&&!(pvinstate&EGG_BTN_WEST)) {
-      if (++songid>3) songid=0;
+      if (++songid>4) songid=0;
       fprintf(stderr,"Play song %d...\n",songid);
       egg_play_song(songid,0,1);
     }

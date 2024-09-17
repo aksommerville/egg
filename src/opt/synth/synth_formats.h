@@ -10,6 +10,7 @@
 #include "opt/serial/serial.h"
 
 struct synth_midi_reader;
+struct synth_pcm;
 
 /* High-level binary format conversion.
  ********************************************************************/
@@ -47,6 +48,13 @@ int synth_sound_is_empty(const void *src,int srcc);
  * If (channel_header_only), fences are an error and we produce a single EGS Channel Header.
  */
 int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,int channel_header_only,const char *path,int lineno);
+
+/* Decode formats containing raw PCM, eg WAV.
+ * This will not work for EGS, that process is considerably more involved.
+ * Output will be mono regardless of input. We'll return the first available channel, conventionally Left.
+ * If (rate) nonzero, we resample as needed. Our resampling is dumb. No DFT conversion or even interpolation.
+ */
+struct synth_pcm *synth_pcm_decode(int rate,const void *src,int srcc);
 
 /* Multi-sound text files, precursor to either EGS or MSF.
  *******************************************************************/

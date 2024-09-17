@@ -42,6 +42,10 @@ void synth_del(struct synth *synth) {
     while (synth->busc-->0) synth_node_del(synth->busv[synth->busc]);
     free(synth->busv);
   }
+  if (synth->printerv) {
+    while (synth->printerc-->0) synth_printer_del(synth->printerv[synth->printerc]);
+    free(synth->printerv);
+  }
   free(synth);
 }
 
@@ -62,7 +66,6 @@ struct synth *synth_new(int rate,int chanc) {
   
   synth_rates_generate_hz(synth->ratefv);
   synth_rates_normalizeip(synth->ratefv,synth->rate);
-  //synth_rates_quantize(synth->rateiv,synth->ratefv);
   synth_wave_generate_sine(&synth->sine);
   
   return synth;
@@ -90,8 +93,9 @@ void synth_kill_bus(struct synth *synth,struct synth_node *bus) {
 /* Add bus.
  */
  
-struct synth_node *synth_add_bus(struct synth *synth) {
+struct synth_node *synth_add_bus(struct synth *synth,const struct synth_node_type *type) {
   if (!synth) return 0;
+  if (!type) type=&synth_node_type_bus;
   if (synth->busc>=synth->busa) {
     int na=synth->busa+16;
     if (na>INT_MAX/sizeof(void*)) return 0;
@@ -100,20 +104,10 @@ struct synth_node *synth_add_bus(struct synth *synth) {
     synth->busv=nv;
     synth->busa=na;
   }
-  struct synth_node *bus=synth_node_new(synth,&synth_node_type_bus,synth->chanc);
+  struct synth_node *bus=synth_node_new(synth,type,synth->chanc);
   if (!bus) return 0;
   synth->busv[synth->busc++]=bus;
   return bus;
-}
-
-/* Begin printing sound if needed.
- */
- 
-int synth_sound_require(struct synth *synth,struct synth_sound *sound) {
-  if (!synth||!sound) return -1;
-  if (sound->pcm) return 0;
-  fprintf(stderr,"%s:%d:%s: TODO id=%d:%d c=%d\n",__FILE__,__LINE__,__func__,sound->rid,sound->index,sound->c);
-  return -1;
 }
 
 /* Search sounds.

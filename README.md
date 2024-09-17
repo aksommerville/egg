@@ -60,12 +60,15 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - [x] Channel.
 - - - [x] Voices.
 - - - [x] Post.
-- - - [ ] Print PCM.
-- - - [ ] Provide for stereo drums. Maybe use the pan setting from sounds' channel zero, store that in the PCM object?
+- - - [x] Print PCM.
+- - - [x] WAV
+- - - [x] Forbid 'drums' in sound effects.
+- - - [x] Provide for stereo drums. Maybe use the pan setting from sounds' channel zero, store that in the PCM object?
 - - - [ ] `synth_node_fm.c:_fm_update()`: Split out optimized implementations.
-- - - [ ] `synth_node_delay.c`: Stereo.
+- - - [x] `synth_node_delay.c`: Stereo.
 - - - [ ] `synth_node_detune.c`: Remove this. Too complicated to configure.
 - - - [ ] IIR filters, we probably need more than 2 poles. The lopass and hipass barely have any effect at all.
+- - - [ ] Consider DFT resampling for sounds acquired from raw PCM.
 - - [ ] Live input mapping
 - - [ ] Save and load input templates.
 - - [ ] Config files

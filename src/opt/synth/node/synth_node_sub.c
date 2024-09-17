@@ -89,7 +89,7 @@ int synth_node_sub_setup(
   
   NODE->mixl=NODE->mixr=trim;
   if (node->chanc==2) {
-    if (pan<0.0f) NODE->mixr*=pan+2.0f;
+    if (pan<0.0f) NODE->mixr*=pan+1.0f;
     else if (pan>0.0f) NODE->mixl*=1.0f-pan;
   }
   

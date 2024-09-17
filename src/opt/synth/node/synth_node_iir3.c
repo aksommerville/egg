@@ -64,8 +64,7 @@ const struct synth_node_type synth_node_type_iir3={
  
 int synth_node_iir3_setup_lopass(struct synth_node *node,float norm) {
   if (!node||(node->type!=&synth_node_type_iir3)||node->ready) return -1;
-  fprintf(stderr,"%s norm=%f rate=%d hz=%f\n",__func__,norm,node->synth->rate,norm*node->synth->rate);
-  synth_iir3_init_lopass(&NODE->l,norm);//XXX Can't possibly be right. I get some signal when the frequency is like 16 kHz but not much below
+  synth_iir3_init_lopass(&NODE->l,norm);
   memcpy(&NODE->r,&NODE->l,sizeof(struct synth_iir3));
   return 0;
 }

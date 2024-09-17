@@ -77,6 +77,9 @@ int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc);
 
 void synth_node_bus_set_songid(struct synth_node *node,int songid,int repeat);
 int synth_node_bus_get_songid(struct synth_node *node);
+int synth_node_bus_get_duration(const struct synth_node *node); // frames; => <0 if configured to repeat
+int synth_node_bus_constrain_for_sounds(struct synth_node *node); // Forbid drums, maybe other constraints.
+float synth_node_bus_get_default_pan(const struct synth_node *node); // From Channel 0
 
 /* Fade out a bus to gradually reduce its master level to zero, then signal completion.
  * Fading is the only way to get a bus "finished". (framec==0) is valid for a hard stop.
@@ -101,6 +104,8 @@ void synth_node_channel_setup(struct synth_node *node,uint8_t chid,struct synth_
  * We may borrow things weakly.
  */
 int synth_node_channel_configure(struct synth_node *node,const void *src,int srcc);
+int synth_node_channel_constrain_for_sounds(struct synth_node *node); // Forbid drums, maybe other constraints.
+float synth_node_channel_get_default_pan(const struct synth_node *node);
 
 void synth_node_channel_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms);
 

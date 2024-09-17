@@ -4,7 +4,15 @@
  */
  
 static void synth_update_printers(struct synth *synth,int c) {
-  //TODO Printers.
+  int i=synth->printerc;
+  while (i-->0) {
+    struct synth_printer *printer=synth->printerv[i];
+    int err=synth_printer_update(printer,c);
+    if (err>0) continue;
+    synth->printerc--;
+    memmove(synth->printerv+i,synth->printerv+i+1,sizeof(void*)*(synth->printerc-i));
+    synth_printer_del(printer);
+  }
 }
 
 /* Update, floating-point, mono.
@@ -18,7 +26,6 @@ static void synth_updatef_mono(float *v,int c,struct synth *synth) {
     if (bus->chanc!=1) continue;
     bus->update(v,c,bus);
     if (bus->finished) {
-      fprintf(stderr,"%s:%d: Dropping bus %p due to finished.\n",__FILE__,__LINE__,bus);
       synth->busc--;
       memmove(synth->busv+i,synth->busv+i+1,sizeof(void*)*(synth->busc-i));
       synth_node_del(bus);
@@ -31,28 +38,17 @@ static void synth_updatef_mono(float *v,int c,struct synth *synth) {
  */
  
 static void synth_updatef_stereo(float *v,int framec,struct synth *synth) {
-  #if 0 //TODO Stereo synth. For now I'm just going to run mono and copy it to both channels.
-    synth_updatef_mono(v,framec,synth);
-    const float *src=v+framec;
-    float *dst=v+(framec<<1);
-    while (framec-->0) {
-      src--;
-      *(--dst)=*src;
-      *(--dst)=*src;
+  int i=synth->busc;
+  while (i-->0) {
+    struct synth_node *bus=synth->busv[i];
+    if (bus->chanc!=2) continue;
+    bus->update(v,framec,bus);
+    if (bus->finished) {
+      synth->busc--;
+      memmove(synth->busv+i,synth->busv+i+1,sizeof(void*)*(synth->busc-i));
+      synth_node_del(bus);
     }
-  #else
-    int i=synth->busc;
-    while (i-->0) {
-      struct synth_node *bus=synth->busv[i];
-      if (bus->chanc!=2) continue;
-      bus->update(v,framec,bus);
-      if (bus->finished) {
-        synth->busc--;
-        memmove(synth->busv+i,synth->busv+i+1,sizeof(void*)*(synth->busc-i));
-        synth_node_del(bus);
-      }
-    }
-  #endif
+  }
 }
 
 /* Update, floating-point, limited length, any channel count.
@@ -80,7 +76,7 @@ static void synth_updatef_limited(float *v,int framec,struct synth *synth) {
  */
 
 void synth_updatef(float *v,int c,struct synth *synth) {
-  //synth->preprintc=c;
+  synth->print_framec=c;
   synth_update_printers(synth,c);
   memset(v,0,sizeof(float)*c);
   int framec=c/synth->chanc;
@@ -92,8 +88,7 @@ void synth_updatef(float *v,int c,struct synth *synth) {
   if (framec>0) {
     synth_updatef_limited(v,framec,synth);
   }
-  //TODO Routine cleanup.
-  //synth->preprintc=0;
+  synth->print_framec=0;
 }
 
 /* Update, integer, unlimited length.

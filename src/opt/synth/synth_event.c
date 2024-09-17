@@ -4,30 +4,74 @@
  */
  
 static void synth_play_pcm(struct synth *synth,struct synth_pcm *pcm) {
-  fprintf(stderr,"%s %p,%p samplec=%d\n",__func__,synth,pcm,pcm?pcm->c:0);
   if (!pcm||(pcm->c<1)) return;
-  //TODO PCM player.
-  //TODO There might be an associated channel post. PCMs don't necessarily play direct onto the main.
+  struct synth_node *player=synth_add_bus(synth,&synth_node_type_pcm);
+  if (
+    !player||
+    (synth_node_pcm_setup(player,pcm,0.5f,0.0f)<0)||
+    (synth_node_ready(player)<0)
+  ) {
+    synth_kill_bus(synth,player);
+    return;
+  }
+}
+
+/* Begin printing.
+ * Returns WEAK.
+ */
+ 
+static struct synth_pcm *synth_begin_print(float *pan,struct synth *synth,const void *src,int srcc) {
+  if (synth->printerc>=synth->printera) {
+    int na=synth->printera+16;
+    if (na>INT_MAX/sizeof(void*)) return 0;
+    void *nv=realloc(synth->printerv,sizeof(void*)*na);
+    if (!nv) return 0;
+    synth->printerv=nv;
+    synth->printera=na;
+  }
+  struct synth_printer *printer=synth_printer_new(synth,src,srcc);
+  if (!printer) return 0;
+  synth_printer_update(printer,synth->print_framec);
+  synth->printerv[synth->printerc++]=printer;
+  if (pan) *pan=synth_node_bus_get_default_pan(printer->bus);
+  return printer->pcm;
+}
+
+/* Begin printing sound if needed.
+ */
+ 
+int synth_sound_require(struct synth *synth,struct synth_sound *sound) {
+  if (!synth||!sound) return -1;
+  if (sound->pcm) return 0;
+  
+  if ((sound->c>=4)&&!memcmp(sound->v,"\0EGS",4)) {
+    struct synth_pcm *pcm=synth_begin_print(&sound->pan,synth,sound->v,sound->c);
+    if (pcm) {
+      if (synth_pcm_ref(pcm)<0) return -1;
+      sound->pcm=pcm;
+      return 0;
+    }
+    
+  } else {
+    if (sound->pcm=synth_pcm_decode(synth->rate,sound->v,sound->c)) {
+      return 0;
+    }
+  }
+  
+  fprintf(stderr,"WARNING: Failed to decode %d-byte sound %d:%d. Stubbing.\n",sound->c,sound->rid,sound->index);
+  if (sound->pcm=synth_pcm_new(1)) return 0;
+
+  return -1;
 }
 
 /* Play sound.
  */
 
 void synth_play_sound(struct synth *synth,int rid,int index) {
-  fprintf(stderr,"TODO %s rid=%d index=%d soundc=%d\n",__func__,rid,index,synth->soundc);
   int p=synth_soundv_search(synth,rid,index);
   if (p<0) return;
   struct synth_sound *sound=synth->soundv+p;
-  if (!sound->pcm) {
-    if ((sound->c>=4)&&!memcmp(sound->v,"\0EGS",4)) {
-      //TODO Create printer.
-      //TODO Install printer.
-      //TODO Initial printer run.
-    } else {
-      //TODO Decode PCM from raw format.
-    }
-    //TODO Retain pcm.
-  }
+  if (synth_sound_require(synth,sound)<0) return;
   synth_play_pcm(synth,sound->pcm);
 }
 
@@ -79,7 +123,7 @@ void synth_play_song(struct synth *synth,int rid,int force,int repeat) {
   
   /* Stand a new bus for this song, install it, configure it.
    */
-  struct synth_node *bus=synth_add_bus(synth);
+  struct synth_node *bus=synth_add_bus(synth,0);
   if (!bus) {
     return;
   }

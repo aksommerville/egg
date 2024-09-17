@@ -20,6 +20,7 @@
 #include "synth_osc.h"
 #include "synth_node.h"
 #include "synth_filters.h"
+#include "synth_printer.h"
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -39,6 +40,7 @@ struct synth {
     const void *v;
     int c;
     struct synth_pcm *pcm; // Null until the first play.
+    float pan; // If nonzero, sound expressed a preference for pan in drum kits.
   } *soundv;
   int soundc,sounda;
   
@@ -56,10 +58,11 @@ struct synth {
   int fade_time_quick; // Fade out incoming song when cancelling the outgoing fade. Incoming is usually hard-delayed so doesn't matter.
   int new_song_delay;
   float ratefv[128]; // Normalized rates, indexed by noteid.
-  //uint32_t rateiv[128]; // '' fixed-point. ...come to think of it, since there's a pitch wheel in play, we might not use this
   struct synth_wave sine;
   
-  //TODO PCM Printers.
+  struct synth_printer **printerv;
+  int printerc,printera;
+  int print_framec; // Nonzero during updates. New printers must produce so much immediately.
 };
 
 int synth_soundv_search(const struct synth *synth,int rid,int index);
@@ -76,8 +79,8 @@ int synth_sound_require(struct synth *synth,struct synth_sound *sound);
 void synth_unlist_bus(struct synth *synth,struct synth_node *bus);
 void synth_kill_bus(struct synth *synth,struct synth_node *bus);
 
-// Add an unconfigured bus.
-struct synth_node *synth_add_bus(struct synth *synth);
+// Add an unconfigured bus. (type) defaults to bus, but can be anything that generates a signal.
+struct synth_node *synth_add_bus(struct synth *synth,const struct synth_node_type *type);
 
 // Generate reference sine wave from scratch -- This should only happen once.
 void synth_wave_generate_sine(struct synth_wave *wave);
