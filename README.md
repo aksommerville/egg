@@ -53,8 +53,9 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synthesizer
 - - - [ ] IIR filters, we probably need more than 2 poles. The lopass and hipass barely have any effect at all.
 - - - [ ] Consider DFT resampling for sounds acquired from raw PCM.
-- - [ ] Live input mapping
-- - [ ] Save and load input templates.
+- - [x] Live input mapping
+- - [x] Save and load input templates.
+- - [ ] Default input config path.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
 - [ ] Web runner.
@@ -83,3 +84,6 @@ Dependencies required for build:
 Code baked into our source:
 - zlib.js by imaya. [Source](https://github.com/imaya/zlib.js). In the Web runtime.
 - [Newlib](https://sourceware.org/newlib/). In client libraries.
+- MD5 (`sr_encodings.c`) by Christophe Devine (GPL)
+- SHA-1 (`sr_encodings.c`) by Steve Reid (Public Domain)
+- `synth_filters.c`, algorithms copied from _The Scientist and Engineer's Guide to Digital Signal Processing_ by Steven W Smith

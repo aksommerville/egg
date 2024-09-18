@@ -141,6 +141,13 @@ int egg_store_key_by_index(char *k,int ka,int p);
 #define EGG_BTN_RIGHT 0x2000
 #define EGG_BTN_AUX3  0x4000
 #define EGG_BTN_CD    0x8000 /* Fake button for reporting device connect/disconnect. */
+
+#define EGG_BTN_FOR_EACH \
+  _(SOUTH) _(WEST) _(EAST) _(NORTH) \
+  _(L1) _(R1) _(L2) _(R2) \
+  _(AUX1) _(AUX2) _(AUX3) \
+  _(LEFT) _(RIGHT) _(UP) _(DOWN) \
+  _(CD)
  
 /* Input states are indexed by a nonzero "playerid".
  * There is a special playerid zero which is the aggregate of all states.

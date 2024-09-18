@@ -21,8 +21,6 @@ int egg_input_get_all(int *dst,int dsta);
 int egg_input_configure();
 void egg_play_sound(int rid,int index);
 void egg_play_song(int rid,int force,int repeat);
-void egg_play_sound_binary(const void *src,int srcc);
-void egg_play_song_binary(const void *src,int srcc,int force,int repeat);
 void egg_audio_event(int chid,int opcode,int a,int b,int durms);
 double egg_audio_get_playhead();
 void egg_audio_set_playhead(double s);
@@ -195,8 +193,9 @@ int egg_input_get_all(int *dst,int dsta) {
 }
 
 int egg_input_configure() {
-  //TODO
-  return -1;
+  if (eggrt.incfg) return 0; // Already doing it. How did we get called?
+  if (!(eggrt.incfg=incfg_new())) return -1;
+  return 0;
 }
 
 /* Play sound from resource.

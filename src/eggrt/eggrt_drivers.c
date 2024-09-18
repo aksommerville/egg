@@ -123,26 +123,32 @@ static int eggrt_drivers_init_video() {
   };
   
   char *titlestorage=0;
-  { // Window's title is metadata:1:title, which is usually stringed.
-    const char *titlesrc=0;
-    int titlesrcc=rom_lookup_metadata(&titlesrc,eggrt.romserial,eggrt.romserialc,"title",5,eggrt.lang);
-    if (titlesrcc>0) {
-      if (titlestorage=malloc(titlesrcc+1)) {
-        memcpy(titlestorage,titlesrc,titlesrcc);
-        titlestorage[titlesrcc]=0;
-        setup.title=titlestorage;
+  if (!eggrt.romserial&&eggrt.configure_input) {
+    // --configure-input with no ROM file. Make up some geometry.
+    setup.fbw=INCFG_FBW;
+    setup.fbh=INCFG_FBH;
+  } else {
+    { // Window's title is metadata:1:title, which is usually stringed.
+      const char *titlesrc=0;
+      int titlesrcc=rom_lookup_metadata(&titlesrc,eggrt.romserial,eggrt.romserialc,"title",5,eggrt.lang);
+      if (titlesrcc>0) {
+        if (titlestorage=malloc(titlesrcc+1)) {
+          memcpy(titlestorage,titlesrc,titlesrcc);
+          titlestorage[titlesrcc]=0;
+          setup.title=titlestorage;
+        }
       }
     }
-  }
   
-  { // Search metadata for "iconImage" and "fb", which are not stringed.
-    const void *metadata=0;
-    int metadatac=eggrt_rom_get(&metadata,EGG_TID_metadata,1);
-    if (rom_read_metadata(metadata,metadatac,eggrt_video_setup_cb,&setup)<0) return -1;
-  }
-  if (!setup.fbw||!setup.fbh) {
-    fprintf(stderr,"%s: Framebuffer size not defined by ROM.\n",eggrt.rptname);
-    return -2;
+    { // Search metadata for "iconImage" and "fb", which are not stringed.
+      const void *metadata=0;
+      int metadatac=eggrt_rom_get(&metadata,EGG_TID_metadata,1);
+      if (rom_read_metadata(metadata,metadatac,eggrt_video_setup_cb,&setup)<0) return -1;
+    }
+    if (!setup.fbw||!setup.fbh) {
+      fprintf(stderr,"%s: Framebuffer size not defined by ROM.\n",eggrt.rptname);
+      return -2;
+    }
   }
   eggrt.fbw=setup.fbw;
   eggrt.fbh=setup.fbh;

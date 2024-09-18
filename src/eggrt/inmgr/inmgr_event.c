@@ -66,7 +66,11 @@ static int inmgr_choose_playerid(const struct inmgr *inmgr) {
 /* Receive button event, either keyboard or joystick.
  */
  
-static void inmgr_srcbutton(struct inmgr *inmgr,int devid,int srcbtnid,int value) {
+static void inmgr_srcbutton(struct inmgr *inmgr,int devid,int srcbtnid,int value,struct hostio_input *driver) {
+  if (inmgr->cb_override) {
+    inmgr->cb_override(driver,devid,srcbtnid,value,inmgr->userdata_override);
+    return;
+  }
   struct inmgr_device *device=inmgr_device_by_devid(inmgr,devid);
   if (!device) return;
   int p=inmgr_device_buttonv_search(device,srcbtnid);
@@ -129,12 +133,11 @@ static void inmgr_srcbutton(struct inmgr *inmgr,int devid,int srcbtnid,int value
  */
  
 void inmgr_event_key(struct inmgr *inmgr,int keycode,int value) {
-  inmgr_srcbutton(inmgr,inmgr->syskbd,keycode,value);
+  inmgr_srcbutton(inmgr,inmgr->syskbd,keycode,value,0);
 }
  
 void inmgr_event_button(struct inmgr *inmgr,struct hostio_input *driver,int devid,int btnid,int value) {
-  //fprintf(stderr,"%d.%#.8x=%d\n",devid,btnid,value);
-  inmgr_srcbutton(inmgr,devid,btnid,value);
+  inmgr_srcbutton(inmgr,devid,btnid,value,driver);
 }
 
 /* Recheck all carrier-detect bits.

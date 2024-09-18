@@ -179,6 +179,7 @@ echo "${NATIVE_TARGET}_LD:=gcc $NATIVE_LDFLAGS" >>$DSTPATH
 echo "${NATIVE_TARGET}_LDPOST:=-lm -lz $NATIVE_LDPOST" >>$DSTPATH
 echo "${NATIVE_TARGET}_AR:=ar" >>$DSTPATH
 echo "${NATIVE_TARGET}_OPT_ENABLE:=$NATIVE_OPT_ENABLE" >>$DSTPATH
+echo "${NATIVE_TARGET}_RUN_ARGS:=--input-config=local/input" >>$DSTPATH
 
 #------------------------------------------------------------
 # eggdev builds with the native toolchain.

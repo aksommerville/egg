@@ -9,6 +9,7 @@
 #include "opt/render/render.h"
 #include "opt/synth/synth.h"
 #include "inmgr/inmgr.h"
+#include "incfg/incfg.h"
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -33,6 +34,7 @@ extern struct eggrt {
   int audio_buffer;
   int configure_input;
   char *storepath;
+  char *inmgr_path;
   
   // eggrt_romsrc.c:
   const void *romserial;
@@ -71,6 +73,7 @@ extern struct eggrt {
   int exitstatus;
   int focus,debugger; // Hard pause if either is set.
   int debugstep; // Nonzero to advance one frame, when debugger set.
+  struct incfg *incfg; // If not null, interactive input configuration is in progress.
   
 } eggrt;
 

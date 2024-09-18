@@ -10,6 +10,28 @@ void inmgr_tm_del(struct inmgr_tm *tm) {
   free(tm);
 }
 
+/* New.
+ */
+ 
+struct inmgr_tm *inmgr_tm_new(int vid,int pid,int version,const char *name,int namec) {
+  struct inmgr_tm *tm=calloc(1,sizeof(struct inmgr_tm));
+  if (!tm) return 0;
+  tm->vid=vid;
+  tm->pid=pid;
+  tm->version=version;
+  if (!name) namec=0; else if (namec<0) { namec=0; while (name[namec]) namec++; }
+  if (namec) {
+    if (!(tm->name=malloc(namec+1))) {
+      inmgr_tm_del(tm);
+      return 0;
+    }
+    memcpy(tm->name,name,namec);
+    tm->name[namec]=0;
+    tm->namec=namec;
+  }
+  return tm;
+}
+
 /* Generic hard-coded rules for the system keyboard.
  * Signals:
  *   ESC => QUIT
@@ -196,7 +218,7 @@ static struct inmgr_tm_button *inmgr_tm_buttonv_insert(struct inmgr_tm *tm,int s
 /* Add buttons, having decided what class they fall into.
  */
  
-static int inmgr_tm_synthesize_button(struct inmgr_tm *tm,int srcbtnid,int lo,int hi,int dstbtnid) {
+int inmgr_tm_synthesize_button(struct inmgr_tm *tm,int srcbtnid,int lo,int hi,int dstbtnid) {
   if (lo>=hi) return 0;
   if (!dstbtnid) dstbtnid=inmgr_tm_least_popular(tm,EGG_BTN_THUMBS|EGG_BTN_TRIGGERS|EGG_BTN_AUXES);
   else dstbtnid=inmgr_tm_least_popular(tm,dstbtnid);
@@ -204,7 +226,7 @@ static int inmgr_tm_synthesize_button(struct inmgr_tm *tm,int srcbtnid,int lo,in
   return 0;
 }
 
-static int inmgr_tm_synthesize_threeway(struct inmgr_tm *tm,int srcbtnid,int lo,int hi,int dstbtnid) {
+int inmgr_tm_synthesize_threeway(struct inmgr_tm *tm,int srcbtnid,int lo,int hi,int dstbtnid) {
   if (lo>=hi-1) return 0; // Need at least three values.
   if (!dstbtnid) {
     dstbtnid=inmgr_tm_least_popular(tm,EGG_BTN_DPAD);
@@ -219,7 +241,7 @@ static int inmgr_tm_synthesize_threeway(struct inmgr_tm *tm,int srcbtnid,int lo,
   return 0;
 }
 
-static int inmgr_tm_synthesize_hat(struct inmgr_tm *tm,int srcbtnid,int lo,int hi) {
+int inmgr_tm_synthesize_hat(struct inmgr_tm *tm,int srcbtnid,int lo,int hi) {
   if (lo!=hi-7) return 0; // Range must be exactly 8.
   if (!inmgr_tm_buttonv_insert(tm,srcbtnid,EGG_BTN_DPAD)) return -1;
   return 0;
@@ -291,6 +313,20 @@ static int inmgr_tm_synthesize_generic(struct inmgr_tm *tm,struct hostio_input *
   return driver->type->for_each_button(driver,devid,inmgr_tm_synthesize_generic_cb,tm);
 }
 
+/* Grow tm list in context.
+ */
+ 
+static int inmgr_tmv_require(struct inmgr *inmgr) {
+  if (inmgr->tmc<inmgr->tma) return 0;
+  int na=inmgr->tma+16;
+  if (na>INT_MAX/sizeof(void*)) return -1;
+  void *nv=realloc(inmgr->tmv,sizeof(void*)*na);
+  if (!nv) return -1;
+  inmgr->tmv=nv;
+  inmgr->tma=na;
+  return 0;
+}
+
 /* Synthesize.
  * Returns WEAK reference to a new template we install.
  */
@@ -305,28 +341,12 @@ struct inmgr_tm *inmgr_tmv_synthesize(
    * Order matters, and it's entirely possible there's a catch-all at the end.
    * Synthesizing should only happen when we have a specific device to match exactly, so the front is appropriate.
    */
-  if (inmgr->tmc>=inmgr->tma) {
-    int na=inmgr->tma+16;
-    if (na>INT_MAX/sizeof(void*)) return 0;
-    void *nv=realloc(inmgr->tmv,sizeof(void*)*na);
-    if (!nv) return 0;
-    inmgr->tmv=nv;
-    inmgr->tma=na;
-  }
-  struct inmgr_tm *tm=calloc(1,sizeof(struct inmgr_tm));
+  if (inmgr_tmv_require(inmgr)<0) return 0;
+  struct inmgr_tm *tm=inmgr_tm_new(vid,pid,version,name,namec);
   if (!tm) return 0;
-  tm->vid=vid;
-  tm->pid=pid;
-  tm->version=version;
-  if (!name) namec=0; else if (namec<0) { namec=0; while (name[namec]) namec++; }
-  if (namec) {
-    if (!(tm->name=malloc(namec+1))) {
-      inmgr_tm_del(tm);
-      return 0;
-    }
-    memcpy(tm->name,name,namec);
-    tm->name[namec]=0;
-    tm->namec=namec;
+  if (!driver&&!devid) { // With null inputs, they're just adding a blank one at the end of the list.
+    inmgr->tmv[inmgr->tmc++]=tm;
+    return tm;
   }
   memmove(inmgr->tmv+1,inmgr->tmv,sizeof(void*)*inmgr->tmc);
   inmgr->tmc++;
@@ -347,6 +367,115 @@ struct inmgr_tm *inmgr_tmv_synthesize(
   }
   
   return tm;
+}
+
+/* Replace regular button mappings in (dst) with those in (src).
+ */
+ 
+static int inmgr_tm_bodysnatch(struct inmgr_tm *dst,const struct inmgr_tm *src) {
+  /* Both lists are sorted by (srcbtnid).
+   * Walk them in tandem and modify (dst) as needed.
+   * Don't retain a pointer into (dst->buttonv) since we might reallocate it along the way.
+   */
+  const struct inmgr_tm_button *srcbtn=src->buttonv;
+  int dstp=0,srcp=0;
+  for (;;) {
+    
+    #define ADD { \
+      fprintf(stderr,"ADD at %d/%d from %d/%d\n",dstp,dst->buttonc,srcp,src->buttonc); \
+      if (dst->buttonc>=dst->buttona) { \
+        int na=dst->buttona+16; \
+        if (na>INT_MAX/sizeof(struct inmgr_tm_button)) return -1; \
+        void *nv=realloc(dst->buttonv,sizeof(struct inmgr_tm_button)*na); \
+        if (!nv) return -1; \
+        dst->buttonv=nv; \
+        dst->buttona=na; \
+      } \
+      struct inmgr_tm_button *dstbtn=dst->buttonv+dstp; \
+      memmove(dstbtn+1,dstbtn,sizeof(struct inmgr_tm_button)*(dst->buttonc-dstp)); \
+      memcpy(dstbtn,srcbtn,sizeof(struct inmgr_tm_button)); \
+      dst->buttonc++; \
+      dstp++; \
+      srcp++; \
+      srcbtn++; \
+      continue; \
+    }
+    
+    #define REMOVE { \
+      fprintf(stderr,"REMOVE at %d/%d\n",dstp,dst->buttonc); \
+      struct inmgr_tm_button *dstbtn=dst->buttonv+dstp; \
+      dst->buttonc--; \
+      memmove(dstbtn,dstbtn+1,sizeof(struct inmgr_tm_button)*(dst->buttonc-dstp)); \
+      continue; \
+    }
+    
+    #define SKIPDST { \
+      fprintf(stderr,"SKIPDST at %d/%d\n",dstp,dst->buttonc); \
+      dstp++; \
+      continue; \
+    }
+    
+    #define SKIPSRC { \
+      fprintf(stderr,"ADD at %d/%d\n",srcp,src->buttonc); \
+      srcp++; \
+      srcbtn++; \
+      continue; \
+    }
+    
+    if ((dstp>=dst->buttonc)&&(srcp>=src->buttonc)) break;
+    if (dstp>=dst->buttonc) {
+      if (srcbtn->dstbtnid&EGG_SIGNAL_BIT) SKIPSRC // Shouldn't happen but let's be consistent: We're not copying SIGNAL buttons.
+      ADD
+    }
+    if (dst->buttonv[dstp].dstbtnid&EGG_SIGNAL_BIT) SKIPDST
+    if (srcp>=src->buttonc) REMOVE
+    if (srcbtn->dstbtnid&EGG_SIGNAL_BIT) SKIPSRC // Shouldn't happen but let's be consistent: We're not copying SIGNAL buttons.
+    if (dst->buttonv[dstp].srcbtnid<srcbtn->srcbtnid) REMOVE
+    if (dst->buttonv[dstp].srcbtnid>srcbtn->srcbtnid) ADD
+    // Finally, (srcbtnid) matches and is not a signal. Copy it and advance both.
+    memcpy(dst->buttonv+dstp,srcbtn,sizeof(struct inmgr_tm_button));
+    dstp++;
+    srcp++;
+    srcbtn++;
+    #undef ADD
+    #undef REMOVE
+    #undef SKIPDST
+    #undef SKIPSRC
+  }
+  return 0;
+}
+
+/* Install external tm, handoff.
+ */
+ 
+int inmgr_install_tm_over(struct inmgr *inmgr,struct inmgr_tm *tm) {
+  if (!inmgr||!tm) return -1;
+  
+  /* If an existing template has exactly the same match criteria, keep it.
+   */
+  int i=0;
+  for (;i<inmgr->tmc;i++) {
+    struct inmgr_tm *other=inmgr->tmv[i];
+    if (other->vid!=tm->vid) continue;
+    if (other->pid!=tm->pid) continue;
+    if (other->version!=tm->version) continue;
+    if (other->namec!=tm->namec) continue;
+    if (memcmp(other->name,tm->name,tm->namec)) continue;
+    if (inmgr_tm_bodysnatch(other,tm)<0) return -1;
+    inmgr_tm_del(tm);
+    inmgr->tmv_dirty=1;
+    return 0;
+  }
+  
+  /* Add to front.
+   */
+  if (inmgr_tmv_require(inmgr)<0) return -1;
+  memmove(inmgr->tmv+1,inmgr->tmv,sizeof(void*)*inmgr->tmc);
+  inmgr->tmc++;
+  inmgr->tmv[0]=tm;
+  inmgr->tmv_dirty=1;
+
+  return 0;
 }
 
 /* Match.
@@ -499,4 +628,100 @@ int inmgr_tm_apply(struct inmgr *inmgr,struct inmgr_device *device,struct inmgr_
   if (tm->buttonc<1) return 0;
   if (driver&&driver->type->for_each_button) return inmgr_tm_apply_with_caps(inmgr,device,tm,driver);
   else return inmgr_tm_apply_blind(inmgr,device,tm);
+}
+
+/* Decode and store from text.
+ */
+
+int inmgr_decode_tmv(struct inmgr *inmgr,const char *src,int srcc,const char *path) {
+  struct sr_decoder decoder={.v=src,.c=srcc};
+  const char *line;
+  int linec,lineno=1,err;
+  struct inmgr_tm *tm=0;
+  for (;(linec=sr_decode_line(&line,&decoder))>0;lineno++) {
+    while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
+    while (linec&&((unsigned char)line[0]<=0x20)) { linec--; line++; }
+    if (!linec) continue;
+    
+    if ((linec>=6)&&!memcmp(line,"device",6)) {
+      int linep=6,vid=0,pid=0,version=0;
+      while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
+      const char *token=line+linep;
+      int tokenc=0;
+      while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
+      while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
+      if (sr_int_eval(&vid,token,tokenc)<2) {
+        fprintf(stderr,"%s:%d: Expected Vendor ID, found '%.*s'\n",path,lineno,tokenc,token);
+        return -2;
+      }
+      token=line+linep;
+      tokenc=0;
+      while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
+      while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
+      if (sr_int_eval(&pid,token,tokenc)<2) {
+        fprintf(stderr,"%s:%d: Expected Product ID, found '%.*s'\n",path,lineno,tokenc,token);
+        return -2;
+      }
+      token=line+linep;
+      tokenc=0;
+      while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
+      while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
+      if (sr_int_eval(&version,token,tokenc)<2) {
+        fprintf(stderr,"%s:%d: Expected Version, found '%.*s'\n",path,lineno,tokenc,token);
+        return -2;
+      }
+      const char *name=line+linep;
+      int namec=linec-linep;
+      if (!(tm=inmgr_tmv_synthesize(inmgr,0,0,vid,pid,version,name,namec))) return -1;
+      continue;
+    }
+    
+    if (!tm) {
+      fprintf(stderr,"%s:%d: Expected 'device VID PID VERSION NAME'\n",path,lineno);
+      return -2;
+    }
+    
+    const char *token=line;
+    int tokenc=0;
+    int linep=0,srcbtnid,dstbtnid;
+    while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
+    while ((linep<linec)&&((unsigned char)line[linep]<=0x20)) linep++;
+    if (sr_int_eval(&srcbtnid,token,tokenc)<1) {
+      fprintf(stderr,"%s:%d: Expected integer (srcbtnid), found '%.*s'\n",path,lineno,tokenc,token);
+      return -2;
+    }
+    token=line+linep;
+    tokenc=linec-linep;
+    if (inmgr_button_eval(&dstbtnid,token,tokenc)<0) {
+      fprintf(stderr,"%s:%d: Expected button name, found '%.*s'\n",path,lineno,tokenc,token);
+      return -2;
+    }
+    
+    if (!inmgr_tm_buttonv_insert(tm,srcbtnid,dstbtnid)) return -1;
+  }
+  return 0;
+}
+
+/* Encode text.
+ */
+ 
+int inmgr_encode_tmv(struct sr_encoder *dst,struct inmgr *inmgr) {
+  int i=0;
+  for (;i<inmgr->tmc;i++) {
+    struct inmgr_tm *tm=inmgr->tmv[i];
+    if (sr_encode_fmt(dst,"device 0x%04x 0x%04x 0x%04x %.*s\n",tm->vid,tm->pid,tm->version,tm->namec,tm->name)<0) return -1;
+    const struct inmgr_tm_button *button=tm->buttonv;
+    int ii=tm->buttonc;
+    for (;ii-->0;button++) {
+      char bname[32];
+      int bnamec=inmgr_button_repr(bname,sizeof(bname),button->dstbtnid);
+      if ((bnamec<1)||(bnamec>sizeof(bname))) {
+        bnamec=sr_decsint_repr(bname,sizeof(bname),button->dstbtnid);
+        if ((bnamec<1)||(bnamec>sizeof(bname))) return -1;
+      }
+      if (sr_encode_fmt(dst,"  0x%08x %.*s\n",button->srcbtnid,bnamec,bname)<0) return -1;
+    }
+    if (sr_encode_u8(dst,0x0a)<0) return -1; // Blank line between blocks. Not necessary but polite.
+  }
+  return 0;
 }

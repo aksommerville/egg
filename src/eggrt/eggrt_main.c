@@ -71,6 +71,14 @@ static int eggrt_init() {
     return -2;
   }
   
+  // With --configure-input, start the input configurator immediately.
+  if (eggrt.configure_input) {
+    if ((err=egg_input_configure())<0) {
+      if (err!=-2) fprintf(stderr,"%s: Unspecified error starting input configuration.\n",eggrt.rptname);
+      return -2;
+    }
+  }
+  
   hostio_audio_play(eggrt.hostio,1);
   eggrt_clock_init();
   
@@ -104,9 +112,21 @@ static int eggrt_update() {
   }
   
   // Update client.
-  if ((err=eggrt_exec_client_update(elapsed))<0) {
-    if (err!=-2) fprintf(stderr,"%s: Unspecified error updating game model.\n",eggrt.rptname);
-    return -2;
+  if (eggrt.incfg) {
+    if ((err=incfg_update(eggrt.incfg,elapsed))<0) {
+      if (err!=-2) fprintf(stderr,"%s: Unspecified error updating input configurator.\n",eggrt.rptname);
+      return -2;
+    }
+    // incfg may delete itself during update, when it's done.
+    // That's perfectly fine. But don't proceed to render on this frame, since the client won't have updated.
+    if (!eggrt.incfg) return 0;
+  } else if (eggrt.romserialc) {
+    if ((err=eggrt_exec_client_update(elapsed))<0) {
+      if (err!=-2) fprintf(stderr,"%s: Unspecified error updating game model.\n",eggrt.rptname);
+      return -2;
+    }
+  } else {
+    eggrt.terminate=1;
   }
   if (eggrt.store_dirty&&((err=eggrt_store_save())<0)) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error saving game.\n",eggrt.storepath);
@@ -116,11 +136,18 @@ static int eggrt_update() {
   // Render.
   if (eggrt.hostio->video->type->gx_begin(eggrt.hostio->video)<0) return -1;
   egg_draw_globals(0,0xff);
-  if ((err=eggrt_exec_client_render())<0) {
-    if (err!=-2) fprintf(stderr,"%s: Unspecified error rendering frame.\n",eggrt.rptname);
-    return -2;
+  if (eggrt.incfg) {
+    if ((err=incfg_render(eggrt.incfg))<0) {
+      if (err!=-2) fprintf(stderr,"%s: Unspecified error rendering frame.\n",eggrt.rptname);
+      return -2;
+    }
+  } else if (eggrt.romserialc) {
+    if ((err=eggrt_exec_client_render())<0) {
+      if (err!=-2) fprintf(stderr,"%s: Unspecified error rendering frame.\n",eggrt.rptname);
+      return -2;
+    }
+    render_draw_to_main(eggrt.render,eggrt.hostio->video->w,eggrt.hostio->video->h,1);
   }
-  render_draw_to_main(eggrt.render,eggrt.hostio->video->w,eggrt.hostio->video->h,1);
   if (eggrt.hostio->video->type->gx_end(eggrt.hostio->video)<0) return -1;
   
   return 0;

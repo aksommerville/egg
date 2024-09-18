@@ -460,6 +460,7 @@ int eggrt_exec_init() {
       void *src=0;
       int srcc=eggrt_rom_get(&src,EGG_TID_code,1);
       if (srcc<1) {
+        if (eggrt.configure_input) return 0;
         fprintf(stderr,"%s: code:1 not found\n",eggrt.rptname);
         return -2;
       }
@@ -539,6 +540,7 @@ int eggrt_exec_client_render() {
 #elif EXECFMT==WASM
 
 void eggrt_exec_client_quit(int status) {
+  if (!eggrt_wasm.ee) return;
   if (eggrt.exec_callstate!=1) return;
   eggrt.exec_callstate=2;
   uint32_t argv[1]={eggrt.exitstatus};
@@ -549,6 +551,7 @@ void eggrt_exec_client_quit(int status) {
 }
 
 int eggrt_exec_client_init() {
+  if (!eggrt_wasm.ee) return eggrt.configure_input?0:-1;
   if (eggrt.exec_callstate!=0) return -1;
   eggrt.exec_callstate=1;
   uint32_t argv[1]={0};
@@ -567,6 +570,7 @@ int eggrt_exec_client_init() {
 }
 
 int eggrt_exec_client_update(double elapsed) {
+  if (!eggrt_wasm.ee) return eggrt.configure_input?0:-1;
   if (eggrt.exec_callstate!=1) return -1;
   uint32_t argv[2]={0,0};
   memcpy(argv,&elapsed,sizeof(double));
@@ -577,6 +581,7 @@ int eggrt_exec_client_update(double elapsed) {
 }
 
 int eggrt_exec_client_render() {
+  if (!eggrt_wasm.ee) return eggrt.configure_input?0:-1;
   if (eggrt.exec_callstate!=1) return -1;
   uint32_t argv[1]={0};
   if (!wasm_runtime_call_wasm(eggrt_wasm.ee,eggrt_wasm.egg_client_render,0,argv)) {

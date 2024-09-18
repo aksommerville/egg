@@ -54,13 +54,14 @@ struct inmgr_device *inmgr_devicev_spawn(struct inmgr *inmgr,int devid); // => W
 void inmgr_device_del(struct inmgr_device *device);
 int inmgr_device_buttonv_search(const struct inmgr_device *device,int srcbtnid); // Points to the first, if >=0.
 
-void inmgr_tm_del(struct inmgr_tm *tm);
 struct inmgr_tm *inmgr_tmv_synthesize(
   struct inmgr *inmgr,
-  struct hostio_input *driver,int devid,
+  struct hostio_input *driver,int devid, // 0,0 to hijack this function as "add new tm"
   int vid,int pid,int version,const char *name,int namec
 ); // => WEAK
 int inmgr_tm_match(const struct inmgr_tm *tm,int vid,int pid,int version,const char *name,int namec);
 int inmgr_tm_apply(struct inmgr *inmgr,struct inmgr_device *device,struct inmgr_tm *tm,struct hostio_input *driver);
+int inmgr_decode_tmv(struct inmgr *inmgr,const char *src,int srcc,const char *path);
+int inmgr_encode_tmv(struct sr_encoder *dst,struct inmgr *inmgr);
 
 #endif

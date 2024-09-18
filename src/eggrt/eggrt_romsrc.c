@@ -41,6 +41,7 @@ int eggrt_romsrc_init() {
     eggrt.romserialc=egg_embedded_rom_size;
   #elif ROMSRC==EXTERNAL
     if (!eggrt.rompath) {
+      if (eggrt.configure_input) return 0;
       fprintf(stderr,"%s: ROM required.\n",eggrt.exename);
       return -2;
     }

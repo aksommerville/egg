@@ -53,6 +53,7 @@ static void eggrt_help_default() {
     "  --audio-buffer=FRAMES         Recommend audio buffer size.\n"
     "  --audio-device=STRING         Usage depends on driver.\n"
     "  --configure-input             Enter a special interactive mode to set up a gamepad.\n"
+    "  --input-config=PATH           Where to load and save gamepad mappings.\n"
     "  --store=PATH                  Saved game. Blank for default, or \"none\" to disable.\n"
     "\n"
   );
@@ -178,6 +179,7 @@ static int eggrt_configure_kv(const char *k,int kc,const char *v,int vc) {
   INTOPT("audio-chanc",audio_chanc,0,8)
   INTOPT("audio-buffer",audio_buffer,0,100000)
   INTOPT("configure-input",configure_input,0,1)
+  STROPT("input-config",inmgr_path)
   STROPT("store",storepath)
   
   #undef STROPT
@@ -402,6 +404,15 @@ static int eggrt_configure_final() {
   else if (!strcmp(eggrt.storepath,"none")) {
     free(eggrt.storepath);
     eggrt.storepath=0;
+  }
+  
+  // If (inmgr_path) unset, asking for (configure_input) is a hard error.
+  // (we could gather the input, sure, but there's nowhere to write it to).
+  if (!eggrt.inmgr_path) {
+    if (eggrt.configure_input) {
+      fprintf(stderr,"%s: Must provide path to input config as '--input-config=PATH' to use '--configure-input'\n",eggrt.exename);
+      return -2;
+    }
   }
   
   // You'd expect to see defaulting of (lang) here too, but we want to wait until the ROM is loaded. See eggrt_main.c:eggrt_init().
