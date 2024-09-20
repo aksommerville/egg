@@ -572,6 +572,7 @@ export class Video {
     if (!dsttex) return;
     this.requireFramebuffer(dsttex);
     const srctex = this.textures[srctexid];
+    if (!srctex) return;
     const src = this.rt.exec.getMemory(vp, vc * 6);
     if (!src) return;
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);

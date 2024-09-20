@@ -30,6 +30,18 @@ body {
   display: none;
   font-family: monospace;
 }
+.require-click {
+  display: none;
+  position: fixed;
+  background-color: #fff;
+  color: #000;
+  font-size: 24pt;
+  padding: 0 20px;
+  border: 1px solid #000;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+}
 canvas {
   width: 960px;/*TODO Dynamically update with a multiple of framebuffer width, smaller than body. */
   height: 100vh;
@@ -39,5 +51,14 @@ canvas {
 </style>
 </head><body>
 <canvas id="egg-canvas"></canvas>
+<!--
+  A click tends to be necessary before creating AudioContext under Firefox.
+  If you want to take your chances, or you know somehow that there has already been user interaction,
+  it's safe to simply remove this "require-click" element, and bootstrap will skip that part.
+  Bootstrap will also skip it if navigator.getAutoplayPolicy("audiocontext") returns "allowed".
+-->
+<!-- I'm disabling by default, since my usual testing in Chrome it's not necessary, and it's goddam obnoxious.
+<div class="require-click">Click here to launch</div>
+-->
 <div class="error"></div>
 </body></html>

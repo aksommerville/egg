@@ -85,7 +85,8 @@ Followed by Events, distinguishable by their leading byte:
 A song's duration is the sum of its Delay events.
 It's technically possible for Note events to throw their hold time beyond that duration.
 That is an error, and decoders' behavior in that case is undefined.
-The most sensible thing for a decoder to do is clamp hold times to end of song.
+The reasonable options are (1) let the note play past the song's end, (2) clamp note end to song end, or (3) ignore that note.
+Or (4) something else. It's undefined.
 
 ### EGGSND Channel Headers
 
@@ -155,8 +156,9 @@ Regular MIDI configuration events at time zero override the verbatim Channel Hea
 - Control 0x20 Bank Select LSB.
 - Program Change.
 
-If you explicitly set Volume zero for a channel, we discard it.
+If you explicitly set Volume zero for a channel, we discard the whole channel.
 Headers for channels with no notes are also discarded.
 
 A special file `DATAROOT/instruments` contains definitions for instruments accessible by Program ID.
 The format is basically MSF text, except each block is introduced: `instrument [BANK:]PID [NAME]`, and is followed by a single Channel Header.
+These do not ship with the ROM. Instead, they get baked into songs during compile as needed.

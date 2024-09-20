@@ -12,7 +12,6 @@ export class Exec {
   }
   
   load(serial) {
-    console.log(`Exec.load`, serial);
     const options = { env: {
       egg_log: msgp => this.rt.egg_log(msgp),
       egg_terminate: s => this.rt.egg_terminate(s),
@@ -66,7 +65,6 @@ export class Exec {
       this.mem32 = new Uint32Array(this.memory.buffer);
       this.memf64 = new Float64Array(this.memory.buffer);
       this.fntab = result.instance.exports.__indirect_function_table;
-      console.log(`Wasm loaded`, this);
     });
   }
   

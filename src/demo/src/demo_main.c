@@ -144,6 +144,7 @@ void egg_client_update(double elapsed) {
     #undef _
     fprintf(stderr,"%.*s\n",msgc,msg);
     if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1,36);
+    if ((instate&EGG_BTN_EAST)&&!(pvinstate&EGG_BTN_EAST)) egg_play_sound(2,1);
     if ((instate&EGG_BTN_WEST)&&!(pvinstate&EGG_BTN_WEST)) {
       if (++songid>4) songid=0;
       fprintf(stderr,"Play song %d...\n",songid);

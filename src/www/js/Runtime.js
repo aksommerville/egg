@@ -5,7 +5,7 @@
 import { Rom } from "./Rom.js"; 
 import { Exec } from "./Exec.js";
 import { Video } from "./Video.js";
-import { Audio } from "./Audio.js";
+import { Audio } from "./synth/Audio.js";
 import { Input } from "./Input.js";
 import { ImageDecoder } from "./ImageDecoder.js";
 
@@ -34,12 +34,6 @@ export class Runtime {
     this.storePrefix = (this.rom.getMetadata("title") || "eggGame") + ".";
     this.hardPause = false;
     this.step = 0; // >0 to advance so many video frames despite (hardPause).
-    /* XXX We shouldn't need this now; press Escape to terminate or F12 to pause.
-    this.canvas.addEventListener("click", () => {
-      console.log("XXX TEMP: Stopping Runtime due to click in canvas.");
-      this.stop();
-    });
-    /**/
   }
   
   /* Public: Startup and shutdown.
@@ -56,7 +50,6 @@ export class Runtime {
   }
   
   start() {
-    console.log(`Runtime.start`);
     if (this.status !== "loaded") throw new Error(`Can't start from state ${JSON.stringify(this.status)}`);
     this.video.start();
     this.input.start();
@@ -70,7 +63,6 @@ export class Runtime {
   }
   
   stop() {
-    console.log(`Runtime.stop`);
     if (this.pendingUpdate) {
       window.cancelAnimationFrame(this.pendingUpdate);
       this.pendingUpdate = null;
@@ -89,7 +81,6 @@ export class Runtime {
   }
   
   toggleHardPause() {
-    console.log(`Runtime.toggleHardPause`);
     this.hardPause = !this.hardPause;
     this.step = 0;
   }

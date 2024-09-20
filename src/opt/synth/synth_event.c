@@ -2,7 +2,7 @@
 
 /* Play PCM.
  */
- 
+
 static void synth_play_pcm(struct synth *synth,struct synth_pcm *pcm) {
   if (!pcm||(pcm->c<1)) return;
   struct synth_node *player=synth_add_bus(synth,&synth_node_type_pcm);

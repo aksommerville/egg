@@ -16,6 +16,25 @@ function reportError(error) {
   element.style.display = "block";
 }
 
+function waitForFirstInteraction(runtime) {
+  if (runtime.audio.autoplayPolicy === "allowed") {
+    //console.log(`Skipping waitForFirstInteraction due to audio policy 'allowed'`);
+    return;
+  }
+  const element = document.querySelector(".require-click");
+  if (!element) {
+    //console.log(`Skipping waitForFirstInteraction due to no 'require-click' element`);
+    return;
+  }
+  element.style.display = "block";
+  return new Promise((resolve, reject) => {
+    element.addEventListener("click", () => {
+      element.style.display = "none";
+      resolve();
+    }, { once: true });
+  });
+}
+
 function launchEgg(serial) {
   let runtime;
   return Promise.resolve().then(() => {
@@ -23,8 +42,10 @@ function launchEgg(serial) {
     if (!canvas) throw new Error("Canvas not found.");
     const rom = new Rom(serial);
     runtime = new Runtime(rom, canvas);
-    console.log(`launchEgg`, { rom, serial, runtime });
+    //console.log(`launchEgg`, { rom, serial, runtime });
     return runtime.load();
+  }).then(() => {
+    return waitForFirstInteraction(runtime);
   }).then(() => {
     runtime.start();
   });
