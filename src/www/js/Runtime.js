@@ -109,6 +109,9 @@ export class Runtime {
     if (this.terminate) return this.stop();
     if (this.status !== "running") return this.stop();
     
+    // Update Audio before the other things -- it is not subject to hard-pause, and regulates its own timing.
+    this.audio.update();
+    
     // Update clock, and maybe skip a frame.
     const now = Date.now() / 1000;
     let elapsed = now - this.lastFrameTime;

@@ -55,7 +55,7 @@ struct synth {
   int busc,busa;
   struct synth_node *song; // WEAK. The last requested song.
   int fade_time_normal; // Fade out when replacing with another song.
-  int fade_time_quick; // Fade out incoming song when cancelling the outgoing fade. Incoming is usually hard-delayed so doesn't matter.
+  int fade_time_quick; // Fade out pending song when cancelling the outgoing fade. Incoming is usually hard-delayed so doesn't matter.
   int new_song_delay;
   float ratefv[128]; // Normalized rates, indexed by noteid.
   struct synth_wave sine;

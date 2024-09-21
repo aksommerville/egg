@@ -41,7 +41,8 @@ channel 0
   waveshaper 4000 4000 4100 4400 8000 bc00 bf00 c000 c000
   gain 0300 ff 00
 events
-  note 0 0x10 0x7f 0
+  #note 0 0x10 0x7f 0
+  note 0 0x28 0x7f 0
   delay 250
   
 #sound 37 Side Stick

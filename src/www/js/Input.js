@@ -190,6 +190,7 @@ export class Input {
   onKey(event) {
     const btnid = this.keyMap[event.code];
     if (!btnid) return;
+    if (event.ctrlKey || event.altKey) return;
     event.preventDefault();
     event.stopPropagation();
     if (event.repeat) return;

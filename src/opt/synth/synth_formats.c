@@ -196,13 +196,13 @@ static int synth_egs_compile_event_delay(struct sr_encoder *dst,const char *src,
     return -2;
   }
   if (ms<1) return 0;
-  // Coarse delay (01xxxxxx) is 64..4096 inclusive, in increments of 64.
+  // Coarse delay (01xxxxxx) is 128..4096 inclusive, in increments of 64.
   while (ms>4096) {
     if (sr_encode_u8(dst,0x7f)<0) return -1;
     ms-=4096;
   }
   if (ms>=64) {
-    if (sr_encode_u8(dst,0x40|((ms-1)>>6))<0) return -1;
+    if (sr_encode_u8(dst,0x40|((ms>>6)-1))<0) return -1;
     ms&=0x3f;
   }
   // Fine delay (00xxxxxx) is 1..63.

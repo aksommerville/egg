@@ -53,13 +53,17 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synthesizer
 - - - [ ] IIR filters, we probably need more than 2 poles. The lopass and hipass barely have any effect at all.
 - - - [ ] Consider DFT resampling for sounds acquired from raw PCM.
+- - - [ ] User events
+- - - [ ] Get/set playhead
 - - [x] Live input mapping
 - - [x] Save and load input templates.
 - - [ ] Default input config path.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
+- - [ ] MacOS drivers
+- - [ ] Windows drivers
 - [ ] Web runner.
-- - [ ] Synth.
+- - [ ] Synth. -- Get this up and running before 27 Sept, then we can use Egg for the GDEX Game Jam!
 - - [ ] Input config.
 - - [ ] Use Compression Streams API: https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API
 - - - MDN calls it "Newly available" as of 2023 but something this good is worth losing old browsers over.

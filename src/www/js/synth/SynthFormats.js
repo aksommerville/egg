@@ -53,7 +53,7 @@ export class SynthFormats {
       channels: [],
     };
     while (sp < s.length) {
-      const chhlen = (s[sp] << 8) | s[sp+1];
+      let chhlen = (s[sp] << 8) | s[sp+1];
       sp += 2;
       if (!chhlen) break;
       if (sp > s.length - chhlen) return null;
@@ -69,6 +69,103 @@ export class SynthFormats {
     }
     egs.events = s.slice(sp);
     return egs;
+  }
+  
+  /* Call (cb(opcode,payload)) for each field in this Channel Header.
+   * (s) should come from splitEgs().channels.
+   */
+  static forEachChannelHeaderField(s, cb) {
+    for (let sp=0; sp<s.length; ) {
+      const opcode = s[sp++];
+      const len = s[sp++] || 0;
+      if (sp > s.length - len) break;
+      const err = cb(opcode, s.slice(sp, sp + len));
+      if (err) return err;
+      sp += len;
+    }
+  }
+  
+  /* Create an iterator to read events off an EGS event dump (splitEgs().events).
+   * eg:
+   *   for (let iter=SynthFormats.iterateEgsEvents(egs.events), event; event=iter.next(); ) {
+   *     switch (event.type) {
+   *       case "delay": // event.delay s
+   *       case "wheel": // event.chid 0..15, event.wheel -1..1f
+   *       case "note": // event.chid 0..15, event.noteid 0..127, event.velocity 0..1f, event.dur s
+   *     }
+   *   }
+   * Adjacent delays are combined.
+   */
+  static iterateEgsEvents(evv) {
+    const iter = {
+      evv,
+      evp: 0,
+    };
+    iter.reset = () => {
+      iter.evp = 0;
+    };
+    iter.next = () => {
+      if (iter.evp >= iter.evv.length) return null;
+      const lead = iter.evv[iter.evp++];
+      
+      // Natural zero: Explicit EOS.
+      if (!lead) {
+        iter.evp = iter.evv.length;
+        return null;
+      }
+      
+      // High bit unset: Delay.
+      if (!(lead & 0x80)) {
+        let ms = lead & 0x3f;
+        if (lead & 0x40) ms = (ms + 1) << 6;
+        while ((iter.evp < iter.evv.length) && !(iter.evv[iter.evp] & 0x80)) {
+          if (!iter.evv[iter.evp]) break;
+          let sub = iter.evv[iter.evp] & 0x3f;
+          if (iter.evv[iter.evp] & 0x40) sub = (sub + 1) << 6;
+          ms += sub;
+          iter.evp++;
+        }
+        return { type: "delay", delay: ms / 1000 };
+      }
+      
+      // Other events distinguished by top four bits, and not exhaustive.
+      switch (lead & 0xf0) {
+      
+        case 0x80: // Fire and forget (7-bit velocity and two bits unused).
+        case 0x90: // Short
+        case 0xa0: // Long
+          {
+            const chid = lead & 0x0f;
+            const a = iter.evv[iter.evp++] || 0;
+            const b = iter.evv[iter.evp++] || 0;
+            const noteid = a >> 1;
+            let velocity = ((a << 6) & 0x40) | (b >> 2);
+            let dur = 0;
+            if (lead >= 0x90) { // Short or Long, reduce velocity to 4 bits and read duration.
+              velocity &= 0x78;
+              velocity |= velocity >> 4;
+              dur = b & 0x1f;
+              if (lead >= 0xa0) dur = (dur + 1) * 128;
+              else dur = (dur + 1) * 16;
+            }
+            velocity /= 127.0;
+            return { type: "note", chid, noteid, velocity, dur: dur / 1000 };
+          }
+        
+        case 0xc0: { // Wheel.
+            const chid = lead & 0x0f;
+            let wheel = iter.evv[iter.evp++] || 0x80;
+            wheel = (wheel - 0x80) / 128.0;
+            return { type: "wheel", chid, wheel };
+          }
+          
+        default: {
+            iter.evp = iter.evv.length;
+            return null;
+          }
+      }
+    };
+    return iter;
   }
   
   /* Uint8Array in, AudioBuffer out.
@@ -132,5 +229,16 @@ export class SynthFormats {
     });
     buffer.copyToChannel(samplev, 0);
     return buffer;
+  }
+  
+  static frequencyForMidiNote(noteid) {
+    if ((noteid < 0) || (noteid >= 0x80)) return 0;
+    if (!SynthFormats.FREQ_BY_NOTEID) {
+      SynthFormats.FREQ_BY_NOTEID = [];
+      for (let i=0; i<0x80; i++) {
+        SynthFormats.FREQ_BY_NOTEID.push(440.0 * Math.pow(2, ((i - 0x45) / 12)));
+      }
+    }
+    return SynthFormats.FREQ_BY_NOTEID[noteid];
   }
 }
