@@ -44,6 +44,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] validate: sounds
 - - [ ] Synth helper. Maybe as part of 'serve'.
 - - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
+- - [ ] New project wizard.
+- - [ ] js minifier: Constant inside a grave string didn't get inlined, ended up undefined.
 - [ ] Editor.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.
@@ -56,8 +58,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - [ ] User events
 - - - [ ] Get/set playhead
 - - - [ ] Export songs to WAV for examination.
-- - [x] Live input mapping
-- - [x] Save and load input templates.
+- - [ ] --configure-input for true native (and presumably other cases, when a game is present): Must apply the new config live, in addition to saving it.
 - - [ ] Default input config path.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
@@ -67,9 +68,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synth. -- Get this up and running before 27 Sept, then we can use Egg for the GDEX Game Jam!
 - - - [ ] I swear FM LFO is running fast. Gave up, but do return here.
 - - - [ ] Channel.generateWave: harmonics with non-sine primitives.
-- - - [x] Sub voices
 - - - [ ] Wheel, update running voices.
-- - - [x] Post
 - - - [ ] Export songs to WAV for examination.
 - - - [ ] Channel.js: Don't use a timeout to end notes; you can provide a stop time where you start them.
 - - - [ ] Bandpass, Notch: Calculate Q sanely, I just made a wild guess here.

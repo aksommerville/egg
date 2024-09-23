@@ -52,7 +52,7 @@ double eggrt_clock_update() {
     elapsed=eggrt.framelen;
   } else {
     while (elapsed<eggrt.framelen) {
-      eggrt_sleep(eggrt.framelen-elapsed+0.001);
+      eggrt_sleep(eggrt.framelen-elapsed);
       now=eggrt_now_real();
       elapsed=now-eggrt.pvtime;
     }

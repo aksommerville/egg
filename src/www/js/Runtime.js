@@ -58,7 +58,7 @@ export class Runtime {
     if (err < 0) throw new Error(`egg_client_init() failed with error ${err}`);
     this.status = "running";
     if (this.terminate) return this.stop();
-    this.lastUpdateTime = Date.now() / 1000;
+    this.lastFrameTime = Date.now() / 1000;
     this.scheduleUpdate();
   }
   
@@ -125,7 +125,7 @@ export class Runtime {
       // Clamp to the longest reasonable interval.
       elapsed = MAXIMUM_UPDATE_TIME;
     }
-    this.lastUpdateTime = now;
+    this.lastFrameTime = now;
     
     // Enforce hard-pause.
     if (this.hardPause) {
