@@ -30,14 +30,12 @@ export class Bus {
     this.nextEventTime = 0;
     this.finishedEvents = false;
     this.cancelled = false;
-    console.log(`Bus.init`, { channels: this.channels, events: this.events });
   }
   
   /* Public API, for consumption by Audio.
    *************************************************************************/
   
   start(delay) {
-    console.log(`TODO Bus.start rid=${this.rid} delay=${delay}`);
     if (this.connected) return;
     this.master.connect(this.audio.ctx.destination);
     this.connected = true;
@@ -45,7 +43,6 @@ export class Bus {
   }
   
   stop() {
-    console.log(`TODO Bus.stop rid=${this.rid}`);
     if (this.connected) {
       this.master.disconnect();
       this.connected = false;
@@ -61,9 +58,7 @@ export class Bus {
   }
   
   cancel(fadeTime) {
-    console.log(`TODO Bus.cancel rid=${this.rid} fadeTime=${fadeTime}`);
     if (!this.connected) return;
-    console.log(`Current master ${this.master.gain.value}`);
     const now = this.audio.ctx.currentTime;
     this.master.gain.setValueAtTime(this.master.gain.value, now);
     this.master.gain.linearRampToValueAtTime(0, now + fadeTime);
@@ -71,7 +66,6 @@ export class Bus {
   }
   
   uncancel() {
-    console.log(`TODO Bus.uncancel rid=${this.rid}`);
     if (!this.connected) return;
     if (!this.cancelled) return;
     const now = this.audio.ctx.currentTime;

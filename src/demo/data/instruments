@@ -38,14 +38,14 @@ instrument 0 Acoustic Grand Piano
   wheel 00c8
   #sub 0090
   shape 00
-  #harmonics 8000 4000 2000 1000 0800 0080 0008
+  harmonics 8000 4000 2000 1000 0800 0080 0008
   fm 0100 0200
-  fmlfo 0800 c000 00
+  fmlfo 0200 c000 00
   fmenv 02 0000 0000   0018 0010 8000 ffff    0100 0100 6000 8000   0100 0200 0000 0000
   level 02 0000 0000   0018 0010 8000 ffff    0032 003c 1000 2000   0100 0200 0000 0000
   pitchenv ff 8000 82b0   0032 0032 8000 8000
   # I can't imagine using pitchlfo for real instruments. But for sound effects it will be indispensible.
-  #pitchlfo 0110 00c0 00
+  #pitchlfo 0a10 0350 00
   #gain 2000 ff 00
   
 instrument 4:1 Bright Acoustic Piano

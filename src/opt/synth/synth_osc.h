@@ -30,6 +30,7 @@ struct synth_osc {
   uint32_t p;
   uint32_t dp;
   float scale;
+  float bias; // after scale
 };
 
 /* All LFO fields encode the same way: (u16 ms,u0.16 range,u0.8 phase)

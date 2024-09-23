@@ -34,14 +34,14 @@ int synth_osc_decode(struct synth_osc *osc,struct synth *synth,const void *src,i
  */
 
 void synth_osc_update(float *v,int c,struct synth_osc *osc) {
-  if (osc->scale==1.0f) {
+  if ((osc->scale==1.0f)&&(osc->bias=0.0f)) {
     for (;c-->0;v++) {
       *v=osc->wave->v[osc->p>>SYNTH_WAVE_SHIFT];
       osc->p+=osc->dp;
     }
   } else {
     for (;c-->0;v++) {
-      *v=osc->wave->v[osc->p>>SYNTH_WAVE_SHIFT]*osc->scale;
+      *v=osc->wave->v[osc->p>>SYNTH_WAVE_SHIFT]*osc->scale+osc->bias;
       osc->p+=osc->dp;
     }
   }

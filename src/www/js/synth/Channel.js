@@ -16,6 +16,13 @@ export class Channel {
     this.soundsConstraint = soundsConstraint;
     this.postTail = null;
     this.voiceMode = "silent"; // "silent" "drums" "sub" "wave" "fm"
+    this.wheelRaw = 0; // -1..1, straight off the event stream. (which is normalized before it reaches us)
+    this.wheelRange = 0; // cents, established at config
+    this.wheel = 1; // Multiplier, updates on wheel events.
+    this.pitchLfoOsc = null;
+    this.pitchLfoTail = null; // Emits cents if not null.
+    this.fmLfoOsc = null;
+    this.fmLfoTail = null; // Emits 0..1 if not null.
     this.init(hdr);
   }
   
@@ -38,11 +45,29 @@ export class Channel {
       this.postTail.disconnect();
       this.postTail = null;
     }
+    if (this.pitchLfoOsc) {
+      this.pitchLfoOsc.stop();
+      this.pitchLfoTail.disconnect();
+      this.pitchLfoOsc = null;
+      this.pitchLfoTail = null;
+    }
+    if (this.fmLfoOsc) {
+      this.fmLfoOsc.stop();
+      this.fmLfoTail.disconnect();
+      this.fmLfoOsc = null;
+      this.fmLfoTail = null;
+    }
   }
   
   // (v) in -1..1
   setWheel(v, when) {
     console.log(`TODO Channel.setWheel v=${v} when=${when}`);
+    v = Math.min(1.0, Math.max(-1.0, v));
+    if (v === this.wheelRaw) return;
+    this.wheelRaw = v;
+    if (!this.wheelRange) return;
+    this.wheel = Math.pow(2, (v * this.wheelRange) / 1200.0);
+    //TODO Update running voices.
   }
   
   // (noteid) in 0..127, (velocity) in 0..1, (dur,when) in s.
@@ -59,13 +84,14 @@ export class Channel {
      */
     const frequency = SynthFormats.frequencyForMidiNote(noteid);
     let osc = null;
+    const stoppables = [];
     switch (this.voiceMode) {
-      case "sub": osc = this.oscillateSub(frequency); break;
-      case "wave": osc = this.oscillateWave(frequency, velocity, dur, when); break;
-      case "fm": osc = this.oscillateFm(frequency, velocity, dur, when); break;
+      case "sub": osc = this.oscillateSub(frequency, stoppables); break;
+      case "wave": osc = this.oscillateWave(frequency, velocity, dur, when, stoppables); break;
+      case "fm": osc = this.oscillateFm(frequency, velocity, dur, when, stoppables); break;
     }
     if (!osc) return;
-    const tail = this.applyLevel(osc, this.levelenv, velocity, dur, when);
+    const tail = this.applyLevel(osc, this.levelenv, velocity, dur, when, stoppables);
     tail.connect(this.dst);
   }
   
@@ -103,12 +129,20 @@ export class Channel {
     sourceNode.start(when);
   }
   
-  oscillateSub(frequency) {
-    console.log(`TODO Channel.oscillateSub freq=${frequency} width=${this.subWidth}`);
-    return null; // AudioNode
+  oscillateSub(frequency, stoppables) {
+    frequency *= this.wheel;
+    const noise = this.audio.getNoise();
+    const noiseNode = new AudioBufferSourceNode(this.ctx, { buffer: noise, channelCount: 1, loop: true });
+    const Q = ((65536 - this.subWidth) * 10) / this.ctx.sampleRate; //TODO Sane calculation for Q.
+    const filter = new BiquadFilterNode(this.ctx, { frequency, Q, type: "bandpass" });
+    noiseNode.connect(filter);
+    noiseNode.start();
+    stoppables.push([noiseNode, filter]);
+    return filter;
   }
   
-  oscillateWave(frequency, velocity, dur, when) {
+  oscillateWave(frequency, velocity, dur, when, stoppables) {
+    frequency *= this.wheel;
     const options = { frequency };
     if (this.wave instanceof PeriodicWave) {
       options.type = "custom";
@@ -117,14 +151,27 @@ export class Channel {
       options.type = this.wave;
     }
     const osc = new OscillatorNode(this.ctx, options);
-    //TODO pitchenv
-    //TODO pitchlfo
-    //TODO wheel
+    
+    if (this.pitchenv) {
+      const iter = this.pitchenv.apply(velocity, dur, when);
+      this.pitchenv.scaleIterator(iter, 65535.0, 32768.0);
+      osc.detune.setValueAtTime(iter[0].value, 0);
+      osc.detune.setValueAtTime(iter[0].value, iter[0].time);
+      for (let i=1; i<iter.length; i++) {
+        osc.detune.linearRampToValueAtTime(iter[i].value, iter[i].time);
+      }
+    }
+    
+    if (this.pitchLfoTail) {
+      this.pitchLfoTail.connect(osc.detune);
+    }
+    
     osc.start();
     return osc;
   }
   
-  oscillateFm(frequency, velocity, dur, when) {
+  oscillateFm(frequency, velocity, dur, when, stoppables) {
+    frequency *= this.wheel;
     const options = { frequency };
     if (this.wave instanceof PeriodicWave) {
       options.type = "custom";
@@ -139,9 +186,19 @@ export class Channel {
       type: "sine",
     });
     modulator.start();
+    stoppables.push(modulator);
+    
+    let modtail = modulator;
     const modgain = new GainNode(this.ctx, { gain: frequency * this.fmRange });
-    modulator.connect(modgain);
-    let modtail = modgain;
+    modgain.gain.setValueAtTime(frequency * this.fmRange, 0);
+    if (this.fmLfoTail) {
+      const lfoGain = new GainNode(this.ctx, { gain: frequency * this.fmRange });
+      this.fmLfoTail.connect(lfoGain);
+      lfoGain.connect(modgain.gain);
+      modgain.gain.setValueAtTime(0, 0);
+    }
+    modtail.connect(modgain);
+    modtail = modgain;
     
     if (this.fmenv) {
       const peak = frequency * this.fmRange;
@@ -152,18 +209,31 @@ export class Channel {
         modgain.gain.linearRampToValueAtTime(iter[i].value * peak, iter[i].time);
       }
     }
-
-    //TODO fmlfo
-    //TODO pitchenv
-    //TODO pitchlfo
-    //TODO wheel
+    
+    if (this.pitchenv) {
+      const iter = this.pitchenv.apply(velocity, dur, when);
+      this.pitchenv.scaleIterator(iter, 65535.0, 32768.0);
+      osc.detune.setValueAtTime(iter[0].value, 0);
+      osc.detune.setValueAtTime(iter[0].value, iter[0].time);
+      for (let i=1; i<iter.length; i++) {
+        osc.detune.linearRampToValueAtTime(iter[i].value, iter[i].time);
+      }
+    }
+    
+    if (this.pitchLfoTail) {
+      this.pitchLfoTail.connect(osc.detune);
+    }
     
     modtail.connect(osc.frequency);
     osc.start();
     return osc;
   }
   
-  applyLevel(osc, env, velocity, dur, when) {
+  /* We arrange to stop and remove (osc) at the appropriate time.
+   * And we do the same for anything in (stoppables), eg LFOs.
+   * (stoppables) can be AudioNode to call stop(), or [Source, Destination] to call disconnect().
+   */
+  applyLevel(osc, env, velocity, dur, when, stoppables) {
     const gainNode = new GainNode(this.ctx);
     const points = env.apply(velocity, dur, when);
     gainNode.gain.setValueAtTime(points[0].value, 0);
@@ -175,9 +245,13 @@ export class Channel {
     osc.connect(gainNode);
     const endTime = points[points.length - 1].time;
     const durationFromNow = endTime - this.ctx.currentTime;
-    if (1) setTimeout(() => {
+    setTimeout(() => { //XXX This shouldn't be necessary -- we can specify the time at AudioNode.stop(), do it where we start().
+      for (const node of stoppables) {
+        if (node instanceof Array) node[0].disconnect(node[1]);
+        else node.stop();
+      }
       gainNode.disconnect();
-      osc.stop();
+      if (osc.stop) osc.stop();
     }, durationFromNow * 1000 + 100);
     return gainNode;
   }
@@ -186,7 +260,6 @@ export class Channel {
    *********************************************************************/
    
   init(hdr) {
-    console.log(`TODO new Channel with header`, hdr);
     
     /* First, read the Channel Header.
      * Collect all the state fields in (config), and build up the final post pipe.
@@ -277,7 +350,9 @@ export class Channel {
      */
     this.wave = this.generateWave(config.shape, config.harmonics);
     if (config.pitchlfoPeriod) {
-      //TODO Pitch LFO.
+      const { osc, tail } = this.prepareLfo(config.pitchlfoPeriod, -config.pitchlfoDepth, config.pitchlfoDepth, config.pitchlfoPhase);
+      this.pitchLfoOsc = osc;
+      this.pitchLfoTail = tail;
     }
     if (config.pitchenv) this.pitchenv = config.pitchenv;
     this.voiceMode = "wave";
@@ -289,7 +364,9 @@ export class Channel {
     this.fmRate = config.fmRate;
     this.fmRange = config.fmRange;
     if (config.fmlfoPeriod) {
-      //TODO FM LFO.
+      const { osc, tail } = this.prepareLfo(config.fmlfoPeriod, 1 - config.fmlfoDepth, 1, config.fmlfoPhase);
+      this.fmLfoOsc = osc;
+      this.fmLfoTail = tail;
     }
     if (config.fmenv) this.fmenv = config.fmenv;
   }
@@ -390,55 +467,147 @@ export class Channel {
   
   addPMaster(config) {
     const gainNode = new GainNode(this.ctx, { gain: config.master });
-    if (config.postHead) gainNode.connect(config.postHead);
-    else config.postTail = gainNode;
-    config.postHead = gainNode;
+    if (config.postTail) config.postTail.connect(gainNode);
+    else config.postHead = gainNode;
+    config.postTail = gainNode;
   }
   
   addPPan(config) {
     const panNode = new StereoPannerNode(this.ctx, { pan: config.pan });
-    if (config.postHead) panNode.connect(config.postHead);
-    else config.postTail = panNode;
-    config.postHead = panNode;
+    if (config.postTail) config.postTail.connect(panNode);
+    else config.postHead = panNode;
+    config.postTail = panNode;
   }
   
   addPGain(config, s) { // gain (u8.8 gain,u0.8 clip,u0.8 gate)
-    //TODO
+    const gain = ((s[0] << 8) | s[1]) / 256.0;
+    const clip = (s[2] || 0) / 255.0;
+    const gate = (s[3] || 0) / 255.0;
+    const resolution = 20;
+    const coefv = new Float32Array(resolution * 2 + 1);
+    const step = gain / resolution;
+    for (let lop=resolution-1, hip=resolution+1, inv=step; lop>=0; lop--, hip++, inv+=step) {
+      const v = (inv < gate) ? 0 : (inv >= clip) ? clip : inv;
+      coefv[lop] = -v;
+      coefv[hip] = v;
+    }
+    const ws = new WaveShaperNode(this.ctx, { curve: coefv });
+    if (config.postTail) config.postTail.connect(ws);
+    else config.postHead = ws;
+    config.postTail = ws;
   }
   
   addPWaveshaper(config, s) { // waveshaper (s0.16...)
-    //TODO
+    const coefc = s.length >> 1;
+    if (coefc < 1) return;
+    const coefv = new Float32Array(coefc);
+    for (let i=0, sp=0; i<coefc; i++, sp+=2) {
+      coefv[i] = (((s[sp] << 8) | s[sp+1]) - 0x8000) / 32768.0;
+    }
+    const ws = new WaveShaperNode(this.ctx, { curve: coefv });
+    if (config.postTail) config.postTail.connect(ws);
+    else config.postHead = ws;
+    config.postTail = ws;
   }
   
   addPDelay(config, s) { // delay (u16 ms,u0.8 dry,u0.8 wet,u0.8 store,u0.8 feedback)
-    //TODO
+    const ms = (s[0] << 8) | s[1];
+    const dry = (s[2] || 0) / 255.0;
+    const wet = (s[3] || 0) / 255.0;
+    const sto = (s[4] || 0) / 255.0;
+    const fbk = (s[5] || 0) / 255.0;
+    if (ms < 1) return;
+    const delayNode = new DelayNode(this.ctx, { delayTime: ms / 1000 });
+    const splitNode = new GainNode(this.ctx, { gain: 1 });
+    const dryNode = new GainNode(this.ctx, { gain: dry });
+    const wetNode = new GainNode(this.ctx, { gain: wet });
+    const stoNode = new GainNode(this.ctx, { gain: sto });
+    const fbkNode = new GainNode(this.ctx, { gain: fbk });
+    const combineNode = new GainNode(this.ctx, { gain: 1 });
+    splitNode.connect(dryNode);
+    dryNode.connect(combineNode);
+    splitNode.connect(stoNode);
+    stoNode.connect(delayNode);
+    delayNode.connect(fbkNode);
+    fbkNode.connect(delayNode);
+    delayNode.connect(wetNode);
+    wetNode.connect(combineNode);
+    if (config.postTail) config.postTail.connect(splitNode);
+    else config.postHead = splitNode;
+    config.postTail = combineNode;
   }
   
   addPTremolo(config, s) { // tremolo (u16 ms,u0.16 depth,u0.8 phase)
-    //TODO
+    const ms = (s[0] << 8) | s[1];
+    const depth = ((s[2] << 8) | s[3]) / 65535.0;
+    const phase = s[4] / 256.0;
+    const { osc, tail } = this.prepareLfo(ms / 1000, 1 - depth, 1, phase);
+    const gainNode = new GainNode(this.ctx);
+    tail.connect(gainNode.gain);
+    if (config.postTail) config.postTail.connect(gainNode);
+    else config.postHead = gainNode;
+    config.postTail = gainNode;
+    //TODO Does (osc) need stopped when we uninstall?
   }
   
   addPLopass(config, s) { // lopass (u16 hz)
-    //TODO
+    const frequency = (s[0] << 8) | s[1];
+    const filter = new BiquadFilterNode(this.ctx, { frequency, Q: 1, type: "lowpass" });
+    if (config.postTail) config.postTail.connect(filter);
+    else config.postHead = filter;
+    config.postTail = filter;
   }
   
   addPHipass(config, s) { // hipass (u16 hz)
-    //TODO
+    const frequency = (s[0] << 8) | s[1];
+    const filter = new BiquadFilterNode(this.ctx, { frequency, Q: 1, type: "highpass" });
+    if (config.postTail) config.postTail.connect(filter);
+    else config.postHead = filter;
+    config.postTail = filter;
   }
   
   addPBpass(config, s) { // bpass (u16 mid,u16 wid)
-    //TODO
+    const frequency = (s[0] << 8) | s[1];
+    const width = (s[2] << 8) | s[3];
+    const Q = ((65536 - width) * 10) / this.ctx.sampleRate; //TODO Sane calculation for Q.
+    const filter = new BiquadFilterNode(this.ctx, { frequency, Q, type: "bandpass" });
+    if (config.postTail) config.postTail.connect(filter);
+    else config.postHead = filter;
+    config.postTail = filter;
   }
   
   addPNotch(config, s) { // notch (u16 mid,u16 wid)
-    //TODO
+    const frequency = (s[0] << 8) | s[1];
+    const width = (s[2] << 8) | s[3];
+    const Q = ((65536 - width) * 10) / this.ctx.sampleRate; //TODO Sane calculation for Q.
+    const filter = new BiquadFilterNode(this.ctx, { frequency, Q, type: "notch" });
+    if (config.postTail) config.postTail.connect(filter);
+    else config.postHead = filter;
+    config.postTail = filter;
+  }
+  
+  /* Private: Generate LFO.
+   * Returns { osc, tail }, both AudioNodes, installed against the current context and running, but not outputting anywhere.
+   *******************************************************************/
+   
+  prepareLfo(period, lo, hi, phase) {
+    phase = 1 - phase;
+    const imix =  Math.cos(phase * 2 * Math.PI);
+    const rmix = -Math.sin(phase * 2 * Math.PI);
+    const real = new Float32Array([(lo + hi) / 2, rmix * (hi - lo) / 2]);
+    const imag = new Float32Array([(lo + hi) / 2, imix * (hi - lo) / 2]);
+    //console.log(`prepareLfo period=${period} range=${lo}..${hi} phase=${phase} real=[${real[0]},${real[1]}] imag=[${imag[0]},${imag[1]}]`);
+    const periodicWave = new PeriodicWave(this.ctx, { real, imag, disableNormalization: true });
+    const frequency = 1 / period;
+    const osc = new OscillatorNode(this.ctx, { frequency, type: "custom", periodicWave });
+    osc.start();
+    return { osc, tail: osc };
   }
   
   /* Private: Generate wave.
    ***************************************************************/
    
   generateWave(shape, harmonics) {
-    console.log(`TODO Channel.generateWave`, { shape, harmonics });
     if (harmonics) {
       let hc = harmonics.length;
       while (hc && (harmonics[hc - 1] <= 0)) hc--;

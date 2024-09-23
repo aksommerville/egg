@@ -31,7 +31,7 @@ export class Env {
     const startTime = when;
     const dst = [];
     dst.push({time:when, value:(this.initlo*loweight + this.inithi*hiweight)});
-    let sus = this.susp;
+    let sus = this.susp - 1;
     for (const src of this.points) {
       const delay = src.tlo*loweight + src.thi*hiweight;
       when += delay;
@@ -46,6 +46,10 @@ export class Env {
       }
     }
     return dst;
+  }
+  
+  scaleIterator(iter, mult, add) {
+    for (const point of iter) iter.value = iter.value * mult + add;
   }
   
   setDefault() {

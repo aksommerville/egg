@@ -318,6 +318,8 @@ int synth_node_channel_configure(struct synth_node *node,const void *src,int src
   ) {
     if (fldv[0x0a].c) {
       if (synth_osc_decode(&NODE->fmlfo,node->synth,fldv[0x0a].v,fldv[0x0a].c)<0) return -1;
+      NODE->fmlfo.scale*=0.5f;
+      NODE->fmlfo.bias=0.5f;
       if (!(NODE->fmlfo_buffer=malloc(sizeof(float)*SYNTH_UPDATE_LIMIT_FRAMES))) return -1;
     }
     if (fldv[0x0c].c) {

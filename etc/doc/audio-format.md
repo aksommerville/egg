@@ -129,7 +129,7 @@ Others may be ignored if unknown.
 
 Envelopes:
 ```
-u8 sustain index, OOB for none
+u8 sustain index, OOB for none. The initial level DOES count as a point, it's point zero.
 u16 init lo
 u16 init hi
 repeat:

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /* Decode new envelope.
  * u8 sustain index, OOB for none

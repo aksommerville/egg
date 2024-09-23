@@ -1,4 +1,6 @@
 /* Audio.js
+ * Top level of our synthesizer.
+ * Most of the magic happens in Channel.js.
  */
  
 import { Rom } from "../Rom.js";
@@ -15,6 +17,7 @@ export class Audio {
     this.newSongDelay = 0.500;
     this.fadeTimeNormal = 1.000;
     this.fadeTimeQuick = 0.250;
+    this.noise = null; // AudioBuffer containing one second of random noise, created on demand.
     
     /* (sounds) is populated lazy, as sound effects get asked for.
      * Since the resources all contain multiple sounds, we install entire resources at once,
@@ -55,7 +58,6 @@ export class Audio {
     for (let i=this.songs.length; i-->0; ) {
       const song = this.songs[i];
       if (!song.update()) {
-        console.log(`Audio.update, dropping song bus`);
         this.songs.splice(i, 1);
         song.stop();
       }
@@ -74,7 +76,6 @@ export class Audio {
   }
   
   egg_play_song(rid, force, repeat) {
-    console.log(`TODO Audio.egg_play_song rid=${rid} force=${force} repeat=${repeat}`);
     if (!this.ctx) return;
     
     // Acquire resource. If missing, force rid to zero, because all silence is alike.
@@ -195,14 +196,11 @@ export class Audio {
   
   decodeEgs(serial) {
     const egs = SynthFormats.splitEgs(serial);
-    console.log(`TODO Audio.decodeEgs`, egs);
     let samplec = 0;
     for (let iter=SynthFormats.iterateEgsEvents(egs.events), event; event=iter.next(); ) {
       if (event.type === "delay") samplec += event.delay;
     }
-    console.log(`total duration ${samplec} s`);
     samplec = Math.max(1, Math.min(this.pcmLimit, Math.ceil(samplec * this.ctx.sampleRate)));
-    console.log(`...ie ${samplec} frames`);
     const subctx = new OfflineAudioContext(1, samplec, this.ctx.sampleRate);
     this.playEgs(subctx, egs);
     return subctx.startRendering();
@@ -211,7 +209,6 @@ export class Audio {
   /* Start playing this AudioBuffer on the main context.
    */
   playAudioBuffer(buffer, trim, pan, when) {
-    console.log(`Audio.playAudioBuffer`, { buffer, trim, pan, when });
     const sourceNode = new AudioBufferSourceNode(this.ctx, {
       buffer,
       channelCount: 1,
@@ -242,15 +239,29 @@ export class Audio {
       channel.install();
       return channel;
     });
-    console.log(`Audio.playEgs, reading all events:`, channels);
     let when = 0;
     for (let iter=SynthFormats.iterateEgsEvents(egs.events), event; event=iter.next(); ) {
-      console.log(JSON.stringify(event));
       switch (event.type) {
         case "delay": when += event.delay; break;
         case "wheel": channels[event.chid].setWheel(event.wheel, when); break;
         case "note": channels[event.chid].playNote(event.noteid, event.velocity, event.dur, when); break;
       }
     }
+  }
+  
+  getNoise() {
+    if (!this.noise) {
+      const fv = new Float32Array(this.ctx.sampleRate);
+      for (let i=fv.length; i-->0; ) fv[i] = Math.random() * 2 - 1;
+      console.log(`fv`, fv);
+      this.noise = new AudioBuffer({
+        length: fv.length,
+        numberOfChannels: 1,
+        sampleRate: this.ctx.sampleRate,
+        channelCount: 1,
+      });
+      this.noise.copyToChannel(fv, 0);
+    }
+    return this.noise;
   }
 }

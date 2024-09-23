@@ -1,0 +1,25 @@
+# 1-synth_test.egs
+# Scratch song for testing the synthesizer.
+
+song
+
+channel 0
+  master 80
+  pan 80
+  sub 0040
+  #shape 00
+  #pitchlfo 1000 0400 00
+  #fm 0100 0200
+  #fmlfo 1000 ffff 00
+  level 02 0000 0000   0020 0020 ffff ffff   0020 0020 4000 4000   0140 0140 0000 0000
+  delay 0200 80 80 80 c0
+  gain 0800 ff 00
+  waveshaper 3000 3000 3800 3c00 8000 c400 c800 d000 d000
+  tremolo 0080 ffff 00
+  #lopass 0240
+  #notch 01c0 0200
+  
+events
+  # Note and song length match the LFO: Note plays for about 3/4 of it.
+  note 0 a4 0x40 0x0100
+  delay 0x1000

@@ -55,6 +55,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - [ ] Consider DFT resampling for sounds acquired from raw PCM.
 - - - [ ] User events
 - - - [ ] Get/set playhead
+- - - [ ] Export songs to WAV for examination.
 - - [x] Live input mapping
 - - [x] Save and load input templates.
 - - [ ] Default input config path.
@@ -64,6 +65,14 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Windows drivers
 - [ ] Web runner.
 - - [ ] Synth. -- Get this up and running before 27 Sept, then we can use Egg for the GDEX Game Jam!
+- - - [ ] I swear FM LFO is running fast. Gave up, but do return here.
+- - - [ ] Channel.generateWave: harmonics with non-sine primitives.
+- - - [x] Sub voices
+- - - [ ] Wheel, update running voices.
+- - - [x] Post
+- - - [ ] Export songs to WAV for examination.
+- - - [ ] Channel.js: Don't use a timeout to end notes; you can provide a stop time where you start them.
+- - - [ ] Bandpass, Notch: Calculate Q sanely, I just made a wild guess here.
 - - [ ] Input config.
 - - [ ] Use Compression Streams API: https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API
 - - - MDN calls it "Newly available" as of 2023 but something this good is worth losing old browsers over.
