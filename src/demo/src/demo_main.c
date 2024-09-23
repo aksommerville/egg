@@ -1,5 +1,6 @@
 #include "egg/egg.h"
 #include "opt/stdlib/egg-stdlib.h"
+#include "opt/text/text.h"
 
 #define SCREENW 320
 #define SCREENH 180
@@ -16,6 +17,11 @@ static float rotate=0.0f;
 static float drotate=1.0f; // radian/s
 static int pvinstate=0;
 static int songid=0;
+static struct font *font=0;
+static int texid_label=0;
+static int labelw=0,labelh=0;
+static void *rom=0;
+static int romc=0;
 
 /* Call all 39 functions of the Egg Platform API, to ensure everything is hooked up.
  *******************************************************************/
@@ -114,6 +120,26 @@ int egg_client_init() {
   fprintf(stderr,"%d function %s was called, around %s:%d. %d!\n",123,__func__,__FILE__,__LINE__,789);
   //test_full_api();
   //egg_play_song(songid=1,0,1);
+  
+  romc=egg_get_rom(0,0);
+  if (!(rom=malloc(romc))) return -1;
+  if (egg_get_rom(rom,romc)!=romc) return -1;
+  strings_set_rom(rom,romc);
+  
+  if (!(font=font_new())) return -1;
+  //TODO Generate TOC header.
+  #if 0
+  if (font_add_image_resource(font,0x0020,2/*RID_image_font9_0020*/)<0) return -1;
+  if (font_add_image_resource(font,0x00a1,3/*RID_image_font9_00a1*/)<0) return -1;
+  if (font_add_image_resource(font,0x0400,4/*RID_image_font9_0400*/)<0) return -1;
+  #else
+  //if (font_add_image_resource(font,0x0020,8/*RID_image_font6_0020*/)<0) return -1;
+  if (font_add_image_resource(font,0x0020,10/*RID_image_cursive_0020*/)<0) return -1;
+  #endif
+  //if ((texid_label=font_texres_oneline(font,1,5,200,0xffffffff))<0) return -1;
+  if ((texid_label=font_texres_multiline(font,1,10,200,200,0xffffffff))<0) return -1;
+  egg_texture_get_status(&labelw,&labelh,texid_label);
+  
   return 0;
 }
 
@@ -164,7 +190,8 @@ void egg_client_update(double elapsed) {
 }
 
 void egg_client_render() {
-  egg_draw_clear(1,0x604020ff);
+  egg_draw_clear(1,0x102040ff);
+  /*
   {
     struct egg_draw_line vtxv[]={
       {1,1,SCREENW-2,SCREENH-2,0xff,0xff,0xff,0xff}, // White NW to SE.
@@ -259,5 +286,10 @@ void egg_client_render() {
   {
     struct egg_draw_decal vtxv={200,100,0,0,84,54,0};
     egg_draw_decal(1,texid_rlead,&vtxv,1);
+  }
+  */
+  {
+    struct egg_draw_decal vtxv={20,20,0,0,labelw,labelh,0};
+    egg_draw_decal(1,texid_label,&vtxv,1);
   }
 }

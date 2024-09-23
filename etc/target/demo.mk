@@ -4,7 +4,8 @@ demo_OUTDIR:=out
 demo_ROM:=$(demo_OUTDIR)/demo.egg
 demo-all:$(demo_ROM)
 
-demo_OPT_ENABLE:=stdlib
+demo_OPT_ENABLE:=stdlib text rom image
+demo_OPT_DEF:=$(foreach U,$(demo_OPT_ENABLE),-DUSE_$U=1)
 
 demo_CFILES:=$(filter \
   src/demo/src/%.c \
@@ -13,13 +14,14 @@ demo_CFILES:=$(filter \
 ifneq (,$(strip $(web_CC)))
   demo_OFILES_WASM:=$(patsubst src/%.c,$(demo_MIDDIR)/wasm/%.o,$(demo_CFILES))
   -include $(demo_OFILES_WASM:.o=.d)
-  $(demo_MIDDIR)/wasm/%.o:src/%.c;$(PRECMD) $(web_CC) -o$@ $<
+  $(demo_MIDDIR)/wasm/%.o:src/%.c;$(PRECMD) $(web_CC) -o$@ $< $(demo_OPT_DEF)
+  $(demo_MIDDIR)/wasm/opt/image/%.o:src/opt/image/%.c;$(PRECMD) $(web_CC) -o$@ $< $(demo_OPT_DEF) -DIMAGE_ENABLE_ENCODERS=0 -DIMAGE_USE_PNG=0
 endif
 ifneq (,$(strip $($(NATIVE_TARGET)_CC)))
   demo_OFILES_NATIVE:=$(patsubst src/%.c,$(demo_MIDDIR)/$(NATIVE_TARGET)/%.o, \
     $(filter-out src/opt/stdlib/%,$(demo_CFILES)))
   -include $(demo_OFILES_NATIVE:.o=.d)
-  $(demo_MIDDIR)/$(NATIVE_TARGET)/%.o:src/%.c;$(PRECMD) $($(NATIVE_TARGET)_CC) -o$@ $< -DUSE_REAL_STDLIB=1
+  $(demo_MIDDIR)/$(NATIVE_TARGET)/%.o:src/%.c;$(PRECMD) $($(NATIVE_TARGET)_CC) -o$@ $< $(demo_OPT_DEF) -DUSE_REAL_STDLIB=1
 endif
 
 ifneq (,$(strip $(web_LD)))

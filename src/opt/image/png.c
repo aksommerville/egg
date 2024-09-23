@@ -1,10 +1,15 @@
+#if defined(IMAGE_USE_PNG) && !IMAGE_USE_PNG
+  int png_dummy=0;
+#else
+
 #include "image.h"
 #include "opt/serial/serial.h"
+#include "opt/stdlib/egg-stdlib.h"
 #include <zlib.h>
-#include <string.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <stdint.h>
+
+#ifndef IMAGE_ENABLE_ENCODERS
+  #define IMAGE_ENABLE_ENCODERS 1
+#endif
 
 /* The Paeth predictor.
  */
@@ -315,6 +320,8 @@ int png_decode_header(struct image *dst,const void *_src,int srcc) {
   }
 }
 
+#if IMAGE_ENABLE_ENCODERS
+
 /* Encoder context.
  */
  
@@ -608,3 +615,6 @@ int png_encode(struct sr_encoder *dst,struct image *image) {
   png_encoder_cleanup(&ctx);
   return err;
 }
+
+#endif
+#endif

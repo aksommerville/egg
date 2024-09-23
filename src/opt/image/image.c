@@ -1,10 +1,10 @@
 #include "image.h"
 #include "opt/serial/serial.h"
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdio.h>
+#include "opt/stdlib/egg-stdlib.h"
+
+#ifndef IMAGE_ENABLE_ENCODERS
+  #define IMAGE_ENABLE_ENCODERS 1
+#endif
 
 /* Delete image.
  */
@@ -45,11 +45,13 @@ int image_decode_header(struct image *dst,const void *src,int srcc) {
  */
  
 int image_encode(struct sr_encoder *dst,struct image *image,int format) {
-  switch (format) {
-    #define _(tag) case IMAGE_FORMAT_##tag: return tag##_encode(dst,image);
-    IMAGE_FORMAT_FOR_EACH
-    #undef _
-  }
+  #if IMAGE_ENABLE_ENCODERS
+    switch (format) {
+      #define _(tag) case IMAGE_FORMAT_##tag: return tag##_encode(dst,image);
+      IMAGE_FORMAT_FOR_EACH
+      #undef _
+    }
+  #endif
   return -1;
 }
 

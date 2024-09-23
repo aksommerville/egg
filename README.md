@@ -77,8 +77,9 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - MDN calls it "Newly available" as of 2023 but something this good is worth losing old browsers over.
 - [ ] Rich set of client-side helper libraries.
 - - [x] Render context.
-- - [ ] Font and string loader.
+- - [x] Font and string loader.
 - - [ ] Maps?
+- [ ] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama?
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.
 - [ ] Validate eject.

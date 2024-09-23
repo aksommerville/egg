@@ -18,15 +18,25 @@ struct sr_encoder;
  * Format detection is hard-coded in image.c; add yourself there if you add a format.
  * Encoders are allowed to damage the input image. Reformatting or whatever.
  */
-#define IMAGE_FORMAT_rawimg 1
-#define IMAGE_FORMAT_qoi    2
-#define IMAGE_FORMAT_rlead  3
-#define IMAGE_FORMAT_png    4 /* Also requires zlib. */
-#define IMAGE_FORMAT_FOR_EACH \
-  _(rawimg) \
-  _(qoi) \
-  _(rlead) \
-  _(png)
+#if defined(IMAGE_USE_PNG) && !IMAGE_USE_PNG
+  #define IMAGE_FORMAT_rawimg 1
+  #define IMAGE_FORMAT_qoi    2
+  #define IMAGE_FORMAT_rlead  3
+  #define IMAGE_FORMAT_FOR_EACH \
+    _(rawimg) \
+    _(qoi) \
+    _(rlead)
+#else
+  #define IMAGE_FORMAT_rawimg 1
+  #define IMAGE_FORMAT_qoi    2
+  #define IMAGE_FORMAT_rlead  3
+  #define IMAGE_FORMAT_png    4 /* Also requires zlib. */
+  #define IMAGE_FORMAT_FOR_EACH \
+    _(rawimg) \
+    _(qoi) \
+    _(rlead) \
+    _(png)
+#endif
 
 #define IMAGE_HINT_ALPHA 0x01
 #define IMAGE_HINT_LUMA  0x02

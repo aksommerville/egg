@@ -1,9 +1,10 @@
 #include "image.h"
 #include "opt/serial/serial.h"
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <stdint.h>
+#include "opt/stdlib/egg-stdlib.h"
+
+#ifndef IMAGE_ENABLE_ENCODERS
+  #define IMAGE_ENABLE_ENCODERS 1
+#endif
 
 /* Decode, header only.
  */
@@ -46,6 +47,8 @@ struct image *rawimg_decode(const void *_src,int srcc) {
   return image;
 }
 
+#if IMAGE_ENABLE_ENCODERS
+
 /* Encode.
  */
  
@@ -57,3 +60,5 @@ int rawimg_encode(struct sr_encoder *dst,struct image *image) {
   if (sr_encode_raw(dst,image->v,image->stride*image->h)<0) return -1;
   return 0;
 }
+
+#endif

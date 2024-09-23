@@ -1,10 +1,10 @@
 #include "image.h"
 #include "opt/serial/serial.h"
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdio.h>
+#include "opt/stdlib/egg-stdlib.h"
+
+#ifndef IMAGE_ENABLE_ENCODERS
+  #define IMAGE_ENABLE_ENCODERS 1
+#endif
 
 struct rlead_pixel_writer {
   uint8_t *dstrow;
@@ -148,6 +148,8 @@ int rlead_decode_header(struct image *image,const void *_src,int srcc) {
   return image->stride*image->h;
 }
 
+#if IMAGE_ENABLE_ENCODERS
+
 /* Encoder context.
  */
  
@@ -211,8 +213,8 @@ static int rlead_emit_run(struct rlead_encoder *encoder,int runlen) {
 static int rlead_encode_inner(struct rlead_encoder *encoder) {
 
   uint8_t flags=0;
-  if (encoder->filtered[0]&0x80) flags|=0x01; // initial color
-  if (encoder->using_filter) flags|=0x02;
+  if (encoder->filtered[0]&0x80) flags|=0x02; // initial color
+  if (encoder->using_filter) flags|=0x01;
   if (encoder->image->hint&IMAGE_HINT_ALPHA) flags|=0x04;
 
   // 9-byte header: "\0rld",u16 w,u16 h,u8 flags(1=color,2=filter)
@@ -323,3 +325,5 @@ int rlead_encode(struct sr_encoder *dst,struct image *image) {
   rlead_encoder_cleanup(&encoder);
   return 0;
 }
+
+#endif
