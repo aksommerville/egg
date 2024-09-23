@@ -44,7 +44,7 @@ void egg_client_render();
 /* Log to the developers' console.
  * This content is generally not visible to users, but not secret either.
  * Do not include a terminal newline.
- * Most clients will want to wrap this in a client-side helper with variadic arguments.
+ * Most clients will want to wrap this in a client-side helper with variadic arguments -- our 'stdlib' unit does that.
  * We've chosen not to provide that at the platform level because passing varargs across the wasm gap gets messy.
  */
 void egg_log(const char *msg);

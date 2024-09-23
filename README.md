@@ -76,6 +76,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Use Compression Streams API: https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API
 - - - MDN calls it "Newly available" as of 2023 but something this good is worth losing old browsers over.
 - [ ] Rich set of client-side helper libraries.
+- - [x] Render context.
+- - [ ] Font and string loader.
+- - [ ] Maps?
+- [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.
 - [ ] Validate eject.
 - [ ] Consider adding a uniform "linearFilter" parameter to mode7 blit.
