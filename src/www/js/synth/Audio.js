@@ -253,7 +253,6 @@ export class Audio {
     if (!this.noise) {
       const fv = new Float32Array(this.ctx.sampleRate);
       for (let i=fv.length; i-->0; ) fv[i] = Math.random() * 2 - 1;
-      console.log(`fv`, fv);
       this.noise = new AudioBuffer({
         length: fv.length,
         numberOfChannels: 1,
