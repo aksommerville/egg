@@ -21,6 +21,7 @@ int main(int argc,char **argv) {
   _(serve)
   _(config)
   _(dump)
+  _(project)
   #undef _
   else {
     fprintf(stderr,"%s: Unknown command '%s'\n",eggdev.exename,eggdev.command);

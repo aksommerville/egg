@@ -41,8 +41,6 @@ If you don't provide `fb`, you'll get a default of "640x360".
 | Key           | Description |
 |---------------|-------------|
 | fb            | `WIDTHxHEIGHT`. Dimensions of texture 1, the main video output. |
-| audioRate     | Preferred audio rate in Hz, if you're using a custom synthesizer. 200..200000 |
-| audioChanc    | Preferred channel count, if you're using a custom synthesizer. 1..8 |
 | title         | Full title of this game. |
 | author        | Your name. |
 | desc          | Brief description, for prospective users' consumption. |
@@ -61,6 +59,7 @@ If you don't provide `fb`, you'll get a default of "640x360".
 | persistKey    | If present, we'll require it to match for the key-value store. Use some random nonce, or the version string. |
 | iconImage     | ID of image resource. Recommend PNG 16x16. |
 | posterImage   | ID of image resource. Recommend PNG with aspect 2:1 with no text. |
+| contact       | Email, phone, URL, however you like to be contacted by users. |
 
 AK: If you change this list, remember to update src/editor/js/MetadataEditor.js
 
@@ -71,11 +70,6 @@ AK: If you change this list, remember to update src/editor/js/MetadataEditor.js
 - `free`: Assume assets may be borrowed with no more than attribution to the author.
 
 `required`, `optional`
-- `gl`: Require direct rendering; Egg's video API will not be available.
-- `keyboard`
-- `mouse`
-- `touch`
-- `accelerometer`
 - `gamepad`
 - `gamepad(BTNMASK)`: BTNMASK is one bit per button, see egg.h:EGG_BTN_*
 - `audio`: eg for rhythm games, don't let it start up when audio is unavailable

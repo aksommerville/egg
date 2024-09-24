@@ -128,6 +128,18 @@ static void eggdev_print_help_dump() {
   );
 }
 
+/* --help=project
+ */
+ 
+static void eggdev_print_help_project() {
+  fprintf(stderr,"\nUsage: %s project\n\n",eggdev.exename);
+  fprintf(stderr,
+    "Create a new empty project that can build an Egg ROM.\n"
+    "Interactive.\n"
+    "\n"
+  );
+}
+
 /* --help default
  */
  
@@ -143,6 +155,7 @@ static void eggdev_print_help_default() {
     "     serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external]\n"
     "    config [KEYS...]\n"
     "      dump ROM TYPE:ID\n"
+    "   project\n"
     "\n"
   );
 }
@@ -161,6 +174,7 @@ void eggdev_print_help(const char *topic) {
   _(serve)
   _(config)
   _(dump)
+  _(project)
   #undef _
   else eggdev_print_help_default();
 }

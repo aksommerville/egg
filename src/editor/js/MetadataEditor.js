@@ -136,7 +136,7 @@ export class MetadataEditor {
   describeKey(k) {
     if (!k) {
       const keys = [
-        "fb", "audioRate", "audioChanc", "title", "author", "desc", "lang", "freedom", "required", "optional",
+        "fb", "title", "author", "desc", "lang", "freedom", "required", "optional",
         "players", "copyright", "advisory", "rating", "genre", "tags", "time", "version", "persistKey",
         "iconImage", "posterImage",
       ];
@@ -150,8 +150,6 @@ export class MetadataEditor {
     
     switch (k) {
       case "fb": return "'WIDTHxHEIGHT', dimensions of main framebuffer.";
-      case "audioRate": return "Preferred audio rate in Hz. Only if you are using a custom synthesizer.";
-      case "audioChanc": return "Preferred audio channel count. Only if you are using a custom synthesizer.";
       case "title": return "Full title of game for human consumption. Recommend using string too.";
       case "author": return "Your name.";
       case "desc": return "Brief description for human consumption. Recommend using string too.";
@@ -196,8 +194,6 @@ export class MetadataEditor {
     if (field.v.match(/\s$/)) return "Illegal trailing whitespace in value.";
     switch (field.k) {
       case "fb": return this.validate_fb(field.v);
-      case "audioRate": return this.validate_int(field.v, 200, 200000);
-      case "audioChanc": return this.validate_int(field.v, 1, 8);
       case "lang": return this.validate_lang(field.v);
       case "freedom": return this.validate_freedom(field.v);
       case "required": return this.validate_features(field.v);
