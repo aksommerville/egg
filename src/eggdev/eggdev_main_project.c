@@ -276,6 +276,7 @@ static int eggdev_project_copy_resources(struct eggdev_project_context *ctx) {
   if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/10-witchy_0020.a1.rlead.png","src/data/image/6-witchy_0020.a1.rlead.png"))<0) return err;
   if ((err=eggdev_project_copy_res(ctx,"src/demo/data/instruments","src/data/instruments"))<0) return err;
   if ((err=eggdev_project_copy_res(ctx,"src/demo/data/sounds/1-gm_drums.msf","src/data/sounds/1-gm_drums.msf"))<0) return err;
+  if ((err=eggdev_project_copy_res(ctx,"src/editor/override/Custom.js","src/editor/override/Custom.js"))<0) return err;
   return 0;
 }
 
@@ -290,13 +291,16 @@ static int eggdev_project_in_dir(struct eggdev_project_context *ctx) {
   if (chdir(ctx->projname)<0) return -1;
   if (dir_mkdir("src")<0) return -1;
   if (dir_mkdir("src/data")<0) return -1;
-  if (dir_mkdir("src/game")<0) return -1;
-  if (dir_mkdir("src/opt")<0) return -1;
   if (dir_mkdir("src/data/image")<0) return -1;
   if (dir_mkdir("src/data/strings")<0) return -1;
   if (dir_mkdir("src/data/sounds")<0) return -1;
   if (dir_mkdir("src/data/song")<0) return -1;
+  if (dir_mkdir("src/game")<0) return -1;
+  if (dir_mkdir("src/opt")<0) return -1;
+  if (dir_mkdir("src/editor")<0) return -1;
+  if (dir_mkdir("src/editor/override")<0) return -1;
   if (file_write("src/data/manifest",0,0)<0) return -1;
+  if (file_write("src/editor/override/editor.css",0,0)<0) return -1;
   
   if (
     ((err=eggdev_project_generate_gitignore(ctx))<0)||

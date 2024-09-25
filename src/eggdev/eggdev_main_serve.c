@@ -127,6 +127,44 @@ static int eggdev_cb_get_directory(struct http_xfer *req,struct http_xfer *rsp,c
   return http_xfer_set_status(rsp,200,"OK");
 }
 
+/* For bootstrap.js, replace the string in this line: const DEFAULT_ROM_PATH = "/demo.egg";
+ */
+ 
+static void eggdev_find_rom_insertion_point(int *ap,int *bp,const char *src,int srcc) {
+  *ap=*bp=-1;
+  int srcp=0;
+  while (srcp<srcc) {
+    const char *token=src+srcp;
+    int tokenc=0;
+    while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+    if (tokenc!=16) continue;
+    if (memcmp(token,"DEFAULT_ROM_PATH",16)) continue;
+    
+    while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+    if ((srcp>=srcc)||(src[srcp++]!='=')) break;
+    while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+    if ((srcp>=srcc)||(src[srcp++]!='"')) break;
+    *ap=srcp;
+    while (srcp<srcc) {
+      if (src[srcp]=='"') {
+        *bp=srcp;
+        return;
+      }
+      srcp++;
+    }
+  }
+}
+ 
+static int eggdev_serve_insert_default_rom_path(struct sr_encoder *dst,const char *src,int srcc,const char *rompath) {
+  int ap=-1,bp=-1;
+  eggdev_find_rom_insertion_point(&ap,&bp,src,srcc);
+  if ((ap<0)||(bp<ap)) return sr_encode_raw(dst,src,srcc);
+  if (sr_encode_raw(dst,src,ap)<0) return -1;
+  if (sr_encode_raw(dst,rompath,-1)<0) return -1;
+  if (sr_encode_raw(dst,src+bp,srcc-bp)<0) return -1;
+  return 0;
+}
+
 /* GET for a regular file.
  */
  
@@ -134,10 +172,21 @@ static int eggdev_cb_get_file(struct http_xfer *req,struct http_xfer *rsp,const 
   void *serial=0;
   int serialc=file_read(&serial,path);
   if (serialc<0) return http_xfer_set_status(rsp,404,"Not found");
-  if (sr_encode_raw(http_xfer_get_body(rsp),serial,serialc)<0) {
+  int err=-1;
+  
+  // Usually we return files verbatim, but there's an opportunity here to massage the content.
+  const char *rpath=0;
+  int rpathc=http_xfer_get_path(&rpath,req);
+  if (eggdev.default_rom_path&&(rpathc==13)&&!memcmp(rpath,"/bootstrap.js",13)) {
+    err=eggdev_serve_insert_default_rom_path(http_xfer_get_body(rsp),serial,serialc,eggdev.default_rom_path);
+  } else {
+    err=sr_encode_raw(http_xfer_get_body(rsp),serial,serialc);
+  }
+  if (err<0) {
     free(serial);
     return http_xfer_set_status(rsp,500,"Internal error");
   }
+  
   const char *mimetype=eggdev_guess_mime_type(path,serial,serialc);
   free(serial);
   http_xfer_set_header(rsp,"Content-Type",12,mimetype,-1);

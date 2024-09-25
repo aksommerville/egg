@@ -33,6 +33,7 @@ extern struct eggdev {
   const char *lang; // null, "all", or a two-letter code.
   int iconImage;
   int posterImage;
+  const char *default_rom_path;
   
   struct http_context *http;
   volatile int terminate;

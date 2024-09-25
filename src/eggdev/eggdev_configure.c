@@ -79,13 +79,14 @@ static void eggdev_print_help_validate() {
  */
  
 static void eggdev_print_help_serve() {
-  fprintf(stderr,"\nUsage: %s serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external]\n\n",eggdev.exename);
+  fprintf(stderr,"\nUsage: %s serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH]\n\n",eggdev.exename);
   fprintf(stderr,
     "Run the dev server, mostly a generic HTTP server.\n"
     "BEWARE: This server is not hardened for use on untrusted networks.\n"
     "--external to serve on all interfaces. Localhost only by default.\n"
     "--htdocs arguments override previous ones, we serve the first file we find, searching backward.\n"
     "--write should match one of your --htdocs. The only directory we PUT or DELETE in.\n"
+    "--default-rom gets inserted in the runtime's bootstrap.js.\n"
     "See etc/doc/eggdev-http.md for REST API and more details.\n"
     "\n"
   );
@@ -168,7 +169,7 @@ static void eggdev_print_help_default() {
     "    bundle -oEXE|HTML ROM [LIB|--recompile]\n"
     "      list ROM|EXE|HTML|DIRECTORY [-fFORMAT]\n"
     "  validate ROM|EXE|HTML|DIRECTORY\n"
-    "     serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external]\n"
+    "     serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH]\n"
     "    config [KEYS...]\n"
     "      dump ROM TYPE:ID\n"
     "   project\n"
@@ -298,6 +299,11 @@ static int eggdev_configure_kv(const char *k,int kc,const char *v,int vc) {
   
   if ((kc==11)&&!memcmp(k,"posterImage",11)) {
     eggdev.posterImage=vn;
+    return 0;
+  }
+  
+  if ((kc==11)&&!memcmp(k,"default-rom",11)) {
+    eggdev.default_rom_path=v;
     return 0;
   }
   

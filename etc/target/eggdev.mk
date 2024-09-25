@@ -23,7 +23,7 @@ $(eggdev_MIDDIR)/eggdev/eggdev_buildcfg.o:src/eggdev/eggdev_buildcfg.c;$(PRECMD)
   -DEGGDEV_WEB_CC="\"$(web_CC)\"" \
   -DEGGDEV_WEB_LD="\"$(web_LD)\"" \
   -DEGGDEV_WEB_LDPOST="\"$(web_LDPOST)\"" \
-  -DEGGDEV_EGG_SDK="\"$(abspath $(PWD))\"" \
+  -DEGGDEV_EGG_SDK="\"$(abspath $(CURDIR))\"" \
   -DEGGDEV_NATIVE_TARGET="\"$(NATIVE_TARGET)\"" \
   -DEGGDEV_WABT_SDK="\"$(abspath $(WABT_SDK))\"" \
   -DEGGDEV_WAMR_SDK="\"$(abspath $(WAMR_SDK))\""

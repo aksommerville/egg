@@ -1,6 +1,8 @@
 import { Rom } from "./js/Rom.js";
 import { Runtime } from "./js/Runtime.js";
 
+const DEFAULT_ROM_PATH = "/demo.egg";
+
 function reprError(error) {
   if (!error) return "A fatal error occurred (no detail).";
   if (typeof(error) === "string") return error;
@@ -60,8 +62,8 @@ window.addEventListener("load", () => {
   if (romElement) {
     launchPromise = launchEgg(romElement.innerText);
   /*IGNORE{*/
-  } else if (1) {
-    launchPromise = fetch("/api/make/demo.egg").then(rsp => {
+  } else if (DEFAULT_ROM_PATH) {
+    launchPromise = fetch("/api/make" + DEFAULT_ROM_PATH).then(rsp => {
       if (!rsp.ok) return rsp.text().then(body => { throw body; });
       return rsp.arrayBuffer();
     }).then(rom => {
