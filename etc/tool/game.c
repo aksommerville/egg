@@ -1,7 +1,6 @@
 #include "egg/egg.h"
 #include "opt/stdlib/egg-stdlib.h"
 #include "opt/graf/graf.h"
-#include "opt/image/image.h"
 #include "opt/text/text.h"
 #include "egg_rom_toc.h"
 

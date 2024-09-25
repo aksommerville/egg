@@ -1,7 +1,6 @@
 /* text.h
  * Parse and cache string resources, and render with a simple font.
  * Requires stdlib, rom.
- * Optional: image.
  */
  
 #ifndef TEXT_H
@@ -97,10 +96,11 @@ int font_add_image(
   struct font *font,
   int codepoint,
   const void *pixels,
-  int w,int h,int stride
+  int w,int h,int stride,
+  int handoff
 );
 
-/* If you declared the ROM to strings (above), and if the "image" unit is present,
+/* If you declared the ROM to strings (above),
  * we can handle looking up and decoding image resources for you.
  */
 int font_add_image_resource(struct font *font,int codepoint,int imageid);

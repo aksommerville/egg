@@ -1,6 +1,7 @@
 #include "egg/egg.h"
 #include "opt/stdlib/egg-stdlib.h"
 #include "opt/text/text.h"
+#include "opt/rom/rom.h"
 #include "egg_rom_toc.h"
 
 #define SCREENW 320
@@ -127,15 +128,12 @@ int egg_client_init() {
   if (!(rom=malloc(romc))) return -1;
   if (egg_get_rom(rom,romc)!=romc) return -1;
   strings_set_rom(rom,romc);
-  fprintf(stderr,"%s:%d\n",__FILE__,__LINE__);
   
   if (!(font=font_new())) return -1;
-  fprintf(stderr,"%s:%d\n",__FILE__,__LINE__);
   // Plain Jane:
   //if (font_add_image_resource(font,0x0020,RID_image_font9_0020)<0) return -1;
   //if (font_add_image_resource(font,0x00a1,RID_image_font9_00a1)<0) return -1;
   //if (font_add_image_resource(font,0x0400,RID_image_font9_0400)<0) return -1;
-  fprintf(stderr,"%s:%d\n",__FILE__,__LINE__);
   // Tiny:
   //if (font_add_image_resource(font,0x0020,RID_image_font6_0020)<0) return -1;
   // Cursive:
@@ -144,7 +142,6 @@ int egg_client_init() {
   if (font_add_image_resource(font,0x0020,RID_image_witchy_0020)<0) return -1;
   //if ((texid_label=font_texres_oneline(font,1,5,200,0xffffffff))<0) return -1;
   if ((texid_label=font_texres_multiline(font,1,10,200,200,0xffffffff))<0) return -1;
-  fprintf(stderr,"%s:%d\n",__FILE__,__LINE__);
   egg_texture_get_status(&labelw,&labelh,texid_label);
   
   return 0;

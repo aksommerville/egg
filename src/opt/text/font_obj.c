@@ -92,7 +92,7 @@ static int font_page_add_glyph(struct font_page *page,int x,int y,int w) {
  * Caller must validate image.
  */
  
-static int font_page_add_image(struct font *font,struct font_page *page,const void *pixels,int w,int h,int stride) {
+static int font_page_add_image(struct font *font,struct font_page *page,const void *pixels,int w,int h,int stride,int handoff) {
 
   // If the font's row height is not yet established, take it from the Control Column of input.
   if (!font->h) {
@@ -127,8 +127,12 @@ static int font_page_add_image(struct font *font,struct font_page *page,const vo
   
   // Copy the raw image.
   int imglen=stride*h;
-  if (!(page->v=malloc(imglen))) return -1;
-  memcpy(page->v,pixels,imglen);
+  if (handoff) {
+    page->v=(void*)pixels;
+  } else {
+    if (!(page->v=malloc(imglen))) return -1;
+    memcpy(page->v,pixels,imglen);
+  }
   page->w=w;
   page->h=h;
   page->stride=stride;
@@ -170,11 +174,12 @@ int font_add_image(
   struct font *font,
   int codepoint,
   const void *pixels,
-  int w,int h,int stride
+  int w,int h,int stride,
+  int handoff
 ) {
   if (!font||!pixels||(w<1)||(h<1)) return -1;
   int minstride=(w+7)>>3;
-  if (stride) stride=minstride;
+  if (!stride) stride=minstride;
   else if (stride<minstride) return -1;
   
   int pagep=font_pagev_search(font,codepoint);
@@ -194,14 +199,14 @@ int font_add_image(
   memset(page,0,sizeof(struct font_page));
   page->codepoint=codepoint;
   
-  int err=font_page_add_image(font,page,pixels,w,h,stride);
+  int err=font_page_add_image(font,page,pixels,w,h,stride,handoff);
   if (err>=0) { // Confirm it didn't spill into the next page.
     if ((pagep+1<font->pagec)&&(page->codepoint+page->glyphc>page[1].codepoint)) {
       err=-1;
     }
   }
   if (err<0) {
-    if (page->v) free(page->v);
+    if (page->v&&!handoff) free(page->v);
     if (page->glyphv) free(page->glyphv);
     font->pagec--;
     memmove(page,page+1,sizeof(struct font_page)*(font->pagec-pagep));
@@ -214,15 +219,15 @@ int font_add_image(
  */
 
 int font_add_image_resource(struct font *font,int codepoint,int imageid) {
-  #if USE_image
-    uint32_t id=(EGG_TID_image<<16)|imageid;
-    int lo=0,hi=strings.resc;
-    while (lo<hi) {
-      int ck=(lo+hi)>>1;
-      uint32_t q=strings.resv[ck].id;
-           if (id<q) hi=ck;
-      else if (id>q) lo=ck;
-      else {
+  uint32_t id=(EGG_TID_image<<16)|imageid;
+  int lo=0,hi=strings.resc;
+  while (lo<hi) {
+    int ck=(lo+hi)>>1;
+    uint32_t q=strings.resv[ck].id;
+         if (id<q) hi=ck;
+    else if (id>q) lo=ck;
+    else {
+      #if 0
         struct image *image=image_decode(strings.resv[ck].v,strings.resv[ck].c);
         if (!image) break;
         int err=image_reformat_in_place(image,1,0,0,0,0);
@@ -231,9 +236,25 @@ int font_add_image_resource(struct font *font,int codepoint,int imageid) {
         }
         image_del(image);
         return err;
+      #endif
+      const void *src=strings.resv[ck].v;
+      int srcc=strings.resv[ck].c;
+      int w=0,h=0,pixelsize=0,pixlen;
+      if ((pixlen=egg_image_decode_header(&w,&h,&pixelsize,src,srcc))<1) return -1;
+      if (pixelsize!=1) return -1;
+      void *pixels=malloc(pixlen);
+      if (!pixels) return -1;
+      if (egg_image_decode(pixels,pixlen,src,srcc)!=pixlen) {
+        free(pixels);
+        return -1;
       }
+      if (font_add_image(font,codepoint,pixels,w,h,0,1)<0) {
+        free(pixels);
+        return -1;
+      }
+      return 0;
     }
-  #endif
+  }
   return -1;
 }
 

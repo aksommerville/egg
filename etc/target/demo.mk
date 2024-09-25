@@ -4,7 +4,7 @@ demo_OUTDIR:=out
 demo_ROM:=$(demo_OUTDIR)/demo.egg
 demo-all:$(demo_ROM)
 
-demo_OPT_ENABLE:=stdlib text rom image
+demo_OPT_ENABLE:=stdlib text rom
 demo_OPT_DEF:=$(foreach U,$(demo_OPT_ENABLE),-DUSE_$U=1)
 
 demo_TOC:=$(demo_MIDDIR)/egg_rom_toc.h

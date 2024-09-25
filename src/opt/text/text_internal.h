@@ -5,9 +5,6 @@
 #include "egg/egg.h"
 #include "opt/stdlib/egg-stdlib.h"
 #include "opt/rom/rom.h"
-#if USE_image
-  #include "opt/image/image.h"
-#endif
 
 extern struct strings {
   const uint8_t *rom;

@@ -7,7 +7,7 @@ ifneq (,$(strip $(filter clean,$(MAKECMDGOALS))))
 clean:;rm -rf mid out
 else
 
-OPT_ENABLE:=stdlib graf text image rom 
+OPT_ENABLE:=stdlib graf text rom 
 
 ifndef EGG_SDK
   EGG_SDK:=../egg

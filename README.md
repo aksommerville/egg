@@ -74,13 +74,14 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - [ ] Channel.js: Don't use a timeout to end notes; you can provide a stop time where you start them.
 - - - [ ] Bandpass, Notch: Calculate Q sanely, I just made a wild guess here.
 - - [ ] Input config.
-- - [ ] Use Compression Streams API: https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API
+- - [x] Use Compression Streams API: https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API
 - - - MDN calls it "Newly available" as of 2023 but something this good is worth losing old browsers over.
+- - - ...can't, it's async only. (so we might as well use Image to decode images)
 - [ ] Rich set of client-side helper libraries.
 - - [x] Render context.
 - - [x] Font and string loader.
 - - [ ] Maps?
-- [ ] text: Use `egg_image_decode()` instead of requiring the image unit! D'oh I forgot I'd added that call.
+- [x] text: Use `egg_image_decode()` instead of requiring the image unit! D'oh I forgot I'd added that call.
 - [ ] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama?
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.
