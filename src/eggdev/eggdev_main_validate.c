@@ -1,5 +1,6 @@
 #include "eggdev_internal.h"
 #include "opt/image/image.h"
+#include "opt/synth/synth_formats.h"
 
 /* metadata, single token from "required" or "optional".
  */
@@ -660,200 +661,209 @@ static int eggdev_validate_image(const struct eggdev_res *res,const struct eggde
   return 0;
 }
 
+/* Validate EGS.
+ */
+ 
+static int eggdev_validate_egs(const struct eggdev_res *res,const struct eggdev_rom *rom,const char *path,int sndid) {
+  const uint8_t *src=res->serial;
+  int srcc=res->serialc;
+  int status=0;
+  #define ERROR(fmt,...) { \
+    fprintf(stderr,"%s:%s:%d:%d: "fmt"\n",path,eggdev_tid_repr(rom,res->tid),res->rid,sndid,##__VA_ARGS__); \
+    return -2; \
+  }
+  #define SOFTERROR(fmt,...) { \
+    fprintf(stderr,"%s:%s:%d:%d: "fmt"\n",path,eggdev_tid_repr(rom,res->tid),res->rid,sndid,##__VA_ARGS__); \
+    status=-2; \
+  }
+  
+  if ((srcc<4)||memcmp(src,"\0EGS",4)) ERROR("EGS signature mismatch.")
+  int srcp=4;
+  
+  int chanv[16]={0};
+  int chid=0;
+  for (;;) {
+    if (srcp>=srcc) break;
+    if (srcp>srcc-2) ERROR("Unexpected EOF reading Channel Header length.")
+    int chlen=(src[srcp]<<8)|src[srcp+1];
+    srcp+=2;
+    if (!chlen) break;
+    if (srcp>srcc-chlen) ERROR("Unexpected EOF reading Channel Header.")
+    const uint8_t *chsrc=src+srcp;
+    srcp+=chlen;
+    while ((chlen>=2)&&(chsrc[0]==0x00)) { // trim leading noops
+      chsrc+=2;
+      chlen-=2;
+    }
+    if (chid>=16) SOFTERROR("Channel Header for chid %d will be ignored. Limit 16.",chid)
+    else if (chlen) {
+      chanv[chid]=1;
+      //TODO Validate channel header.
+    }
+    chid++;
+  }
+  
+  int duration=0;
+  int final_release_time=0;
+  while (srcp<srcc) {
+    uint8_t lead=src[srcp++];
+    if (!lead) break;
+    if (!(lead&0x80)) {
+      int delay=lead&0x3f;
+      if (lead&0x40) delay=(delay+1)<<6;
+      duration+=delay;
+      continue;
+    }
+    switch (lead&0xf0) {
+      case 0x80:
+      case 0x90:
+      case 0xa0: {
+          if (srcp>srcc-2) ERROR("Unexpected EOF in note event.")
+          uint8_t a=src[srcp++];
+          uint8_t b=src[srcp++];
+          uint8_t chid=lead&0x0f;
+          if (!chanv[chid]) SOFTERROR("Note event on unconfigured channel %d.",chid)
+          int endtime=b&0x1f;
+          switch (lead&0xf0) {
+            case 0x80: endtime=0; break;
+            case 0x90: endtime=(endtime+1)<<4; break;
+            case 0xa0: endtime=(endtime+1)<<7; break;
+          }
+          endtime+=duration;
+          if (endtime>final_release_time) final_release_time=endtime;
+        } break;
+      case 0xb0: {
+          if (srcp>srcc-1) ERROR("Unexpected EOF in wheel event.")
+          uint8_t v=src[srcp++];
+          uint8_t chid=lead&0x0f;
+          if (!chanv[chid]) SOFTERROR("Wheel event on unconfigured channel %d.",chid)
+          // We could warn about redundant wheel changes... meh
+        } break;
+      default: ERROR("Unexpected leading byte 0x%02x for event around %d/%d.",lead,srcp-1,srcc)
+    }
+  }
+  
+  if (sndid>=0) {
+    if (duration>5000) SOFTERROR("Duration %d exceeds limit 5000 for sound effects.",duration)
+  }
+  
+  if (final_release_time>duration) {
+    SOFTERROR("Final release time %d > duration %d. Player's behavior is undefined.",final_release_time,duration)
+  }
+  
+  if (!duration) SOFTERROR("Expected at least one delay event.")
+  
+  #undef ERROR
+  #undef SOFTERROR
+  return status;
+}
+
+/* Validate WAV.
+ */
+ 
+static int eggdev_validate_wav(const uint8_t *src,int srcc,const char *path,int rid,int index) {
+  if ((srcc<12)||memcmp(src,"RIFF",4)||memcmp(src+8,"WAVE",4)) {
+    fprintf(stderr,"%s:sounds:%d:%d: Invalid WAV signature.\n",path,rid,index);
+    return -2;
+  }
+  int srcp=12,stopp=srcc-8,status=0,fmtc=0;
+  while (srcp<=stopp) {
+    const uint8_t *chunkid=src+srcp; srcp+=4;
+    int chunklen=src[srcp]|(src[srcp+1]<<8)|(src[srcp+2]<<16)|(src[srcp+3]<<24); srcp+=4;
+    if ((chunklen<0)||(srcp>srcc-chunklen)) {
+      fprintf(stderr,"%s:sounds:%d:%d: Chunk overflows EOF\n",path,rid,index);
+      return -2;
+    }
+    const uint8_t *chunk=src+srcp;
+    srcp+=chunklen;
+    if (chunklen&1) srcp++; // Chunks must round up to 2 bytes. The hell, Microsoft? Just what the hell?
+    if (!memcmp(chunkid,"fmt ",4)) {
+      if (fmtc++) {
+        fprintf(stderr,"%s:sounds:%d:%d: Multiple WAV 'fmt ' chunks\n",path,rid,index);
+        return -2;
+      }
+      if (chunklen<16) {
+        fprintf(stderr,"%s:sounds:%d:%d: Expected at least 16 bytes for WAV 'fmt ' chunk, found %d\n",path,rid,index,chunklen);
+        return -2;
+      }
+      int fmt=chunk[0]|(chunk[1]<<8);
+      int chanc=chunk[2]|(chunk[3]<<8);
+      int rate=chunk[4]|(chunk[5]<<8)|(chunk[6]<<16)|(chunk[7]<<24);
+      int samplesize=chunk[14]|(chunk[15]<<8);
+      if (fmt!=1) {
+        fprintf(stderr,"%s:sounds:%d:%d: WAV sample format %d not supported. Must be 1 (Linear PCM).\n",path,rid,index,fmt);
+        status=-2;
+      }
+      if (chanc!=1) {
+        fprintf(stderr,"%s:sounds:%d:%d: WAV channel count %d, should be 1.\n",path,rid,index,chanc);
+        status=-2;
+      }
+      if ((rate<200)||(rate>200000)) {
+        fprintf(stderr,"%s:sounds:%d:%d: Unrealistic sample rate %d hz. May fail to load at runtime.\n",path,rid,index,rate);
+        status=-2;
+      }
+      if (samplesize!=16) {
+        fprintf(stderr,"%s:sounds:%d:%d: Sample size %d, must be 16.\n",path,rid,index,samplesize);
+        status=-2;
+      }
+    }
+  }
+  if (!fmtc) {
+    fprintf(stderr,"%s:sounds:%d:%d: WAV missing 'fmt ' chunk\n",path,rid,index);
+    return -2;
+  }
+  return status;
+}
+
 /* Validate sounds.
  */
  
 static int eggdev_validate_sounds(const struct eggdev_res *res,const struct eggdev_rom *rom,const char *path) {
-  //TODO signature and framing
-  fprintf(stderr,"%s TODO serialc=%d\n",__func__,res->serialc);
-  return 0;
+  const uint8_t *src=res->serial;
+  int srcc=res->serialc,err,status=0;
+  if ((srcc<4)||memcmp(src,"\0MSF",4)) {
+    fprintf(stderr,"%s:sounds:%d: MSF signature mismatch.\n",path,res->rid);
+    return -2;
+  }
+  int srcp=4,index=0;
+  while (srcp<srcc) {
+    if (srcp>srcc-4) {
+      fprintf(stderr,"%s:sounds:%d: Unexpected EOF reading MSF entry header.\n",path,res->rid);
+      return -2;
+    }
+    int d=src[srcp++];
+    int len=(src[srcp]<<16)|(src[srcp+1]<<8)|src[srcp+2];
+    srcp+=3;
+    if (srcp>srcc-len) {
+      fprintf(stderr,"%s:sounds:%d: Unexpected EOF\n",path,res->rid);
+      return -2;
+    }
+    index+=d+1;
+    const uint8_t *subsrc=src+srcp;
+    srcp+=len;
+    struct eggdev_res fakeres=*res;
+    fakeres.serial=(void*)subsrc;
+    fakeres.serialc=len;
+    
+    if (!len) {
+      // Empty is ok.
+    } else if ((len>=4)&&!memcmp(subsrc,"\0EGS",4)) {
+      if ((err=eggdev_validate_egs(&fakeres,rom,path,index))<status) status=err;
+    } else if ((len>=4)&&!memcmp(subsrc,"RIFF",4)) {
+      if ((err=eggdev_validate_wav(subsrc,len,path,res->rid,index))<status) status=err;
+    } else {
+      fprintf(stderr,"%s:sounds:%d:%d: Unrecognized format.\n",path,res->rid,index);
+      status=-2;
+    }
+  }
+  return status;
 }
 
 /* Validate song.
  */
  
 static int eggdev_validate_song(const struct eggdev_res *res,const struct eggdev_rom *rom,const char *path) {
-  const uint8_t *src=res->serial;
-  int srcc=res->serialc;
-  
-  // Read the 7-byte header.
-  if ((srcc<4)||memcmp(src,"\0\xbe\xeeP",4)) {
-    fprintf(stderr,"%s:song:%d: Invalid song, signature mismatch\n",path,res->rid);
-    return -2;
-  }
-  if (srcc<7) {
-    fprintf(stderr,"%s:song:%d: Invalid song, short header\n",path,res->rid);
-    return -2;
-  }
-  int tempo=(src[4]<<8)|src[5];
-  if ((tempo<1)||(tempo>10000)) {
-    // Tempo >= 0x8000 might be a problem. 10000 is not, but it's obviously too long, suggests an error.
-    fprintf(stderr,"%s:song:%d: Improbable tempo %d ms/qnote\n",path,res->rid,tempo);
-    return -2;
-  }
-  int chanc=src[6];
-  if ((chanc<1)||(chanc>8)) {
-    fprintf(stderr,"%s:song:%d: Invalid channel count %d, must be in 1..8\n",path,res->rid,chanc);
-    return -2;
-  }
-  int srcp=7;
-  if (srcp>srcc-8*chanc) {
-    fprintf(stderr,"%s:song:%d: Channel headers overrun input\n",path,res->rid);
-    return -2;
-  }
-  
-  // Read the 8-byte channel headers.
-  int result=0;
-  int chid=0; for (;chid<chanc;chid++) {
-    const uint8_t *ch=src+srcp;
-    srcp+=8;
-    if (ch[0]&0x80) {
-      fprintf(stderr,"%s:song:%d: Channel %d, reserved bit is set\n",path,res->rid,chid);
-      result=-2;
-    }
-    int volume=ch[0]&0x7f;
-    int pan=ch[1]>>1;
-    int sustain=ch[1]&0x01;
-    int lo_atkt=ch[2]>>4;
-    int lo_susv=ch[2]&0x0f;
-    int lo_rlst=ch[3]>>4;
-    int hi_atkt=ch[3]&0x0f;
-    int hi_susv=ch[4]>>4;
-    int hi_rlst=ch[4]&0x0f;
-    int shape=ch[5]>>4;
-    int modrate=(ch[5]>>1)&0x07;
-    int lo_modrange=((ch[5]&0x01)<<3)|(ch[6]>>5);
-    int hi_modrange=(ch[6]>>1)&0x0f;
-    int fmmode=ch[6]&0x01;
-    int drate=ch[7]>>5;
-    int damt=(ch[7]>>3)&0x03;
-    int overdrive=ch[7]&0x07;
-    /**fprintf(stderr,
-      "%s:ch%d: vol=%d pan=%d sus=%d lo=(%d,%d,%d) hi=(%d,%d,%d) shape=%d modrate=%d range=%d..%d fm=%d drate=%d damt=%d over=%d\n",
-      path,res->rid,volume,pan,sustain,lo_atkt,lo_susv,lo_rlst,hi_atkt,hi_susv,hi_rlst,shape,modrate,lo_modrange,hi_modrange,fmmode,drate,damt,overdrive
-    );/**/
-    // There's actually not much we can do as far as consistency checks.
-    // Being such a small configuration space, I've mostly arranged it such that every combination of values is valid.
-    if (!volume) {
-      fprintf(stderr,"%s:song:%d:WARNING: Channel %d has zero volume, might as well remove it.\n",path,res->rid,volume);
-    }
-    if (shape>=4) {
-      fprintf(stderr,"%s:song:%d:WARNING: Channel %d requests shape %d. Only 0..3 are currently defined.\n",path,res->rid,chid,shape);
-    }
-  }
-  
-  /* Validate event framing, track simultaneous notes, and track usage per channel.
-   */
-  int notec_per_channel[8]={0};
-  int notec_total=0;
-  int dur_total=0;
-  int holdv[128]={0}; // End time of held notes. Channel and noteid are not recorded.
-  int holdc=0;
-  int bendv[8]={0x100,0x100,0x100,0x100,0x100,0x100,0x100,0x100};
-  while (srcp<srcc) {
-    uint8_t lead=src[srcp++];
-    if (!lead) break;
-    
-    if (!(lead&0x80)) {
-      dur_total+=lead<<2;
-      int i=holdc; while (i-->0) {
-        if (holdv[i]<=dur_total) {
-          holdc--;
-          memmove(holdv+i,holdv+i+1,sizeof(int)*(holdc-i));
-        }
-      }
-      continue;
-    }
-    
-    switch (lead&0xe0) {
-    
-      case 0x80: { // 100cccnn nnnnnvvv Instant
-          if (srcp>srcc-1) {
-            fprintf(stderr,"%s:song:%d: Unexpected EOF in Instant command\n",path,res->rid);
-            result=-2;
-            goto _done_;
-          }
-          int chid=(lead>>2)&0x07;
-          if (chid>chanc) {
-            fprintf(stderr,"%s:song:%d: Illegal Instant command on undeclared channel %d\n",path,res->rid,chid);
-            result=-2;
-          }
-          notec_per_channel[chid]++;
-          notec_total++;
-          srcp++;
-        } break;
-        
-      case 0xa0:
-      case 0xc0: { // 1xxcccnn nnnnnvvv dddddddd Short and Long. Identical except delay is 1 vs 16 ms.
-          if (srcp>srcc-2) {
-            fprintf(stderr,"%s:song:%d: Unexpected EOF in %s command\n",path,res->rid,(lead&0x40)?"Long":"Short");
-            result=-2;
-            goto _done_;
-          }
-          int chid=(lead>>2)&0x07;
-          if (chid>chanc) {
-            fprintf(stderr,"%s:song:%d: Illegal %s command on undeclared channel %d\n",path,res->rid,(lead&0x40)?"Long":"Short",chid);
-            result=-2;
-          }
-          notec_per_channel[chid]++;
-          notec_total++;
-          int dur=src[srcp+1];
-          srcp+=2;
-          if (lead&0x40) dur*=16;
-          if (holdc>=(sizeof(holdv)/sizeof(holdv[0]))) {
-            fprintf(stderr,"%s:song:%d: Too many simultaneous notes (>%d)\n",path,res->rid,holdc);
-            result=-2;
-            goto _done_;
-          }
-          holdv[holdc++]=dur_total+dur;
-        } break;
-        
-      case 0xe0: { // 111cccww wwwwwwww Bend
-          if (srcp>srcc-1) {
-            fprintf(stderr,"%s:song:%d: Unexpected EOF in Bend command\n",path,res->rid);
-            result=-2;
-            goto _done_;
-          }
-          int chid=(lead>>2)&0x07;
-          int v=((lead&0x03)<<8)|src[srcp];
-          srcp++;
-          if (chid>=chanc) {
-            fprintf(stderr,"%s:song:%d: Illegal Bend command on undeclared channel %d\n",path,res->rid,chid);
-            result=-2;
-          }
-          if (bendv[chid]==v) {
-            fprintf(stderr,"%s:song:%d:WARNING: Redundant Bend command %d=>%d on channel %d\n",path,res->rid,v,v,chid);
-          } else {
-            bendv[chid]=v;
-          }
-        } break;
-    }
-  }
-  
-  if (!dur_total||!notec_total) {
-    fprintf(stderr,"%s:song:%d: Invalid empty song: Duration=%d Notes=%d\n",path,res->rid,dur_total,notec_total);
-    return -2;
-  }
-  
-  for (chid=0;chid<chanc;chid++) {
-    if (!notec_per_channel[chid]) {
-      fprintf(stderr,"%s:song:%d:WARNING: Channel %d has no notes, might as well remove it.\n",path,res->rid,chid);
-    }
-  }
-  
-  if (holdc) {
-    // Not necessarily an error. The notes will sustain across the repeat, no harm done.
-    // But it's not possible when sourcing from MIDI, and I think indicates a final delay command was forgotten.
-    fprintf(stderr,"%s:song:%d:WARNING: Song ends with %d notes held.\n",path,res->rid,holdc);
-  }
-  
-  if (srcp<srcc) {
-    // Not necessarily an error. We might add things to the format later and hide them behind an EOF.
-    fprintf(stderr,"%s:song:%d:WARNING: %d bytes will be ignored due to early EOF command\n",path,res->rid,srcc-srcp);
-  }
-  
- _done_:;
-  return result;
+  return eggdev_validate_egs(res,rom,path,-1);
 }
 
 /* Validate ROM.

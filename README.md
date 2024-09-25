@@ -41,7 +41,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 ## TODO
 
 - [ ] Dev tool.
-- - [ ] validate: sounds
+- - [x] validate: sounds
 - - [ ] Synth helper. Maybe as part of 'serve'.
 - - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - - [x] New project wizard.

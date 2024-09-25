@@ -119,6 +119,7 @@ static int synth_pcmfile_decode_wav(struct synth_pcm *dst,const struct synth_pcm
       dstc+=err;
     }
     srcp+=blocklen;
+    if (blocklen&1) srcp++;
   }
   return 0;
 }

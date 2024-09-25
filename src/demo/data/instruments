@@ -270,7 +270,7 @@ instrument 4:26 Electric Guitar (jazz)
   level 02 0000 0000   0014 0028 ffff 8000    0032 003c 4000 1500   0400 0200 0000 0000
   gain 0c00 80 00
 
-instrument 4:27 Electric Guitar (clean)
+instrument 0:27 Electric Guitar (clean)
   master 80
   pan 80
   wheel 00c8
@@ -301,7 +301,7 @@ instrument 4:30 Distortion Guitar
   level 02 0000 0000   0014 0028 ffff 8000    0032 003c 4000 1500   0400 0200 0000 0000
   gain 0c00 80 00
 
-instrument 4:31 Guitar harmonics
+instrument 0:31 Guitar harmonics
   master 80
   pan 80
   wheel 00c8
@@ -556,7 +556,7 @@ instrument 4:61 Brass Section
   level 02 0000 0000   0014 0028 ffff 8000    0032 003c 4000 1500   0400 0200 0000 0000
   gain 0c00 80 00
 
-instrument 4:62 SynthBrass 1
+instrument 0:62 SynthBrass 1
   master 80
   pan 80
   wheel 00c8
@@ -613,7 +613,7 @@ instrument 4:68 Oboe
   level 02 0000 0000   0014 0028 ffff 8000    0032 003c 4000 1500   0400 0200 0000 0000
   gain 0c00 80 00
 
-instrument 4:69 English Horn
+instrument 0:69 English Horn
   master 80
   pan 80
   wheel 00c8

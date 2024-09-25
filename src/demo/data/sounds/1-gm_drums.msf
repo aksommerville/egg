@@ -29,6 +29,7 @@ events
   delay 50
   wheel 1 0
   note 1 e5 0x10 100
+  delay 100
 
 sound 36 Bass Drum 1
 channel 0
@@ -134,14 +135,24 @@ events
 #sound 71 Short Whistle
 
 sound 72 Long Whistle
+events
+  delay 1
 
 sound 73 Short Guiro
+events
+  delay 1
 
 sound 74 Long Guiro
+events
+  delay 1
 
 sound 75 Claves
+events
+  delay 1
 
 sound 76 Hi Wood Block
+events
+  delay 1
 
 #sound 77 Low Wood Block
 
