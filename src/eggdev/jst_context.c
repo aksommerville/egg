@@ -203,9 +203,10 @@ static int jst_minify_interpolable_string(struct jst_context *ctx,const char *sr
   int srcp=0,err;
   if (sr_encode_u8(ctx->dst,'`')<0) return -1;
   while (srcp<srcc) {
-    if ((srcp<=srcc-2)&&(src[srcp]=='$')&&(src[srcp+1]=='}')) {
+    if ((srcp<=srcc-2)&&(src[srcp]=='$')&&(src[srcp+1]=='{')) {
       srcp+=2;
       if ((err=jst_minify_interpolable_unit(ctx,src+srcp,srcc-srcp))<0) return err;
+      srcp+=err;
       if ((srcp>=srcc)||(src[srcp]!='}')) return jst_error(ctx,src+srcp,"Expected '}' to close string interpolation unit.");
       srcp++;
     } else {

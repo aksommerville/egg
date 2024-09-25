@@ -46,7 +46,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - - [x] New project wizard.
 - - [x] New project: Skeleton for editor overrides.
-- - [ ] js minifier: Constant inside a grave string didn't get inlined, ended up undefined.
+- - [x] js minifier: Constant inside a grave string didn't get inlined, ended up undefined.
 - [ ] Editor.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.
