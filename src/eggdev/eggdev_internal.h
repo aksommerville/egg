@@ -30,6 +30,9 @@ extern struct eggdev {
   const char *writepath;
   int port;
   int external;
+  const char *lang; // null, "all", or a two-letter code.
+  int iconImage;
+  int posterImage;
   
   struct http_context *http;
   volatile int terminate;
@@ -79,6 +82,7 @@ int eggdev_main_serve();
 int eggdev_main_config();
 int eggdev_main_dump();
 int eggdev_main_project();
+int eggdev_main_metadata();
 
 int eggdev_compile_metadata(struct eggdev_res *res,struct eggdev_rom *rom);
 int eggdev_uncompile_metadata(struct eggdev_res *res,struct eggdev_rom *rom);

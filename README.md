@@ -45,6 +45,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synth helper. Maybe as part of 'serve'.
 - - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - - [x] New project wizard.
+- - [ ] New project: Skeleton for editor overrides.
 - - [ ] js minifier: Constant inside a grave string didn't get inlined, ended up undefined.
 - [ ] Editor.
 - - [ ] Song: Playback.
@@ -79,6 +80,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [x] Render context.
 - - [x] Font and string loader.
 - - [ ] Maps?
+- [ ] text: Use `egg_image_decode()` instead of requiring the image unit! D'oh I forgot I'd added that call.
 - [ ] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama?
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.

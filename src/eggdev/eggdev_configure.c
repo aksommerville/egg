@@ -140,6 +140,22 @@ static void eggdev_print_help_project() {
   );
 }
 
+/* --help=metadata
+ */
+ 
+static void eggdev_print_help_metadata() {
+  fprintf(stderr,"\nUsage: %s metadata ROM [--lang=all|LANG] [--iconImage] [--posterImage]\n\n",eggdev.exename);
+  fprintf(stderr,
+    "Print metadata:1 as JSON.\n"
+    "With no other arguments, we print exactly what's stored in the resource. All values are strings.\n"
+    "'--lang=all' to print fields with language variants as objects: { default: string, [LANG]: string }\n"
+    "'--lang=LANG' to print everything as strings, and select the given language if available.\n"
+    "'--iconImage' and '--posterImage' look up image resources and print them as enormous base64 strings.\n"
+    "In theory, you can give a directory as ROM, but we expect all resources to be in their compiled format.\n"
+    "\n"
+  );
+}
+
 /* --help default
  */
  
@@ -156,6 +172,7 @@ static void eggdev_print_help_default() {
     "    config [KEYS...]\n"
     "      dump ROM TYPE:ID\n"
     "   project\n"
+    "  metadata ROM [--lang=all|LANG] [--iconImage] [--posterImage]\n"
     "\n"
   );
 }
@@ -175,6 +192,7 @@ void eggdev_print_help(const char *topic) {
   _(config)
   _(dump)
   _(project)
+  _(metadata)
   #undef _
   else eggdev_print_help_default();
 }
@@ -265,6 +283,21 @@ static int eggdev_configure_kv(const char *k,int kc,const char *v,int vc) {
   
   if ((kc==8)&&!memcmp(k,"external",8)) {
     eggdev.external=vn;
+    return 0;
+  }
+  
+  if ((kc==4)&&!memcmp(k,"lang",4)) {
+    eggdev.lang=v;
+    return 0;
+  }
+  
+  if ((kc==9)&&!memcmp(k,"iconImage",9)) {
+    eggdev.iconImage=vn;
+    return 0;
+  }
+  
+  if ((kc==11)&&!memcmp(k,"posterImage",11)) {
+    eggdev.posterImage=vn;
     return 0;
   }
   

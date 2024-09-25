@@ -152,7 +152,7 @@ int egg_store_key_by_index(char *k,int ka,int p);
 /* Input states are indexed by a nonzero "playerid".
  * There is a special playerid zero which is the aggregate of all states.
  * If your metadata declares "players" >0, you will not see a playerid greater than that.
- * States are a combination of (1<<EGG_BTN_*).
+ * States are a combination of EGG_BTN_*.
  * Check EGG_BTN_CD to test whether at least one physical device is associated with a player.
  * Games should assume that input states will not change during one update cycle. But platform does not strictly guarantee it.
  */
