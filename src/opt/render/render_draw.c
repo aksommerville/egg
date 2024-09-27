@@ -466,7 +466,7 @@ static void render_draw_mode7_1(struct render *render,struct render_texture *src
   glDrawArrays(GL_TRIANGLE_STRIP,0,4);
 }
 
-void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c) {
+void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c,int interpolate) {
   if (dsttexid==srctexid) return;
   if ((dsttexid<1)||(dsttexid>render->texturec)) return;
   if ((srctexid<1)||(srctexid>render->texturec)) return;
@@ -479,6 +479,10 @@ void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const str
   glUseProgram(render->pgm_decal);
   glUniform2f(render->u_decal_screensize,dsttex->w,dsttex->h);
   glBindTexture(GL_TEXTURE_2D,srctex->texid);
+  if (interpolate) {
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+  }
   glUniform4f(render->u_decal_tint,(render->tint>>24)/255.0f,((render->tint>>16)&0xff)/255.0f,((render->tint>>8)&0xff)/255.0f,(render->tint&0xff)/255.0f);
   glUniform1f(render->u_decal_alpha,render->alpha/255.0f);
   glEnableVertexAttribArray(0);
@@ -486,6 +490,10 @@ void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const str
   for (;c-->0;v++) render_draw_mode7_1(render,srctex,v);
   glDisableVertexAttribArray(0);
   glDisableVertexAttribArray(1);
+  if (interpolate) {
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+  }
 }
 
 /* Tiles.

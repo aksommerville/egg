@@ -608,7 +608,7 @@ export class Video {
    * f32 rotate
    * =24
    */
-  egg_draw_mode7(dsttexid, srctexid, vp, vc) {
+  egg_draw_mode7(dsttexid, srctexid, vp, vc, interpolate) {
     if (vc < 1) return;
     const dsttex = this.textures[dsttexid];
     if (!dsttex) return;
@@ -626,6 +626,10 @@ export class Video {
     this.gl.uniform1i(this.u_decal.sampler, 0);
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, srctex.id);
+    if (interpolate) {
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+    }
     this.gl.uniform4f(this.u_decal.tint, this.tr, this.tg, this.tb, this.ta);
     this.gl.uniform1f(this.u_decal.alpha, this.alpha);
     this.gl.enableVertexAttribArray(0);
@@ -674,6 +678,10 @@ export class Video {
     }
     this.gl.disableVertexAttribArray(0);
     this.gl.disableVertexAttribArray(1);
+    if (interpolate) {
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+      this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+    }
   }
 }
 

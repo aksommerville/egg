@@ -216,9 +216,9 @@
     egg_draw_tile(dsttexid,srctexid,v,c);
   }
   
-  static void egg_wasm_draw_mode7(wasm_exec_env_t ee,int dsttexid,int srctexid,int vp,int c) {
+  static void egg_wasm_draw_mode7(wasm_exec_env_t ee,int dsttexid,int srctexid,int vp,int c,int interpolate) {
     const void *v=eggrt_wasm_get_client_memory(vp,c*sizeof(struct egg_draw_mode7));
-    egg_draw_mode7(dsttexid,srctexid,v,c);
+    egg_draw_mode7(dsttexid,srctexid,v,c,interpolate);
   }
 
   static NativeSymbol eggrt_wasm_exports[]={
@@ -256,7 +256,7 @@
     {"egg_draw_trig",egg_wasm_draw_trig,"(iii)"},
     {"egg_draw_decal",egg_wasm_draw_decal,"(iiii)"},
     {"egg_draw_tile",egg_wasm_draw_tile,"(iiii)"},
-    {"egg_draw_mode7",egg_wasm_draw_mode7,"(iiii)"},
+    {"egg_draw_mode7",egg_wasm_draw_mode7,"(iiiii)"},
   };
 
 #endif
@@ -428,9 +428,9 @@
     egg_draw_tile(dsttexid,srctexid,v,c);
   }
   
-  void w2c_env_egg_draw_mode7(struct w2c_env *env,int dsttexid,int srctexid,uint32_t vp,int c) {
+  void w2c_env_egg_draw_mode7(struct w2c_env *env,int dsttexid,int srctexid,uint32_t vp,int c,int interpolate) {
     void *v=HOSTADDR(vp,sizeof(struct egg_draw_mode7)*c);
-    egg_draw_mode7(dsttexid,srctexid,v,c);
+    egg_draw_mode7(dsttexid,srctexid,v,c,interpolate);
   }
 
 #endif

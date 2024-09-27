@@ -277,7 +277,14 @@ void egg_client_render() {
       {210, 95,72,32,8,8,xscale,yscale,rotate}, // Demo continuous scale and rotation.
     };
     egg_draw_globals(0x00000000,0xff);
-    egg_draw_mode7(1,texid_tiles8,vtxv,sizeof(vtxv)/sizeof(vtxv[0]));
+    egg_draw_mode7(1,texid_tiles8,vtxv,sizeof(vtxv)/sizeof(vtxv[0]),0);
+  }
+  {
+    struct egg_draw_mode7 vtxv[]={
+      {120,140,0,64,32,32,0.75f,0.75f,rotate},
+    };
+    egg_draw_globals(0x00000000,0xff);
+    egg_draw_mode7(1,texid_tiles8,vtxv,sizeof(vtxv)/sizeof(vtxv[0]),1);
   }
   {
     struct egg_draw_decal vtxv={200, 20,0,0,32,32,0};

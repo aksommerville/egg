@@ -47,7 +47,7 @@ export class Exec {
       egg_draw_trig: (dt, vp, c) => this.rt.video.egg_draw_trig(dt, vp, c),
       egg_draw_decal: (dt, st, vp, c) => this.rt.video.egg_draw_decal(dt, st, vp, c),
       egg_draw_tile: (dt, st, vp, c) => this.rt.video.egg_draw_tile(dt, st, vp, c),
-      egg_draw_mode7: (dt, st, vp, c) => this.rt.video.egg_draw_mode7(dt, st, vp, c),
+      egg_draw_mode7: (dt, st, vp, c, i) => this.rt.video.egg_draw_mode7(dt, st, vp, c, i),
     }};
     return WebAssembly.instantiate(serial, options).then(result => {
       const yoink = name => {

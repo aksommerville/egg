@@ -54,7 +54,7 @@ void render_draw_rect(struct render *render,int dsttexid,const struct egg_draw_r
 void render_draw_trig(struct render *render,int dsttexid,const struct egg_draw_trig *v,int c);
 void render_draw_decal(struct render *render,int dsttexid,int srctexid,const struct egg_draw_decal *v,int c);
 void render_draw_tile(struct render *render,int dsttexid,int srctexid,const struct egg_draw_tile *v,int c);
-void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c);
+void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c,int interpolate);
 
 void render_draw_to_main(struct render *render,int mainw,int mainh,int texid);
 

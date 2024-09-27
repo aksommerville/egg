@@ -40,7 +40,7 @@ void egg_draw_rect(int dsttexid,const struct egg_draw_rect *v,int c);
 void egg_draw_trig(int dsttexid,const struct egg_draw_trig *v,int c);
 void egg_draw_decal(int dsttexid,int srctexid,const struct egg_draw_decal *v,int c);
 void egg_draw_tile(int dsttexid,int srctexid,const struct egg_draw_tile *v,int c);
-void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c);
+void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c,int interpolate);
 /**/
 
 /* Log.
@@ -366,6 +366,6 @@ void egg_draw_tile(int dsttexid,int srctexid,const struct egg_draw_tile *v,int c
   render_draw_tile(eggrt.render,dsttexid,srctexid,v,c);
 }
 
-void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c) {
-  render_draw_mode7(eggrt.render,dsttexid,srctexid,v,c);
+void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c,int interpolate) {
+  render_draw_mode7(eggrt.render,dsttexid,srctexid,v,c,interpolate);
 }

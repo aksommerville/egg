@@ -293,6 +293,8 @@ struct egg_draw_mode7 {
   float xscale,yscale; // (1.0,1.0) for natural size.
   float rotate; // Radians clockwise.
 };
-void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c);
+/* With (interpolate), beware that pixels outside the sounds bounds may be used for blending purposes.
+ */
+void egg_draw_mode7(int dsttexid,int srctexid,const struct egg_draw_mode7 *v,int c,int interpolate);
 
 #endif
