@@ -23,6 +23,7 @@ struct graf {
   void *mode;
   uint8_t vtxv[GRAF_BUFFER_SIZE];
   int vtxc; // bytes, not vertices
+  int interpolate; // mode7 only
 };
 
 /* Reset to drop any unflushed commands and return to the default state.
@@ -60,7 +61,16 @@ void graf_draw_tile(struct graf *graf,int srctexid,int16_t dstx,int16_t dsty,uin
  * (w,h) is the exact size in pixels in input.
  * (rotate) in radians clockwise.
  */
-void graf_draw_mode7(struct graf *graf,int srctexid,int16_t dstx,int16_t dsty,int16_t srcx,int16_t srcy,int16_t w,int16_t h,float xscale,float yscale,float rotate);
+void graf_draw_mode7(
+  struct graf *graf,
+  int srctexid,
+  int16_t dstx,int16_t dsty,
+  int16_t srcx,int16_t srcy,
+  int16_t w,int16_t h,
+  float xscale,float yscale,
+  float rotate,
+  int interpolate
+);
 
 /* (struct texcache) is a helper for loading textures from image resources.
  * The host surely has some limit to how many textures can be loaded at once, but Egg won't help you discover it.

@@ -28,7 +28,7 @@ void graf_flush(struct graf *graf) {
   else if (graf->mode==egg_draw_trig ) egg_draw_trig (graf->dsttexid,(void*)graf->vtxv,graf->vtxc/sizeof(struct egg_draw_trig));
   else if (graf->mode==egg_draw_decal) egg_draw_decal(graf->dsttexid,graf->srctexid,(void*)graf->vtxv,graf->vtxc/sizeof(struct egg_draw_decal));
   else if (graf->mode==egg_draw_tile ) egg_draw_tile (graf->dsttexid,graf->srctexid,(void*)graf->vtxv,graf->vtxc/sizeof(struct egg_draw_tile));
-  else if (graf->mode==egg_draw_mode7) egg_draw_mode7(graf->dsttexid,graf->srctexid,(void*)graf->vtxv,graf->vtxc/sizeof(struct egg_draw_mode7));
+  else if (graf->mode==egg_draw_mode7) egg_draw_mode7(graf->dsttexid,graf->srctexid,(void*)graf->vtxv,graf->vtxc/sizeof(struct egg_draw_mode7),graf->interpolate);
   graf->mode=0;
   graf->vtxc=0;
 }
@@ -138,11 +138,23 @@ void graf_draw_tile(struct graf *graf,int srctexid,int16_t dstx,int16_t dsty,uin
   vtx->xform=xform;
 }
 
-void graf_draw_mode7(struct graf *graf,int srctexid,int16_t dstx,int16_t dsty,int16_t srcx,int16_t srcy,int16_t w,int16_t h,float xscale,float yscale,float rotate) {
+void graf_draw_mode7(
+  struct graf *graf,
+  int srctexid,
+  int16_t dstx,int16_t dsty,
+  int16_t srcx,int16_t srcy,
+  int16_t w,int16_t h,
+  float xscale,float yscale,
+  float rotate,
+  int interpolate
+) {
   if (graf->mode&&(graf->mode!=egg_draw_mode7)) graf_flush(graf);
   else if (graf->vtxc>GRAF_BUFFER_SIZE-sizeof(struct egg_draw_mode7)) graf_flush(graf);
   else if (graf->srctexid!=srctexid) graf_flush(graf);
-  graf->mode=egg_draw_decal;
+  interpolate=interpolate?1:0;
+  if (graf->vtxc&&(interpolate!=graf->interpolate)) graf_flush(graf);
+  graf->interpolate=interpolate;
+  graf->mode=egg_draw_mode7;
   graf->srctexid=srctexid;
   struct egg_draw_mode7 *vtx=(struct egg_draw_mode7*)(graf->vtxv+graf->vtxc);
   graf->vtxc+=sizeof(struct egg_draw_mode7);
