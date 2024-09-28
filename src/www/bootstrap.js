@@ -14,6 +14,7 @@ function reprError(error) {
 function reportError(error) {
   console.error(error);
   const element = document.querySelector(".error");
+  if (!element) return;
   element.innerText = reprError(error);
   element.style.display = "block";
 }
