@@ -124,8 +124,8 @@ export class Data {
     let type = words[words.length - 2] || "";
     if (base === "metadata") type = "metadata";
     else if (base === "manifest") type = "manifest";
-    let rid = 0;
-    const match = base.match(/^([a-z]{2}-)?(\d*)/);
+    let rid=0, name="";
+    let match = base.match(/^([a-z]{2}-)?(\d*)/);
     if (match) {
       rid = +match[2] || 0;
       if (match[1] && (rid < 64)) {
@@ -134,7 +134,10 @@ export class Data {
         rid |= (hi << 11) | (lo << 6);
       }
     }
-    return { path, type, rid };
+    if (match = base.match(/^([a-z]{2}-)?\d+-([^.]+)/)) {
+      name = match[2];
+    }
+    return { path, type, rid, name };
   }
   
   /* Kind of silly how this doesn't exist yet in standard web APIs.
@@ -183,6 +186,18 @@ export class Data {
     });
   }
   
+  // Syncs to backend but assumes that will succeed. Returns resv entry.
+  newResourceSync(path, serial) {
+    if (!path || this.resv.find(r => r.path === path)) return Promise.reject("Invalid path");
+    if (!serial) serial = new Uint8Array(0);
+    const res = { ...this.parsePath(path), serial };
+    this.resv.push(res);
+    this.types = Array.from(new Set(this.resv.map(r => r.type))).sort();
+    for (const { cb } of this.tocListeners) cb();
+    this.comm.httpBinary("PUT", "/data/" + path, null, null, serial).catch(e => this.dom.modalError(e));
+    return res;
+  }
+  
   deleteResource(path) {
     if (!this.resv.find(r => r.path === path)) return Promise.reject("Resource not found");
     delete this.dirties[path];
@@ -195,6 +210,34 @@ export class Data {
         for (const { cb } of this.tocListeners) cb();
       }
     });
+  }
+  
+  resByString(src, type) {
+    const rid = +src;
+    for (const res of this.resv) {
+      if (res.type !== type) continue;
+      if (res.rid === rid) return res;
+      if (res.name === src) return res;
+    }
+    return null;
+  }
+  
+  getImage(name) {
+    const res = this.resByString(name, "image");
+    if (!res) return null;
+    if (!res.image) {
+      const blob = new Blob([res.serial]);
+      const url = URL.createObjectURL(blob);
+      res.image = new Image();
+      res.image.addEventListener("load", () => {
+        URL.revokeObjectURL(url);
+      }, { once: true });
+      res.image.addEventListener("error", (e) => {
+        URL.revokeObjectURL(url);
+      }, { once: true });
+      res.image.src = url;
+    }
+    return res.image;
   }
 }
 

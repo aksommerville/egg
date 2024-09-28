@@ -7,7 +7,7 @@ import { Data } from "./Data.js";
 
 // Types that we know we can ignore.
 const STANDARD_TYPES = [
-  "manifest", "metadata", "image", "song", "sound", "strings", "code",
+  "manifest", "metadata", "image", "song", "sounds", "strings", "code",
 ];
 
 export class ManifestEditor {

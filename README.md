@@ -77,6 +77,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Example projects.
 - [ ] Validate eject.
 - [x] Consider adding a uniform "linearFilter" parameter to mode7 blit.
+- [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
 
 ## Third-Party Code
 

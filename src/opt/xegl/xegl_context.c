@@ -91,7 +91,7 @@ static void xegl_copy_icon_pixels(long *dst,const uint8_t *src,int c) {
 static void xegl_set_icon(struct xegl *xegl,const void *rgba,int w,int h) {
   if (!rgba||(w<1)||(h<1)||(w>XEGL_ICON_SIZE_LIMIT)||(h>XEGL_ICON_SIZE_LIMIT)) return;
   int length=2+w*h;
-  long *pixels=malloc(sizeof(long)*length);
+  long *pixels=calloc(sizeof(long),length);
   if (!pixels) return;
   pixels[0]=w;
   pixels[1]=h;
@@ -196,7 +196,7 @@ static int xegl_init(struct xegl *xegl,const struct xegl_setup *setup) {
     xegl->dpy,RootWindow(xegl->dpy,xegl->screen),
     0,0,xegl->w,xegl->h,0,
     CopyFromParent,InputOutput,CopyFromParent,
-    CWBorderPixel|CWColormap|CWEventMask,&wattr
+    CWBorderPixel|CWEventMask,&wattr
   );
   if (!xegl->win) return -1;
   
