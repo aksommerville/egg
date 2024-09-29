@@ -138,6 +138,56 @@ void graf_draw_tile(struct graf *graf,int srctexid,int16_t dstx,int16_t dsty,uin
   vtx->xform=xform;
 }
 
+void graf_draw_tile_buffer(
+  struct graf *graf,
+  int srctexid,
+  int16_t dstx,int16_t dsty,
+  const uint8_t *tileidv,
+  int colc,int rowc,int stride
+) {
+  if (graf->mode&&(graf->mode!=egg_draw_tile)) graf_flush(graf);
+  else if (graf->srctexid!=srctexid) graf_flush(graf);
+  int texw=0,texh=0;
+  egg_texture_get_status(&texw,&texh,srctexid);
+  int tilesize=texw>>4;
+  graf->mode=egg_draw_tile;
+  graf->srctexid=srctexid;
+  int cellc=colc*rowc;
+  int vtxa=(GRAF_BUFFER_SIZE-graf->vtxc)/sizeof(struct egg_draw_tile);
+  if (cellc<=vtxa) {
+    struct egg_draw_tile *vtx=(struct egg_draw_tile*)(graf->vtxv+graf->vtxc);
+    const uint8_t *srcrow=tileidv;
+    int yi=rowc,y=dsty;
+    for (;yi-->0;srcrow+=stride,y+=tilesize) {
+      const uint8_t *srcp=srcrow;
+      int xi=colc,x=dstx;
+      for (;xi-->0;srcp++,x+=tilesize,vtx++) {
+        vtx->dstx=x;
+        vtx->dsty=y;
+        vtx->tileid=*srcp;
+        vtx->xform=0;
+      }
+    }
+    graf->vtxc+=cellc*sizeof(struct egg_draw_tile);
+  } else {
+    const uint8_t *srcrow=tileidv;
+    int yi=rowc,y=dsty;
+    for (;yi-->0;srcrow+=stride,y+=tilesize) {
+      const uint8_t *srcp=srcrow;
+      int xi=colc,x=dstx;
+      for (;xi-->0;srcp++,x+=tilesize) {
+        if (graf->vtxc>GRAF_BUFFER_SIZE-sizeof(struct egg_draw_tile)) graf_flush(graf);
+        struct egg_draw_tile *vtx=(struct egg_draw_tile*)(graf->vtxv+graf->vtxc);
+        vtx->dstx=x;
+        vtx->dsty=y;
+        vtx->tileid=*srcp;
+        vtx->xform=0;
+        graf->vtxc+=sizeof(struct egg_draw_tile);
+      }
+    }
+  }
+}
+
 void graf_draw_mode7(
   struct graf *graf,
   int srctexid,

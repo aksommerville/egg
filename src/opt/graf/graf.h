@@ -56,6 +56,17 @@ void graf_draw_decal(struct graf *graf,int srctexid,int16_t dstx,int16_t dsty,in
  */
 void graf_draw_tile(struct graf *graf,int srctexid,int16_t dstx,int16_t dsty,uint8_t tileid,uint8_t xform);
 
+/* Draw multiple tiles from a uniform LRTB buffer.
+ * (dstx,dsty) is the center of the top-left tile.
+ */
+void graf_draw_tile_buffer(
+  struct graf *graf,
+  int srctexid,
+  int16_t dstx,int16_t dsty,
+  const uint8_t *tileidv,
+  int colc,int rowc,int stride
+);
+
 /* (dstx,dsty) is the center of output.
  * (srcx,srcy) is the top-left of input.
  * (w,h) is the exact size in pixels in input.
