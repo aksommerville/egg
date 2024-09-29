@@ -366,7 +366,7 @@ int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc) {
  */
 
 void synth_node_bus_set_songid(struct synth_node *node,int songid,int repeat) {
-  if (!node||(node->type!=&synth_node_type_bus)||node->ready) return;
+  if (!node||(node->type!=&synth_node_type_bus)) return;
   NODE->songid=songid;
   NODE->repeat=repeat;
 }
@@ -375,7 +375,7 @@ void synth_node_bus_set_songid(struct synth_node *node,int songid,int repeat) {
  */
  
 int synth_node_bus_get_songid(struct synth_node *node) {
-  if (!node||(node->type!=&synth_node_type_bus)||node->ready) return 0;
+  if (!node||(node->type!=&synth_node_type_bus)) return 0;
   return NODE->songid;
 }
 
