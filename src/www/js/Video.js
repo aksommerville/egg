@@ -329,7 +329,7 @@ export class Video {
     if (!this.requireFramebuffer(dsttex)) return;
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
     this.gl.viewport(0, 0, dsttex.w, dsttex.h);
-    if (rgba) this.gl.clearColor((rgba >> 24) / 255.0, ((rgba >> 16) & 0xff) / 255.0, ((rgba >> 8) & 0xff) / 255.0, (rgba & 0xff) / 255.0);
+    if (rgba) this.gl.clearColor(((rgba >> 24) & 0xff) / 255.0, ((rgba >> 16) & 0xff) / 255.0, ((rgba >> 8) & 0xff) / 255.0, (rgba & 0xff) / 255.0);
     else this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
   }
