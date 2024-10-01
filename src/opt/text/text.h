@@ -150,6 +150,7 @@ int font_render_string(
 /* Conveniences to measure text, allocate a temporary buffer, render it, and upload to a new texture.
  * If "oneline" text exceeds (wlimit), we truncate.
  * If "multiline" text exceeds (hlimit), we render as much as fits, possibly a partial bottom line.
+ * Returned texture may have any width in (1..wlimit).
  * "tex" for a string you provide, or "texres" to look up a string resource (see above).
  * On success, returns a new texture ID which you must eventually delete with egg_texture_del().
  * <0 on any error.

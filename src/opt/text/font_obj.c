@@ -477,10 +477,15 @@ int font_tex_multiline(const struct font *font,const char *src,int srcc,int wlim
   int linec=font_break_lines(linev,linea,font,src,srcc,wlimit);
   if (linec<0) linec=0;
   else if (linec>linea) linec=linea;
-  int dstw=wlimit;
+  int dstw=1;
+  const struct font_line *qline=linev;
+  int qi=linec;
+  for (;qi-->0;qline++) {
+    if (qline->w>dstw) dstw=qline->w;
+  }
   int dsth=linec*font->h;
   if (dsth>hlimit) dsth=hlimit;
-  if ((dstw>4096)||(dsth>4096)) {
+  if ((dstw<1)||(dsth<1)||(dstw>4096)||(dsth>4096)) {
     free(linev);
     return -1;
   }
