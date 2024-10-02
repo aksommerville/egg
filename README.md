@@ -47,6 +47,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.
 - - [ ] Sound effects.
+- - - [ ] The need for real tooling here is desperate.
 - - [ ] Launch game.
 - [ ] Native runner.
 - - [ ] Synthesizer

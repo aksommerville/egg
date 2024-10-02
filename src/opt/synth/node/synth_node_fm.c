@@ -45,8 +45,6 @@ static void _fm_update_universal(float *v,int framec,struct synth_node *node) {
   for (;framec-->0;) {
     float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
     float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
-    NODE->modp+=NODE->carrate*NODE->fmrate;
-    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
     
     if (NODE->rangeenv_source) {
       mod*=synth_env_runner_next(NODE->rangeenv);
@@ -68,6 +66,8 @@ static void _fm_update_universal(float *v,int framec,struct synth_node *node) {
       carrate*=scale;
       pitchlfo++;
     }
+    NODE->modp+=carrate*NODE->fmrate;
+    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
     
     NODE->carp+=carrate+carrate*mod*NODE->fmrange;
     while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
