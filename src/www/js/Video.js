@@ -317,7 +317,7 @@ export class Video {
   }
   
   egg_draw_globals(tint, alpha) {
-    this.tr = (tint >> 24) / 255.0;
+    this.tr = ((tint >> 24) & 0xff) / 255.0;
     this.tg = ((tint >> 16) & 0xff) / 255.0;
     this.tb = ((tint >> 8) & 0xff) / 255.0;
     this.ta = (tint & 0xff) / 255.0;
