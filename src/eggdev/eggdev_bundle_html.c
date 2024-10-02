@@ -193,7 +193,7 @@ static int eggdev_bundle_html_js(struct eggdev_bundle_html *ctx) {
 static int eggdev_bundle_html_css(struct eggdev_bundle_html *ctx) {
   if (sr_encode_raw(&ctx->dst,
     "html{background-color:#420;color:#fff}\n"
-    "body{margin:0;overflow:hidden}\n"
+    "body{margin:0;overflow:hidden;cursor:none}\n"
     "#egg-canvas{width:100vw;height:100vh;object-fit:contain;background-color:#000;image-rendering:pixelated}\n"
   ,-1)<0) return -1;
   return 0;
