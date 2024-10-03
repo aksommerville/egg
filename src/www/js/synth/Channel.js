@@ -154,7 +154,7 @@ export class Channel {
     
     if (this.pitchenv) {
       const iter = this.pitchenv.apply(velocity, dur, when);
-      this.pitchenv.scaleIterator(iter, 65535.0, 32768.0);
+      this.pitchenv.scaleIterator(iter, 65535.0, -32768.0);
       osc.detune.setValueAtTime(iter[0].value, 0);
       osc.detune.setValueAtTime(iter[0].value, iter[0].time);
       for (let i=1; i<iter.length; i++) {
@@ -212,7 +212,7 @@ export class Channel {
     
     if (this.pitchenv) {
       const iter = this.pitchenv.apply(velocity, dur, when);
-      this.pitchenv.scaleIterator(iter, 65535.0, 32768.0);
+      this.pitchenv.scaleIterator(iter, 65535.0, -32768.0);
       osc.detune.setValueAtTime(iter[0].value, 0);
       osc.detune.setValueAtTime(iter[0].value, iter[0].time);
       for (let i=1; i<iter.length; i++) {

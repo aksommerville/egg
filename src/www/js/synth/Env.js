@@ -49,7 +49,7 @@ export class Env {
   }
   
   scaleIterator(iter, mult, add) {
-    for (const point of iter) iter.value = iter.value * mult + add;
+    for (const point of iter) point.value = point.value * mult + add;
   }
   
   setDefault() {
