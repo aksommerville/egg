@@ -82,6 +82,13 @@ export class Bus {
     if (!this.connected) return false;
     if (this.finishedEvents) return this.signalPending();
     const now = this.audio.ctx.currentTime;
+    
+    // If we get an unusually long update period, assume we suspended and resumed. Skip notes.
+    if (!this.lastUpdateTime) this.lastUpdateTime = now;
+    const elapsed = now - this.lastUpdateTime;
+    const suppress = (elapsed > 1.000);
+    this.lastUpdateTime = now;
+    
     const later = now + BUS_FORWARD_TIME;
     while (this.nextEventTime < later) {
       const event = this.events.next();
@@ -101,6 +108,7 @@ export class Bus {
       switch (event.type) {
         case "delay": this.nextEventTime += event.delay; break;
         case "note": {
+            if (suppress) continue;
             const channel = this.channels[event.chid];
             if (channel) channel.playNote(event.noteid, event.velocity, event.dur, this.nextEventTime);
           } break;
