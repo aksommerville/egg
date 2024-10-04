@@ -288,7 +288,7 @@ int synth_node_channel_configure(struct synth_node *node,const void *src,int src
       NODE->pan=(fldv[0x02].v[0]-0x80)/127.0f;
     }
   }
-  NODE->master*=SYNTH_GLOBAL_TRIM;
+  //NODE->master*=SYNTH_GLOBAL_TRIM;
   
   // Wheel range is zero for drums, or provided in cents, or defaults to 200.
   if (NODE->voicetype==&synth_node_type_pcm) {

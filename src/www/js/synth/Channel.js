@@ -133,7 +133,7 @@ export class Channel {
     frequency *= this.wheel;
     const noise = this.audio.getNoise();
     const noiseNode = new AudioBufferSourceNode(this.ctx, { buffer: noise, channelCount: 1, loop: true });
-    const Q = ((65536 - this.subWidth) * 10) / this.ctx.sampleRate; //TODO Sane calculation for Q.
+    const Q = ((65536 - this.subWidth) * 2) / this.ctx.sampleRate; //TODO Sane calculation for Q.
     const filter = new BiquadFilterNode(this.ctx, { frequency, Q, type: "bandpass" });
     noiseNode.connect(filter);
     noiseNode.start();
@@ -215,13 +215,17 @@ export class Channel {
       this.pitchenv.scaleIterator(iter, 65535.0, -32768.0);
       osc.detune.setValueAtTime(iter[0].value, 0);
       osc.detune.setValueAtTime(iter[0].value, iter[0].time);
+      modulator.detune.setValueAtTime(iter[0].value, 0);
+      modulator.detune.setValueAtTime(iter[0].value, iter[0].time);
       for (let i=1; i<iter.length; i++) {
         osc.detune.linearRampToValueAtTime(iter[i].value, iter[i].time);
+        modulator.detune.linearRampToValueAtTime(iter[i].value, iter[i].time);
       }
     }
     
     if (this.pitchLfoTail) {
       this.pitchLfoTail.connect(osc.detune);
+      this.pitchLfoTail.connect(modulator.detune);
     }
     
     modtail.connect(osc.frequency);
@@ -305,7 +309,7 @@ export class Channel {
      * That's a win for performance on the native side, but in WebAudio I'm not so sure. So I'm doing the simpler thing.
      */
     if (!this.soundsConstraint) {
-      config.master *= SYNTH_GLOBAL_TRIM;
+      //config.master *= SYNTH_GLOBAL_TRIM;
     }
     if (config.master !== 1.0) {
       this.addPMaster(config);

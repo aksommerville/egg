@@ -22,6 +22,7 @@ static void synth_wave_generate_square(struct synth_wave *wave) {
 
 static void synth_wave_generate_saw(float *v,int c,float d) {
   d/=(float)c;
+  d*=2.0f;
   int i=c;
   float p=(d>=0.0f)?-1.0f:1.0f;
   for (;i-->0;v++,p+=d) *v=p;
