@@ -7,11 +7,13 @@ import { Custom } from "../override/Custom.js";
 import { TextEditor } from "./TextEditor.js";
 import { HexEditor } from "./HexEditor.js";
 import { ImageEditor } from "./ImageEditor.js";
-import { SongEditor } from "./SongEditor.js";
-import { SoundsEditor } from "./SoundsEditor.js";
 import { MetadataEditor } from "./MetadataEditor.js";
 import { ManifestEditor } from "./ManifestEditor.js";
 import { StringsEditor } from "./StringsEditor.js";
+import { MsfEditor } from "./MsfEditor.js";
+import { EgsEditor } from "./EgsEditor.js";
+import { WavEditor } from "./WavEditor.js";
+import { MidiEditor } from "./MidiEditor.js";
  
 export class Actions {
   static getDependencies() {
@@ -26,12 +28,14 @@ export class Actions {
       ...custom.getEditors(),
       MetadataEditor,
       ManifestEditor,
-      SongEditor,
-      SoundsEditor,
       StringsEditor,
       ImageEditor,
       TextEditor,
       HexEditor,
+      MsfEditor,
+      EgsEditor,
+      WavEditor,
+      MidiEditor,
     ];
   }
   

@@ -18,7 +18,7 @@ export class Data {
     this.window = window;
     this.dom = dom;
     
-    this.resv = []; // {path,serial:Uint8Array}
+    this.resv = []; // {path,serial:Uint8Array,type,rid,name}
     this.types = []; // string; all types present in resv
     this.nextTocListener = 1;
     this.tocListeners = [];
@@ -124,6 +124,7 @@ export class Data {
     let type = words[words.length - 2] || "";
     if (base === "metadata") type = "metadata";
     else if (base === "manifest") type = "manifest";
+    else if (base === "instruments") type = "sounds";
     let rid=0, name="";
     let match = base.match(/^([a-z]{2}-)?(\d*)/);
     if (match) {
@@ -222,6 +223,17 @@ export class Data {
     return null;
   }
   
+  resolveId(src) {
+    const split = src.split(':');
+    if (split.length === 2) {
+      const type = split[0];
+      const name = split[1];
+      const res = this.resByString(name, type);
+      if (res) return res.rid;
+    }
+    return 0;
+  }
+  
   getImage(name) {
     const res = this.resByString(name, "image");
     if (!res) return null;
@@ -238,6 +250,16 @@ export class Data {
       res.image.src = url;
     }
     return res.image;
+  }
+  
+  getImageAsync(name) {
+    const image = this.getImage(name);
+    if (!image) return Promise.reject();
+    if (image.complete) return Promise.resolve(image);
+    return new Promise((resolve, reject) => {
+      image.addEventListener("load", () => resolve(image), { once: true });
+      image.addEventListener("error", e => reject(e), { once: true });
+    });
   }
 }
 

@@ -15,6 +15,7 @@ struct eggdev_res {
   void *serial;
   int serialc;
   int seq;
+  int lang;
 };
 
 struct eggdev_rom {
@@ -64,6 +65,7 @@ struct eggdev_path {
   int rid;
   const char *tname,*name,*comment,*format;
   int tnamec,namec,commentc,formatc;
+  int lang; // Nonzero if (rid) is qualified by language (it's also baked into rid).
 };
 int eggdev_rom_parse_path(
   struct eggdev_path *parsed,

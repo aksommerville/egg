@@ -474,6 +474,7 @@ int eggdev_rom_add_file(struct eggdev_rom *rom,const char *path) {
       return -2;
     }
   }
+  res->lang=parsed.lang;
   if (
     (eggdev_res_set_path(res,path,-1)<0)||
     (eggdev_res_set_name(res,parsed.name,parsed.namec)<0)||
@@ -541,6 +542,7 @@ int eggdev_rom_parse_path(
   int basep=0,lang=0;
   if ((basec>=3)&&(base[0]>='a')&&(base[0]<='z')&&(base[1]>='a')&&(base[1]<='z')&&(base[2]=='-')) {
     lang=EGG_LANG_FROM_STRING(base);
+    parsed->lang=lang;
     basep+=3;
   }
   

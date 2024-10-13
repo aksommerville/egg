@@ -1,5 +1,5 @@
 /* MidiFile.js
- * Live representation of a MIDI file, for SongEditor.
+ * Live representation of a MIDI file, for MidiEditor.
  */
  
 const MIDI_CHUNK_MThd = 0x4d546864;
@@ -7,6 +7,7 @@ const MIDI_CHUNK_MTrk = 0x4d54726b;
  
 export class MidiFile {
   constructor(src) {
+    this.nextEventId = 1;
     if (!src) this._init();
     else if (src instanceof Uint8Array) this._decode(src);
     else if (src instanceof ArrayBuffer) this._decode(new Uint8Array(src));
@@ -22,6 +23,70 @@ export class MidiFile {
     const event = this.getZEvent({ chid: 0xff, opcode: 0xff, a: 0x51 });
     if (!event || (event.v?.length !== 3)) return 500000;
     return (event.v[0] << 16) | (event.v[1] << 8) | event.v[2];
+  }
+  
+  eventById(id) {
+    for (const track of this.tracks) {
+      const event = track.find(e => e.id === id);
+      if (event) return event;
+    }
+    return null;
+  }
+  
+  // Must have an ID already present in my lists.
+  replaceEvent(event) {
+    if (!event?.id) return false;
+    for (const track of this.tracks) {
+      const p = track.findIndex(e => e.id === event.id);
+      if (p >= 0) {
+        const timeChanged = (track[p].time !== event.time);
+        track[p] = event;
+        if (timeChanged) track.sort((a, b) => a.time - b.time);
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  /* (partnerToo) is for Note On and Note Off only, to delete the other one, if it's on the same track.
+   */
+  deleteEvent(id, partnerToo) {
+    if (!id) return false;
+    for (const track of this.tracks) {
+      const p = track.findIndex(e => e.id === id);
+      if (p >= 0) {
+        const event = track[p];
+        track.splice(p, 1);
+        if (partnerToo) switch (event.opcode) {
+          case 0x80: { // Note Off. Search backward in this track for Note On.
+              for (let op=p; op-->0; ) {
+                const o = track[op];
+                if ((o.chid === event.chid) && (o.a === event.a)) {
+                  if (o.opcode === 0x80) break;
+                  if (o.opcode === 0x90) {
+                    track.splice(op, 1);
+                    break;
+                  }
+                }
+              }
+            } break;
+          case 0x90: { // Note On. Search forward in this track for Note Off.
+              for (let op=p+1; op<track.length; op++) {
+                const o = track[op];
+                if ((o.chid === event.chid) && (o.a === event.a)) {
+                  if (o.opcode === 0x90) break;
+                  if (o.opcode === 0x80) {
+                    track.splice(op, 1);
+                    break;
+                  }
+                }
+              }
+            } break;
+        }
+        return true;
+      }
+    }
+    return false;
   }
   
   /* Find an event at time zero where every field in (match) matches exactly.
@@ -53,6 +118,7 @@ export class MidiFile {
       time: 0,
       chid: 0xff,
       a:0, b:0,
+      id: this.nextEventId++,
       ...match,
       ...replace,
     });
@@ -74,6 +140,27 @@ export class MidiFile {
       }
     }
     return null;
+  }
+  
+  /* Iterate events in chronological order, as if they were a single track.
+   */
+  *mergeEvents() {
+    const pv = this.tracks.map(() => 0);
+    for (;;) {
+      let nextEvent = null;
+      let nextTrackid = -1;
+      for (let trackid=0; trackid<pv.length; trackid++) {
+        const event = this.tracks[trackid][pv[trackid]];
+        if (!event) continue;
+        if (!nextEvent || (event.time < nextEvent.time)) {
+          nextEvent = event;
+          nextTrackid = trackid;
+        }
+      }
+      if (!nextEvent) break;
+      pv[nextTrackid]++;
+      yield nextEvent;
+    }
   }
   
   encode() {
@@ -244,7 +331,8 @@ export class MidiFile {
               time,
               chid: status & 0x0f,
               opcode: status & 0xf0,
-              a, b
+              a, b,
+              id: this.nextEventId++,
             });
           } break;
           
@@ -259,6 +347,7 @@ export class MidiFile {
               opcode: status & 0xf0,
               a,
               b: 0,
+              id: this.nextEventId++,
             });
           } break;
           
@@ -283,6 +372,7 @@ export class MidiFile {
               opcode: status,
               a, v,
               b: 0,
+              id: this.nextEventId++,
             });
             status = 0;
           }
@@ -290,4 +380,116 @@ export class MidiFile {
     }
     this.tracks.push(track);
   }
+  
+  static reprNote(noteid, withNumber) {
+    let dst = "0x" + noteid.toString(16).padStart(2, '0');
+    if ((noteid >= 0) && (noteid < 0x80)) { // Note zero is c-1, and octaves are "cdefgab" (not "abcdefg", $@! musicians...)
+      if (!withNumber) dst = "";
+      const octave = Math.floor(noteid / 12) - 1;
+      let tone, accidental="";
+      switch (noteid % 12) {
+        case 0: tone = "c"; break;
+        case 1: tone = "c"; accidental = "s"; break;
+        case 2: tone = "d"; break;
+        case 3: tone = "d"; accidental = "s"; break;
+        case 4: tone = "e"; break;
+        case 5: tone = "f"; break;
+        case 6: tone = "f"; accidental = "s"; break;
+        case 7: tone = "g"; break;
+        case 8: tone = "g"; accidental = "s"; break;
+        case 9: tone = "a"; break;
+        case 10: tone = "a"; accidental = "s"; break;
+        case 11: tone = "b"; break;
+      }
+      dst += " " + tone + accidental + octave;
+    }
+    return dst;
+  }
 }
+
+MidiFile.GM_PROGRAM_NAMES = [
+  /* 00 */ "Acoustic Grand Piano", "Bright Acoustic Piano", "Electric Grand Piano", "Honky Tonk Piano", "EP 1 (Rhodes)", "EP 2 (Chorused)", "Harpsichord", "Clavinet",
+  /* 08 */ "Celesta", "Glockenspiel", "Music Box", "Vibraphone", "Marimba", "Xylophone", "Tubular Bells", "Dulcimer",
+  /* 10 */ "Drawbar Organ", "Percussive Organ", "Rock Organ", "Church Organ", "Reed Organ", "French Accordion", "Harmonica", "Tango Accordion",
+  /* 18 */ "Nylon Acoustic Guitar", "Steel Acoustic Guitar", "Jazz Electric Guitar", "Clean Electric Guitar", "Muted Electric Guitar", "Overdrive Guitar", "Distortion Guitar", "Guitar Harmonics",
+  /* 20 */ "Acoustic Bass", "Fingered Bass", "Picked Bass", "Fretless Bass", "Slap Bass 1", "Slap Bass 2", "Synth Bass 1", "Synth Bass 2",
+  /* 28 */ "Violin", "Viola", "Cello", "Contrabass", "Tremolo Strings", "Pizzicato Strings", "Orchestral Harp", "Timpani",
+  /* 30 */ "String Ens 1", "String Ens 2", "Synth Strings 1", "Synth Strings 2", "Choir Aahs", "Voice Oohs", "Synth Voice", "Orchestra Hit",
+  /* 38 */ "Trumpet", "Trombone", "Tuba", "Muted Trumpet", "French Horn", "Brass Section", "Synth Brass 1", "Synth Brass 2",
+  /* 40 */ "Soprano Sax", "Alto Sax", "Tenor Sax", "Baritone Sax", "Oboe", "English Horn", "Bassoon", "Clarinet",
+  /* 48 */ "Piccolo", "Flute", "Recorder", "Pan Flute", "Blown Bottle", "Shakuhachi", "Whistle", "Ocarina",
+  /* 50 */ "Square Lead", "Saw Lead", "Calliope", "Chiffer", "Charang", "Voice Solo", "Fifths", "Bass+Lead",
+  /* 58 */ "Fantasia Pad", "Warm Pad", "Polysynth Pad", "Choir Space Voice", "Bowed Glass", "Metallic Pro Pad", "Halo Pad", "Sweep Pad",
+  /* 60 */ "Rain", "Soundtrack", "Crystal", "Atmosphere", "Brightness", "Goblins", "Echoes, Drops", "Sci-Fi",
+  /* 68 */ "Sitar", "Banjo", "Shamisen", "Koto", "Kalimba", "Bagpipe", "Fiddle", "Shanai",
+  /* 70 */ "Tinkle Bell", "Agogo", "Steel Drums", "Wood Block", "Taiko Drums", "Melodic Tom", "Synth Drum", "Reverse Cymbal",
+  /* 78 */ "Fret Noise", "Breath Noise", "Seashore", "Tweet", "Telephone", "Helicopter", "Applause", "Gunshot",
+];
+
+MidiFile.GM_DRUM_NAMES = [
+  /* 00 */ "", "", "", "", "", "", "", "",
+  /* 08 */ "", "", "", "", "", "", "", "",
+  /* 10 */ "", "", "", "", "", "", "", "",
+  /* 18 */ "", "", "", "", "", "", "", "",
+  /* 20 */ "", "", "", "Acoustic Bass Drum", "Bass Drum 1", "Side Stick", "Acoustic Snare", "Hand Clap",
+  /* 28 */ "Electic Snare", "Low Floor Tom", "Closed Hi Hat", "High Floor Tom", "Pedal Hi Hat", "Low Tom", "Open Hi Hat", "Low Mid Tom",
+  /* 30 */ "Hi Mid Tom", "Crash 1", "High Tom", "Ride 1", "Chinese Cymbal", "Ride Bell", "Tambourine", "Splash",
+  /* 38 */ "Cowbell", "Crash 2", "Vibraslap", "Ride 2", "Hi Bongo", "Low Bongo", "Mute High Conga", "Open High Conga",
+  /* 40 */ "Low Conga", "High Timbale", "Low Timbale", "High Agogo", "Low Agogo", "Cabasa", "Maracas", "Short Whistle",
+  /* 48 */ "Long Whistle", "Short Guiro", "Long Guiro", "Claves", "High Wood Block", "Low Wood BLock", "Mute Cuica", "Open Cuica",
+  /* 50 */ "Mute Triangle", "Open Triangle", "", "", "", "", "", "",
+];
+
+MidiFile.CONTROL_KEYS = [
+  /* 00 */ "Bank MSB", "Mod MSB", "Breath MSB", "", "Foot MSB", "Porta Time MSB", "Data Entry MSB", "Volume MSB", 
+  /* 08 */ "Balance MSB", "", "Pan MSB", "Expression MSB", "Effect 1 MSB", "Effect 2 MSB", "Effect 3 MSB", "Effect 4 MSB",
+  /* 10 */ "GP 1 MSB", "GP 2 MSB", "GP 3 MSB", "GP 4 MSB", "", "", "", "",
+  /* 18 */ "", "", "", "", "", "", "", "",
+  /* 20 */ "Bank LSB", "Mod LSB", "Breath LSB", "", "Foot LSB", "Porta Time LSB", "Data Entry LSB", "Volume LSB", 
+  /* 28 */ "Balance LSB", "", "Pan LSB", "Expression LSB", "Effect 1 LSB", "Effect 2 LSB", "Effect 3 LSB", "Effect 4 LSB",
+  /* 30 */ "GP 1 LSB", "GP 2 LSB", "GP 3 LSB", "GP 4 LSB", "", "", "", "",
+  /* 38 */ "", "", "", "", "", "", "", "",
+  /* 40 */ "Sustain", "Portamento", "Sustenuto", "Soft", "Legato", "Hold 2", "Ctl 1 (Variation)", "Ctl 2 (Timbre)",
+  /* 48 */ "Ctl 3 (Release Time)", "Ctl 4 (Attack Time)", "Ctl 5 (Brightness)", "Ctl 6", "Ctl 7", "Ctl 8", "Ctl 9", "Ctl 10",
+  /* 50 */ "GP 5", "GP 6", "GP 7", "GP 8", "Porta Ctl (noteid)", "", "", "",
+  /* 58 */ "", "", "", "Effect 1 Depth", "Effect 2 Depth", "Effect 3 Depth", "Effect 4 Depth", "Effect 5 Depth",
+  /* 60 */ "", "", "", "", "", "", "", "",
+  /* 68 */ "", "", "", "", "", "", "", "",
+  /* 70 */ "", "", "", "", "", "", "", "",
+  /* 78 */ "All Sound Off", "Reset Controller", "Local Switch", "All Notes Off", "Omni Off", "Omni On", "Poly Switch", "Poly On",
+];
+
+MidiFile.META_TYPES = [
+  /* 00 */ "", "Text", "Copyright", "Track Name", "Instrument Name", "Lyrics", "Marker", "Cue Point",
+  /* 08 */ "", "", "", "", "", "", "", "",
+  /* 18 */ "", "", "", "", "", "", "", "",
+  /* 18 */ "", "", "", "", "", "", "", "",
+  /* 20 */ "MIDI Channel Prefix", "", "", "", "", "", "", "",
+  /* 28 */ "", "", "", "", "", "", "", "End of Track",
+  /* 30 */ "", "", "", "", "", "", "", "",
+  /* 38 */ "", "", "", "", "", "", "", "",
+  /* 40 */ "", "", "", "", "", "", "", "",
+  /* 48 */ "", "", "", "", "", "", "", "",
+  /* 50 */ "", "Set Tempo", "", "", "SMPTE Offset", "", "", "",
+  /* 58 */ "Time Signature", "Key Signature", "", "", "", "", "", "",
+  /* 60 */ "", "", "", "", "", "", "", "",
+  /* 68 */ "", "", "", "", "", "", "", "",
+  /* 70 */ "", "", "", "", "", "", "", "",
+  /* 78 */ "", "", "", "", "", "", "", "",
+  /* 80 */ "", "", "", "", "", "", "", "",
+  /* 88 */ "", "", "", "", "", "", "", "",
+  /* 90 */ "", "", "", "", "", "", "", "",
+  /* 98 */ "", "", "", "", "", "", "", "",
+  /* a0 */ "", "", "", "", "", "", "", "",
+  /* a8 */ "", "", "", "", "", "", "", "",
+  /* b0 */ "", "", "", "", "", "", "", "",
+  /* b8 */ "", "", "", "", "", "", "", "",
+  /* c0 */ "", "", "", "", "", "", "", "",
+  /* c8 */ "", "", "", "", "", "", "", "",
+  /* d0 */ "", "", "", "", "", "", "", "",
+  /* d8 */ "", "", "", "", "", "", "", "",
+  /* e0 */ "", "", "", "", "", "", "", "",
+  /* e8 */ "", "", "", "", "", "", "", "",
+  /* f0 */ "Egg Channel Header", "", "", "", "", "", "", "",
+  /* f8 */ "", "", "", "", "", "", "", "",
+];

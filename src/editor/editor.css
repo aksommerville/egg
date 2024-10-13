@@ -181,13 +181,61 @@ body {
   background-color: #555;
 }
 
-.SongEditor .mixer > tr:nth-child(odd) {
-  background-color: #555;
+.MidiEditor {
+  display: flex;
+  flex-direction: column;
 }
-.SongEditor .mixer > tr.unused {
-  background-color: #222;
+.MidiEditor .channelsSizer {
+  width: calc(100vw - 300px); /* Manually account for SidebarUi */
 }
-.SongEditor .mixer input {
-  background: none;
-  color: #fff;
+.MidiEditor .channelsScroller {
+  overflow-x: scroll;
+}
+.MidiEditor .channels {
+  display: flex;
+  flex-direction: row;
+}
+.MidiEditor .channels .channel {
+  background-color: #666;
+  border: 1px solid #222;
+  margin: 0.5em;
+  padding: 0.125em;
+  min-width: 200px;
+}
+.MidiEditor .channels .channel.present {
+  background-color: #040;
+}
+.MidiEditor .eventsScroller {
+  overflow-y: scroll;
+}
+.MidiEditor .events {
+  width: 100%;
+}
+.MidiEditor .events tr {
+  cursor: pointer;
+}
+
+.MidiEventModal table {
+  min-width: 400px;
+}
+.MidiEventModal td.key {
+  min-width: 80px;
+}
+.MidiEventModal td.value {
+  min-width: 120px;
+}
+.MidiEventModal td.advice {
+  min-width: 200px;
+}
+.MidiEventModal .invalid {
+  border-color: #f00;
+}
+.MidiEventModal .submitRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: stretch;
+  align-items: center;
+}
+.MidiEventModal .submitRow .spacer {
+  flex: 1;
 }

@@ -44,6 +44,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Synth helper. Maybe as part of 'serve'.
 - - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - [ ] Editor.
+- - [ ] Eliminate SongEditor and SoundsEditor. Replace with editors specific to each source format.
 - - [ ] Song: Playback.
 - - [ ] Song: Live MIDI input.
 - - [ ] Sound effects.

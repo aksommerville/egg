@@ -14,9 +14,41 @@ static int eggdev_list_default(const struct eggdev_rom *rom,const char *path) {
 }
 
 /* TOC.
+ * We may modify the rom.
  */
  
-static int eggdev_list_toc(const struct eggdev_rom *rom,const char *path) {
+static int eggdev_rom_cmp(const void *a,const void *b) {
+  const struct eggdev_res *A=a,*B=b;
+  if (A->tid<B->tid) return -1;
+  if (A->tid>B->tid) return 1;
+  if (A->rid<B->rid) return -1;
+  if (A->rid>B->rid) return 1;
+  return 0;
+}
+
+// Given multiple resources with the same (tid,rid), drop (name) from all but one of them.
+static void eggdev_toc_reduce_peers(struct eggdev_res *res,int c,const char *path) {
+  int namep=-1,i;
+  for (i=0;i<c;i++) {
+    if (res[i].namec) {
+      if ((namep>=0)&&((res[i].namec!=res[namep].namec)||memcmp(res[i].name,res[namep].name,res[i].namec))) {
+        fprintf(stderr,
+          "%s:WARNING: Conflicting names '%.*s' and '%.*s' for resource %s:%d\n",
+          path,res[i].namec,res[i].name,res[namep].namec,res[namep].name,eggdev_tid_repr(0,res[i].tid),res[i].rid
+        );
+      } else if (namep<0) {
+        namep=i;
+      }
+    }
+  }
+  if (namep<0) return;
+  for (i=c;i-->0;) {
+    if (i==namep) continue;
+    res[i].namec=0;
+  }
+}
+ 
+static int eggdev_list_toc(struct eggdev_rom *rom,const char *path) {
   fprintf(stdout,"#ifndef EGG_ROM_TOC_H\n#define EGG_ROM_TOC_H\n\n");
   
   int tid;
@@ -33,9 +65,28 @@ static int eggdev_list_toc(const struct eggdev_rom *rom,const char *path) {
   }
   fprintf(stdout,"\n"); // This blank is important; the line before it is continued.
   
-  const struct eggdev_res *res=rom->resv;
-  int i=rom->resc;
+  /* Unmangle rid for resources with baked-in language code; we want just the 1..63 stem.
+   */
+  struct eggdev_res *res=rom->resv;
+  int i=rom->resc,modified=0;
   for (;i-->0;res++) {
+    if (res->lang&&(res->lang==(res->rid>>6))) {
+      res->rid&=0x3f;
+      modified=1;
+    }
+  }
+  if (modified) {
+    qsort(rom->resv,rom->resc,sizeof(struct eggdev_res),eggdev_rom_cmp);
+    for (i=0,res=rom->resv;i<rom->resc;) {
+      int ckc=1;
+      while ((i+ckc<rom->resc)&&(res->tid==res[ckc].tid)&&(res->rid==res[ckc].rid)) ckc++;
+      if (ckc>1) eggdev_toc_reduce_peers(res,ckc,path);
+      i+=ckc;
+      res+=ckc;
+    }
+  }
+  
+  for (res=rom->resv,i=rom->resc;i-->0;res++) {
     if (!res->namec) continue;
     fprintf(stdout,"#define RID_%s_%.*s %d\n",eggdev_tid_repr(rom,res->tid),res->namec,res->name,res->rid);
   }
