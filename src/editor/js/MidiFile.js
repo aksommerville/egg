@@ -25,6 +25,14 @@ export class MidiFile {
     return (event.v[0] << 16) | (event.v[1] << 8) | event.v[2];
   }
   
+  setTempoBpm(bpm) {
+    this.setTempo(Math.floor(60000000 / bpm));
+  }
+  
+  getTempoBpm() {
+    return Math.floor(60000000 / this.getTempo());
+  }
+  
   eventById(id) {
     for (const track of this.tracks) {
       const event = track.find(e => e.id === id);
@@ -87,6 +95,35 @@ export class MidiFile {
       }
     }
     return false;
+  }
+  
+  /* Put a new event at time zero on whichever track already has events for (chid), defaulting to the first track.
+   * (event) may be partial. We can default (chid,time,id,a,b).
+   */
+  addZEvent(chid, event) {
+    if (event.time) throw new Error("MidiFile.addZEvent, must be time zero");
+    let track = null;
+    for (const q of this.tracks) {
+      if (q.find(e => e.chid === chid)) {
+        track = q;
+        break;
+      }
+    }
+    if (!track) {
+      if (this.tracks.length) {
+        track = this.tracks[0];
+      } else {
+        track = [];
+        this.tracks = [track];
+      }
+    }
+    track.splice(0, 0, {
+      chid,
+      time: 0,
+      id: this.nextEventId++,
+      a: 0, b: 0,
+      ...event,
+    });
   }
   
   /* Find an event at time zero where every field in (match) matches exactly.

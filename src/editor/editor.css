@@ -185,6 +185,13 @@ body {
   display: flex;
   flex-direction: column;
 }
+.MidiEditor .globals {
+  display: flex;
+  flex-direction: row;
+}
+.MidiEditor input[name='tempo'] {
+  width: 80px;
+}
 .MidiEditor .channelsSizer {
   width: calc(100vw - 300px); /* Manually account for SidebarUi */
 }
@@ -204,6 +211,19 @@ body {
 }
 .MidiEditor .channels .channel.present {
   background-color: #040;
+}
+.MidiEditor .channel .nonZeroTimeWarning {
+  background-color: #f00;
+  color: #fff;
+  font-weight: bold;
+}
+.MidiEditor .channel .field {
+  cursor: pointer;
+  user-select: none;
+}
+.MidiEditor .channel .key {
+  font-weight: bold;
+  margin-right: 5px;
 }
 .MidiEditor .eventsScroller {
   overflow-y: scroll;
