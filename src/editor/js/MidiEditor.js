@@ -8,6 +8,8 @@ import { Data } from "./Data.js";
 import { MidiFile } from "./MidiFile.js";
 import { MidiEventModal } from "./MidiEventModal.js";
 import { MidiChannelFieldModal } from "./MidiChannelFieldModal.js";
+import { EditorModal } from "./EditorModal.js";
+import { EgsEditor } from "./EgsEditor.js";
  
 export class MidiEditor {
   static getDependencies() {
@@ -279,14 +281,45 @@ export class MidiEditor {
     this.onEditEvent(midiEvent);
   }
   
+  getChannelEgsHeader(chid) {
+    if (this.file) {
+      for (const track of this.file.tracks) {
+        for (const event of track) {
+          if (event.chid !== chid) continue;
+          if (event.opcode !== 0xff) continue;
+          if (event.a !== 0xf0) continue;
+          const padded = new Uint8Array(6 + event.v.length);
+          padded[0] = 0x00;
+          padded[1] = 0x45;
+          padded[2] = 0x47;
+          padded[3] = 0x53;
+          padded[4] = event.v.length >> 8;
+          padded[5] = event.v.length;
+          new Uint8Array(padded.buffer, 6, event.v.length).set(event.v);
+          return padded;
+        }
+      }
+    }
+    return new Uint8Array([0x00, 0x45, 0x47, 0x53]);
+  }
+  
   onEditChannelField(chid, k) {
-    const modal = this.dom.spawnModal(MidiChannelFieldModal);
-    modal.setup(this.file, chid, k);
-    modal.result.then((result) => {
-      if (!result) return;
-      this.data.dirty(this.res.path, () => this.file.encode());
-      this.populateUi();
-    }).catch(e => this.dom.modalError(e));
+    if (k === "egs") {
+      const serial = this.getChannelEgsHeader(chid);
+      const modal = this.dom.spawnModal(EditorModal);
+      const controller = modal.setupWithSerial(EgsEditor, serial);
+      modal.result.then((result) => {
+        console.log(`MidiEditor result from EgsEditor`, serial);
+      }).catch(e => this.dom.modalError(e));
+    } else {
+      const modal = this.dom.spawnModal(MidiChannelFieldModal);
+      modal.setup(this.file, chid, k);
+      modal.result.then((result) => {
+        if (!result) return;
+        this.data.dirty(this.res.path, () => this.file.encode());
+        this.populateUi();
+      }).catch(e => this.dom.modalError(e));
+    }
   }
   
   onTempoChanged() {

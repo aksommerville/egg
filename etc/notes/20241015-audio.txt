@@ -1,0 +1,136 @@
+2024-10-15
+
+Audio review again... it's just too complicated.
+
+Current state:
+- BAD: Data source from MIDI, WAV, EGS, and MSF.
+- BAD: Editor and compiler both need to grok all 4 formats.
+- GOOD: Songs and sound effects both use EGS. A sound effect is really just a short song.
+- BAD: Sounds packed into MSF for resources.
+- BAD: Loose channel description needs to be implemented by both native and WebAudio.
+- GOOD: MIDI channel config in a Meta event.
+- BAD: Ambiguity over MIDI channel config. Is it the Meta event, Control events, external instrument?
+
+Desired state:
+- Source everything from MIDI and WAV.
+- WAV files pass through verbatim, or maybe light adjustment like drop extra channels, force to 16-bit, force a single "data" chunk...
+- MIDI converts to EGS.
+- No text format for EGS. Maybe supply an optional "disassemble" format for debugging, but not for sourcing.
+- MIDI channel config in one Meta event and optional Control 0x07 and 0x0a. No external instruments.
+- - Make sure in the editor it's super easy to copy instruments from one song to another.
+- Reduce capability scope. We're a quirky retro game engine, we don't have to do everything.
+- - No pitch or fmrange LFOs. They sound cool but add quite a bit of complexity.
+- - No wheel for subtractive voices.
+- - Considered eliminating subtractive altogether, but that's too much. They're useful, they do things no other regime can.
+- - Envelopes have a fixed point count: ADSR.
+- - Auxiliary envelopes sync to level for timing.
+- - Eliminate generic gain+clip. Use waveshaper only.
+
+In that Desired state, we need to define two things:
+- EGS format.
+- MIDI Channel Header format.
+Channel Header should strictly match a portion of EGS, there's some point where it just gets pasted in.
+So when EGS Format is defined, there's nothing more to define for MIDI.
+
+## EGS Format
+
+Universal Header:
+  u32 Signature = "\0EGS"
+  u16 Tempo, ms/qnote. Largely advisory. Maybe allow delay etc to scale against it?
+  
+Channel Headers:
+  u8  Channel ID 0..15
+  u8  Master 0..255
+  u8  Mode
+  u16 Mode config length
+  ... Mode config
+  u16 Post length
+  ... Post
+  
+Mode:
+- 0: Noop. Channel is ignored, and no sense providing Master, Mode Config, or Post either.
+- 1: Drums. Forbidden in sounds.
+- 2: Flat Wave.
+- 3: FM.
+- 4: Subtractive.
+  
+Mode 1: Drums:
+  u16 ridbase
+  u8  count
+  u8  noteid0
+  ... For (count):
+    u8 ridoffset
+    u8 pan 0..128..255
+    u8 trimlo
+    u8 trimhi
+    
+Mode 2: Flat Wave:
+  u16 wheelrange
+  12  levelenv
+  16  pitchenv. Cents, bias 0x8000.
+  u8  shape: (0,1,2,3,4)=(custom,sine,square,saw,triangle)
+  u8  coefc. Must be zero if (shape) nonzero.
+  ... coefv. u16 * coefc
+  
+Mode 3: FM:
+  u16 wheelrange
+  12  levelenv
+  16  pitchenv. Cents, bias 0x8000.
+  u16 modrate. Relative, unit 0x0100.
+  u16 modrange. Unit 0x0100.
+  16  rangeenv
+  
+Mode 4: Subtractive:
+  12  levelenv
+  u16 width, hz
+  Decoder applies appropriate gain.
+  
+levelenv, 12 bytes:
+  u8  atktlo
+  u8  atkthi
+  u8  atkvlo
+  u8  atkvhi
+  u8  dectlo
+  u8  decthi
+  u8  susvlo
+  u8  susvhi
+  u16 rlstlo
+  u16 rlsthi
+  
+altenv, 16 bytes:
+  u16 inivlo
+  u16 inivhi
+  u16 atkvlo
+  u16 atkvhi
+  u16 susvlo
+  u16 susvhi
+  u16 rlsvlo
+  u16 rlsvhi
+
+Post is packed fields:
+  u8  opcode
+  u8  length
+  ... param
+  
+Post ops:
+- 0x01 waveshaper
+- - u16 output levels starting at zero. Positive side only; decoder infers the negatives.
+- 0x02 delay
+- - u16 period ms
+- - u8  mix. 0..255=dry..wet
+- - u8  store
+- - u8  feedback
+- 0x03 tremolo
+- - u16 period ms
+- - u8  depth
+- - u8  phase
+- 0x04 lopass
+- - u16 cutoff, hz
+- 0x05 hipass
+- - u16 cutoff, hz
+- 0x06 bpass
+- - u16 center, hz
+- - u16 width, hz
+- 0x07 notch
+- - u16 center, hz
+- - u16 width, hz

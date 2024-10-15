@@ -25,6 +25,31 @@ body {
   opacity: 0.75;
 }
 
+.radioBar {
+  cursor: pointer;
+  user-select: none;
+  margin: 5px;
+}
+.radioBar > input {
+  display: none;
+}
+.radioBar > label {
+  background-color: #ccc;
+  padding: 5px;
+  border: 1px solid #000;
+}
+.radioBar > input:checked + label {
+  background-color: #ff0;
+}
+.radioBar > label:first-of-type {
+  border-top-left-radius: 15px;
+  border-bottom-left-radius: 15px;
+}
+.radioBar > label:last-of-type {
+  border-top-right-radius: 15px;
+  border-bottom-right-radius: 15px;
+}
+
 /***************************************************************************/
 
 .RootUi {
@@ -110,6 +135,18 @@ body {
 }
 .ResOptionsModal .discouraged {
   background-color: #caa;
+}
+
+.EditorModal {
+  display: flex;
+  flex-direction: column;
+}
+.EditorModal > .controlsRow {
+  display: flex;
+  flex-direction: row;
+  border-top: 1px solid #888;
+  margin-top: 4px;
+  padding-top: 4px;
 }
 
 /***************************************************************************/
@@ -258,4 +295,69 @@ body {
 }
 .MidiEventModal .submitRow .spacer {
   flex: 1;
+}
+
+.MsfEditor {
+  overflow-y: scroll;
+}
+.MsfEditor > .list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.MsfEditor .sound {
+  margin: 5px;
+  padding: 5px;
+  border: 1px solid #000;
+  background-color: #222;
+  box-shadow: #000 0 0 6px;
+  width: 200px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+}
+.MsfEditor .title {
+  font-weight: bold;
+  cursor: pointer;
+}
+.MsfEditor .buttonsRow {
+  display: flex;
+  flex-direction: row;
+}
+.MsfEditor .spacer {
+  flex: 1;
+}
+
+.MsfTitleModal .buttonsRow {
+  display: flex;
+  flex-direction: row;
+}
+
+.EgsEditor {
+  display: flex;
+  flex-direction: column;
+}
+.EditorModal .EgsEditor {
+  width: 75vw;
+  height: 75vh;
+}
+.EgsEditor > .channels {
+  overflow-x: scroll;
+  min-height: 200px;
+  display: flex;
+  flex-direction: row;
+}
+.EgsEditor > .channels > .channel {
+  border: 1px solid #888;
+  display: flex;
+  flex-direction: column;
+}
+.EgsEditor .channel .lfo input[type='number'] {
+  width: 60px;
+}
+.EgsEditor > .events {
+  overflow-y: scroll;
+  flex: 1;
+}
+.EgsEditor > .events > .event {
 }
