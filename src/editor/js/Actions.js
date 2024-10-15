@@ -8,7 +8,6 @@ import { TextEditor } from "./TextEditor.js";
 import { HexEditor } from "./HexEditor.js";
 import { ImageEditor } from "./ImageEditor.js";
 import { MetadataEditor } from "./MetadataEditor.js";
-import { ManifestEditor } from "./ManifestEditor.js";
 import { StringsEditor } from "./StringsEditor.js";
 import { MsfEditor } from "./MsfEditor.js";
 import { EgsEditor } from "./EgsEditor.js";
@@ -27,7 +26,6 @@ export class Actions {
     this.editors = [
       ...custom.getEditors(),
       MetadataEditor,
-      ManifestEditor,
       StringsEditor,
       ImageEditor,
       TextEditor,

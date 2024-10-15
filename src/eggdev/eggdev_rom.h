@@ -23,12 +23,6 @@ struct eggdev_rom {
   int resc,resa;
   char **tnamev; // Type name by tid for custom types, may be sparse.
   int tnamec,tnamea;
-  struct eggdev_instrument { // From song/instruments
-    int fqpid; // (Bank<<7)|Pid
-    void *v;
-    int c;
-  } *instrumentv;
-  int instrumentc,instrumenta;
   int seq;
   int totalsize; // Sum of original size of input files.
 };
@@ -57,7 +51,6 @@ int eggdev_rom_add_file(struct eggdev_rom *rom,const char *path);
 int eggdev_rom_add_manifest_file(struct eggdev_rom *rom,const char *path);
 
 /* Extract the meaningful components from a loose resource file's path.
- * If we're in a directory, we'll use types from the manifest file.
  * (rid) may come out >0xffff for sounds only, with the index in the upper 16 bits.
  */
 struct eggdev_path {
@@ -69,7 +62,7 @@ struct eggdev_path {
 };
 int eggdev_rom_parse_path(
   struct eggdev_path *parsed,
-  const struct eggdev_rom *rom,
+  struct eggdev_rom *rom,
   const char *path
 );
 
@@ -106,11 +99,5 @@ int eggdev_rom_encode(struct sr_encoder *dst,const struct eggdev_rom *rom);
  * Signature with no resources doesn't count.
  */
 int eggdev_locate_rom(void *dstpp,const void *src,int srcc);
-
-/* Content of "DATAROOT/instruments", split and compiled.
- * You shouldn't need 'require', we take care of it at 'get'.
- */
-int eggdev_rom_require_instruments(struct eggdev_rom *rom);
-int eggdev_rom_get_instrument(void *dstpp,struct eggdev_rom *rom,int fqpid);
 
 #endif

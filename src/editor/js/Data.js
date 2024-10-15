@@ -123,8 +123,6 @@ export class Data {
     const base = words[words.length - 1] || "";
     let type = words[words.length - 2] || "";
     if (base === "metadata") type = "metadata";
-    else if (base === "manifest") type = "manifest";
-    else if (base === "instruments") type = "sounds";
     let rid=0, name="";
     let match = base.match(/^([a-z]{2}-)?(\d*)/);
     if (match) {

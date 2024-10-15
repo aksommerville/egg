@@ -93,8 +93,8 @@ int eggdev_compile_strings(struct eggdev_res *res,struct eggdev_rom *rom);
 int eggdev_uncompile_strings(struct eggdev_res *res,struct eggdev_rom *rom);
 int eggdev_compile_image(struct eggdev_res *res,struct eggdev_rom *rom);
 int eggdev_uncompile_image(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom); // eggdev_compile_song.c
+int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom); // ''
 int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom);
 int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom);
 

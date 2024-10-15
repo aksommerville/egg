@@ -12,151 +12,61 @@
 struct synth_midi_reader;
 struct synth_pcm;
 
-/* High-level binary format conversion.
- ********************************************************************/
+#define EGS_MODE_NOOP 0
+#define EGS_MODE_DRUM 1
+#define EGS_MODE_WAVE 2
+#define EGS_MODE_FM   3
+#define EGS_MODE_SUB  4
 
-/* Given sounds or song in our text format, produce either "\0MSF" sounds or "\0EGS" song.
- * See etc/doc/audio-format.md for details.
- */
-int synth_egg_from_text(struct sr_encoder *dst,const void *src,int srcc,const char *path);
-
-/* Produce our text format from either of our binary formats.
- */
-int synth_text_from_egg(struct sr_encoder *dst,const void *src,int srcc,const char *path);
-
-/* Convert MIDI to EGS.
- * Optionally provide a callback for shared programs lookup.
- */
-int synth_egg_from_midi(
-  struct sr_encoder *dst,
-  const void *src,int srcc,const char *path,
-  int (*cb_program)(void *dstpp,int fqpid,void *userdata),
-  void *userdata
-);
-
-/* Produce a portable MIDI file from our "\0EGS" song format.
- */
-int synth_midi_from_egg(struct sr_encoder *dst,const void *src,int srcc,const char *path);
-
-/* Quick test, nonzero if the sound is definitely noop.
- * I expect it won't be unusual for large MSF collections to contain some dummy placeholders.
- */
-int synth_sound_is_empty(const void *src,int srcc);
-
-/* Compile one EGS sound from a chunk of text.
- * Caller must supply the initial line number, because this is normally called as part of MSF compilation.
- * If (channel_header_only), fences are an error and we produce a single EGS Channel Header.
- */
-int synth_egs_from_text(struct sr_encoder *dst,const char *src,int srcc,int channel_header_only,const char *path,int lineno);
-
-/* Decode formats containing raw PCM, eg WAV.
- * This will not work for EGS, that process is considerably more involved.
- * Output will be mono regardless of input. We'll return the first available channel, conventionally Left.
- * If (rate) nonzero, we resample as needed. Our resampling is dumb. No DFT conversion or even interpolation.
- */
-struct synth_pcm *synth_pcm_decode(int rate,const void *src,int srcc);
-
-/* Multi-sound text files, precursor to either EGS or MSF.
+/* Read EGS.
  *******************************************************************/
  
-/* Initialize (src,srcc) and the rest zero.
- * Nexting skips empties and returns zero at EOF, no errors.
- * For MSF files, you'll get (*index) in 1..0xfff.
- * For EGS (ie started with a "song" line), (*index) will be zero and you'll only get one result.
- * For Instruments files, you'll get (*index) in 0..0x001fffff.
- */
-struct synth_text_reader {
-  const char *src;
-  int srcc;
-  int lineno;
-  int srcp;
-};
-int synth_text_reader_next(int *index,int *lineno,void *dstpp,struct synth_text_reader *reader);
-
-/* Multi-sound binary files: "\0MSF"
- ****************************************************************/
- 
-struct synth_sounds_writer {
-  struct sr_encoder dst;
-  int pvindex;
+struct synth_egs_reader {
+  const uint8_t *v;
+  int c,p;
+  int tempo; // ms/qnote. Populated at init.
+  char stage; // 0,'!','c','e'
 };
 
-/* Write an MSF file incrementally.
- * You must provide files sorted by (index).
- * You may yoink (writer->dst) in lieu of cleanup.
- */
-void synth_sounds_writer_cleanup(struct synth_sounds_writer *writer);
-int synth_sounds_writer_init(struct synth_sounds_writer *writer);
-int synth_sounds_writer_add(struct synth_sounds_writer *writer,const void *src,int srcc,int index,const char *path);
- 
-struct synth_sounds_reader {
-  const uint8_t *src;
-  int srcc;
-  int srcp;
-  int index;
+struct synth_egs_channel {
+  uint8_t chid;
+  uint8_t master; // 0..255
+  uint8_t pan; // 0..128..255
+  uint8_t mode; // EGS_MODE_*, but we don't validate.
+  const uint8_t *config;
+  int configc;
+  const uint8_t *post;
+  int postc;
 };
 
-/* Basically never fails.
- * If this is not a multi-sound resource, we arrange to spit its entire content back as index zero.
- */
-int synth_sounds_reader_init(struct synth_sounds_reader *reader,const void *src,int srcc);
-
-/* <0 if malformed, 0 if complete, or binary length of content at (*dstpp).
- * Zero-length entries are quietly skipped.
- */
-int synth_sounds_reader_next(
-  int *index,void *dstpp,
-  struct synth_sounds_reader *reader
-);
-
-/* Individual sound or song: "\0EGS"
- **********************************************************************/
- 
-struct synth_song_parts {
-  struct synth_song_channel_part {
-    const uint8_t *v;
-    int c;
-  } channels[16];
-  const uint8_t *events;
-  int eventsc;
+struct synth_egs_event {
+  int delay; // If nonzero, it's a Delay event. ms
+  int chid; // Valid for Note and Wheel events.
+  int noteid; // If <0x80, it's a Note event.
+  int velocity; // Note events only. 1..127 (regardless of encoded resolution)
+  int duration; // ms, Note events only.
+  int wheel; // Wheel events only. 0..128..255
 };
 
-int synth_song_split(struct synth_song_parts *parts,const void *src,int srcc);
-
-/* Initialize (src,srcc) yourself, and (srcp==0).
- * Returns <0 on completion. Zero-length fields are legal.
+/* Succeeds if there's a valid header.
+ * (reader->tempo) is populated on success.
+ * Follow this by synth_egs_reader_next_channel().
  */
-struct synth_song_channel_reader {
-  const uint8_t *src;
-  int srcc;
-  int srcp;
-};
-int synth_song_channel_reader_next(
-  int *opcode,void *dstpp,
-  struct synth_song_channel_reader *reader
-);
+int synth_egs_reader_init(struct synth_egs_reader *reader,const void *src,int srcc);
 
-/* Returns length consumed, 0 if complete, or <0 if malformed.
- * Advance (src) yourself.
- * (opcode) is: 0=Delay, 0x90=Note, 0xe0=Wheel. Note that these are MIDI mnemonics, not related to EGS's encoded form.
- * Delay: (duration)
- * Note: (chid,noteid,velocity,duration). Velocity in 0..127 regardless of encoded size.
- * Wheel: (chid,wheel). Wheel in 0..0x3fff to match MIDI. Encoded resolution is 8 bits.
- * Adjacent delays are combined.
+/* Both return 0 if we're done with that section, 1 if something is returned, or <0 for real errors.
+ * You must read channels to completion before starting events; events will report "done" if you haven't got there yet.
+ * All errors are sticky.
  */
-struct synth_song_event {
-  uint8_t opcode,chid;
-  uint8_t noteid,velocity;
-  int duration,wheel;
-};
-int synth_song_event_next(struct synth_song_event *event,const void *src,int srcc);
+int synth_egs_reader_next_channel(struct synth_egs_channel *dst,struct synth_egs_reader *reader);
+int synth_egs_reader_next_event(struct synth_egs_event *dst,struct synth_egs_reader *reader);
 
-/* MIDI file.
+/* Read MIDI.
  ******************************************************************/
  
 struct synth_midi_event {
   uint8_t chid,opcode,a,b;
-  const void *v; // sysex and meta
+  const uint8_t *v; // sysex and meta
   int c;
 };
 

@@ -53,9 +53,11 @@ int synth_sound_require(struct synth *synth,struct synth_sound *sound) {
     }
     
   } else {
+    /*TODO
     if (sound->pcm=synth_pcm_decode(synth->rate,sound->v,sound->c)) {
       return 0;
     }
+    */
   }
   
   fprintf(stderr,"WARNING: Failed to decode %d-byte sound %d:%d. Stubbing.\n",sound->c,sound->rid,sound->index);

@@ -231,7 +231,7 @@ void synth_node_channel_setup(struct synth_node *node,uint8_t chid,struct synth_
 
 int synth_node_channel_configure(struct synth_node *node,const void *src,int srcc) {
   if (!node||(node->type!=&synth_node_type_channel)||node->ready) return -1;
-  
+  #if 0 /*TODO*/
   // Capture the fields <128, which may only appear once, and apply globally.
   // Fields >=128 will be delivered directly to post, in the order they appear.
   struct fld {
@@ -336,7 +336,7 @@ int synth_node_channel_configure(struct synth_node *node,const void *src,int src
     if (fldv[0x06].c>=1) shape=fldv[0x06].v[0];
     synth_wave_synthesize(&NODE->wave,node->synth,shape,fldv[0x07].v,fldv[0x07].c);
   }
-  
+  #endif
   return 0;
 }
 

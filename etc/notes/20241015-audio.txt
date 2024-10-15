@@ -2,6 +2,16 @@
 
 Audio review again... it's just too complicated.
 
+Conversion plan:
+- [x] Define new formats. EGS and PCM, related to MIDI and WAV.
+- [x] Eliminate resource manifest in favor of "TID-NAME", I'd been meaning to do that anyway.
+- [x] Update eggdev compile/uncompile with new formats.
+- [ ] Update editor. Get the data manipulation all done, but no playback yet.
+- [ ] Native synthesizer.
+- [ ] Web synthesizer.
+- [ ] Playback in editor. Must be able to use both WebAudio, and native via the server.
+- [ ] MIDI input to editor.
+
 Current state:
 - BAD: Data source from MIDI, WAV, EGS, and MSF.
 - BAD: Editor and compiler both need to grok all 4 formats.

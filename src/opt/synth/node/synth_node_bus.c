@@ -343,6 +343,7 @@ static int synth_node_bus_configure_channel(struct synth_node *node,int chid,con
 int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc) {
   if (!node||(node->type!=&synth_node_type_bus)||node->ready) return -1;
   int err;
+  /*TODO
   struct synth_song_parts parts={0};
   if (synth_song_split(&parts,src,srcc)<0) return -1;
   int chid=0; for (;chid<SYNTH_CHANNEL_COUNT;chid++) {
@@ -359,6 +360,7 @@ int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc) {
   NODE->evv=parts.events;
   NODE->evc=parts.eventsc;
   NODE->evp=0;
+  */
   return 0;
 }
 

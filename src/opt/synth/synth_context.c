@@ -182,6 +182,7 @@ static int _synth_install_sound(struct synth *synth,int rid,int index,const void
 
 int synth_install_sound(struct synth *synth,int rid,const void *src,int srcc) {
   if (!src||(srcc<1)) return 0;
+  #if 0/*TODO*/
   struct synth_sounds_reader reader;
   if (synth_sounds_reader_init(&reader,src,srcc)<0) return -1;
   int index,subsrcc;
@@ -191,6 +192,7 @@ int synth_install_sound(struct synth *synth,int rid,const void *src,int srcc) {
     int err=_synth_install_sound(synth,rid,index,subsrc,subsrcc);
     if (err<0) return err;
   }
+  #endif
   return 0;
 }
 
@@ -237,7 +239,7 @@ static struct synth_song *synth_songv_insert(struct synth *synth,int p,int rid) 
  */
  
 int synth_install_song(struct synth *synth,int rid,const void *src,int srcc) {
-  if (synth_sound_is_empty(src,srcc)) return 0;
+  //if (synth_sound_is_empty(src,srcc)) return 0;
   if (!rid) return -1; // rid zero is forbidden, because that's our "no song" marker.
   int p=synth_songv_search(synth,rid);
   if (p>=0) return -1;

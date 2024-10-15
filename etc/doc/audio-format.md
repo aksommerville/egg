@@ -27,8 +27,15 @@ Meta 0x20 MIDI Channel Prefix, followed by Meta 0xf0 EGS Header (our invention).
 Payload of 0xf0 is the EGS Channel Header defined below, starting from "u8 Mode".
 Channel ID from the previous 0x20, Master from Control 0x07, Pan from Control 0x0a.
 
+If any of those events occurs after time zero, they will be ignored.
+Compiler issues a warning in that case.
+
 If the EGS header is missing for a channel, compiler should issue a warning and emit a canned default.
 Do not use Program Change.
+
+Channel config is omitted for channels with no notes.
+
+If you set a channel's volume to zero, compiler omits all of its config and notes.
 
 ## EGS Format
 

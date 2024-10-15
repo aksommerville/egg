@@ -1,5 +1,6 @@
 /* synth.h
  * The default synthesizer for Egg, and hopefully the only one.
+XXX DEPRECATED 2024-10-15. I'll be writing a new one soon.
  */
  
 #ifndef SYNTH_H

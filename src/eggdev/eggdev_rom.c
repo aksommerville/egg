@@ -24,10 +24,6 @@ void eggdev_rom_cleanup(struct eggdev_rom *rom) {
     }
     free(rom->tnamev);
   }
-  if (rom->instrumentv) {
-    while (rom->instrumentc-->0) free(rom->instrumentv[rom->instrumentc].v);
-    free(rom->instrumentv);
-  }
   memset(rom,0,sizeof(struct eggdev_rom));
 }
 
@@ -161,80 +157,6 @@ static int eggdev_rom_name_type(struct eggdev_rom *rom,int tid,const char *src,i
   return 0;
 }
 
-/* Add manifest file.
- */
- 
-static int eggdev_rom_add_manifest_line(struct eggdev_rom *rom,const char *src,int srcc,const char *path,int lineno) {
-  int srcp=0;
-  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
-  if (srcp>=srcc) return 0;
-  const char *kw=src+srcp;
-  int kwc=0;
-  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) kwc++;
-  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
-  
-  if ((kwc==4)&&!memcmp(kw,"type",4)) {
-    const char *tname=src+srcp;
-    int tnamec=0;
-    while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tnamec++;
-    while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
-    const char *tidsrc=src+srcp;
-    int tidsrcc=srcc-srcp;
-    if (!tnamec||!tidsrcc) {
-      fprintf(stderr,"%s:%d: Malformed manifest type line, expected 'type NAME ID'\n",path,lineno);
-      return -2;
-    }
-    int tid;
-    if ((sr_int_eval(&tid,tidsrc,tidsrcc)<2)||(tid<16)||(tid>127)) {
-      fprintf(stderr,"%s:%d: Illegal type id '%.*s', expected integer in 16..127\n",path,lineno,tidsrcc,tidsrc);
-      return -2;
-    }
-    if (eggdev_rom_name_type(rom,tid,tname,tnamec)<0) {
-      if ((tid<rom->tnamec)&&rom->tnamev[tid]) {
-        fprintf(stderr,"%s:%d: Failed to assign name '%.*s' to tid %d, already defined as '%s'\n",path,lineno,tnamec,tname,tid,rom->tnamev[tid]);
-      } else {
-        fprintf(stderr,"%s:%d: Failed to assign name '%.*s' to tid %d, reason unknown\n",path,lineno,tnamec,tname,tid);
-      }
-      return -2;
-    }
-    return 0;
-  }
-  
-  fprintf(stderr,"%s:%d:WARNING: Ignoring unexpected command '%.*s' in ROM manifest\n",path,lineno,kwc,kw);
-  return 0;
-}
- 
-static int eggdev_rom_add_manifest_text(struct eggdev_rom *rom,const char *src,int srcc,const char *path) {
-  struct sr_decoder decoder={.v=src,.c=srcc};
-  const char *line;
-  int linec,lineno=1,err;
-  for (;(linec=sr_decode_line(&line,&decoder))>0;lineno++) {
-    while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
-    while (linec&&((unsigned char)line[0]<=0x20)) { linec--; line++; }
-    if (!linec||(line[0]=='#')) continue;
-    if ((err=eggdev_rom_add_manifest_line(rom,line,linec,path,lineno))<0) {
-      if (err!=-2) fprintf(stderr,"%s:%d: Unspecified error processing ROM manifest\n",path,lineno);
-      return -2;
-    }
-  }
-  return 0;
-}
- 
-int eggdev_rom_add_manifest_file(struct eggdev_rom *rom,const char *path) {
-  char *src=0;
-  int srcc=0;
-  if ((srcc=file_read(&src,path))<0) {
-    // We attempt to read it without knowing whether it exists.
-    // If the read fails, assume there is no manifest and quietly move along.
-    return 0;
-  }
-  int err=eggdev_rom_add_manifest_text(rom,src,srcc,path);
-  free(src);
-  if (err>=0) return 0;
-  if (err!=-2) fprintf(stderr,"%s: Unspecified error processing ROM manifest\n",path);
-  return -2;
-}
-
 /* Add directory: Callback for second level, expect single-resource files.
  */
  
@@ -256,8 +178,6 @@ static int eggdev_rom_add_directory_cb_top(const char *path,const char *base,cha
   if (!ftype) ftype=file_get_type(path);
   if (ftype=='d') return dir_read(path,eggdev_rom_add_directory_cb_bottom,rom);
   if (ftype=='f') {
-    if (!strcmp(base,"manifest")) return 0;
-    if (!strcmp(base,"instruments")) return 0;
     // Should be "metadata" or "code.wasm", whatever, handle it generically:
     return eggdev_rom_add_file(rom,path);
   }
@@ -268,15 +188,6 @@ static int eggdev_rom_add_directory_cb_top(const char *path,const char *base,cha
  */
 
 int eggdev_rom_add_directory(struct eggdev_rom *rom,const char *path) {
-  int err;
-  char mfpath[1024];
-  int mfpathc=snprintf(mfpath,sizeof(mfpath),"%s/manifest",path);
-  if ((mfpathc>0)&&(mfpathc<sizeof(mfpath))) {
-    if ((err=eggdev_rom_add_manifest_file(rom,mfpath))<0) {
-      if (err!=-2) fprintf(stderr,"%s: Unspecified error applying ROM manifest\n",mfpath);
-      return -2;
-    }
-  }
   return dir_read(path,eggdev_rom_add_directory_cb_top,rom);
 }
 
@@ -497,7 +408,7 @@ int eggdev_rom_add_file(struct eggdev_rom *rom,const char *path) {
 
 int eggdev_rom_parse_path(
   struct eggdev_path *parsed,
-  const struct eggdev_rom *rom,
+  struct eggdev_rom *rom,
   const char *path
 ) {
   if (!path) return -1;
@@ -546,6 +457,7 @@ int eggdev_rom_parse_path(
     parsed->tid=v;
     parsed->tname=dir+sepp+1;
     parsed->tnamec=dirc-sepp-1;
+    if (eggdev_rom_name_type(rom,parsed->tid,parsed->tname,parsed->tnamec)<0) return -1;
   } else {
     if ((parsed->tid=eggdev_tid_eval(rom,dir,dirc))<1) return -1;
     parsed->tname=dir;
@@ -778,101 +690,6 @@ int eggdev_res_has_comment(const struct eggdev_res *res,const char *token,int to
     if ((qc==tokenc)&&!memcmp(q,token,tokenc)) return 1;
   }
   return 0;
-}
-
-/* Instrument definitions.
- */
- 
-static int eggdev_rom_search_instruments(const struct eggdev_rom *rom,int fqpid) {
-  int lo=0,hi=rom->instrumentc;
-  while (lo<hi) {
-    int ck=(lo+hi)>>1;
-    int q=rom->instrumentv[ck].fqpid;
-         if (fqpid<q) hi=ck;
-    else if (fqpid>q) lo=ck+1;
-    else return ck;
-  }
-  return -lo-1;
-}
-
-static int eggdev_rom_handoff_instrument(struct eggdev_rom *rom,int fqpid,void *v,int c) {
-  int p=eggdev_rom_search_instruments(rom,fqpid);
-  if (p>=0) return -1;
-  p=-p-1;
-  if (rom->instrumentc>=rom->instrumenta) {
-    int na=rom->instrumenta+32;
-    if (na>INT_MAX/sizeof(struct eggdev_instrument)) return -1;
-    void *nv=realloc(rom->instrumentv,sizeof(struct eggdev_instrument)*na);
-    if (!nv) return -1;
-    rom->instrumentv=nv;
-    rom->instrumenta=na;
-  }
-  struct eggdev_instrument *ins=rom->instrumentv+p;
-  memmove(ins+1,ins,sizeof(struct eggdev_instrument)*(rom->instrumentc-p));
-  rom->instrumentc++;
-  ins->fqpid=fqpid;
-  ins->v=v; // HANDOFF
-  ins->c=c;
-  return 0;
-}
-
-static int eggdev_rom_parse_instruments(struct eggdev_rom *rom,const char *src,int srcc,const char *path) {
-  struct synth_text_reader reader={.src=src,.srcc=srcc};
-  int index,lineno,subsrcc;
-  const char *subsrc;
-  while ((subsrcc=synth_text_reader_next(&index,&lineno,&subsrc,&reader))>0) {
-    struct sr_encoder dst={0};
-    int err=synth_egs_from_text(&dst,subsrc,subsrcc,1,path,lineno);
-    if (err<0) {
-      sr_encoder_cleanup(&dst);
-      return err;
-    }
-    if (dst.c) {
-      if (eggdev_rom_handoff_instrument(rom,index,dst.v,dst.c)<0) {
-        if (path) fprintf(stderr,"%s:%d: Failed to add instrument %d. Is it a duplicate?\n",path,lineno,index);
-        sr_encoder_cleanup(&dst);
-        return -1;
-      }
-    } else {
-      sr_encoder_cleanup(&dst);
-    }
-  }
-  return 0;
-}
- 
-int eggdev_rom_require_instruments(struct eggdev_rom *rom) {
-  if (rom->instrumenta) return 0;
-  if (!(rom->instrumentv=malloc(sizeof(struct eggdev_instrument)*128))) return -1;
-  rom->instrumenta=128;
-  rom->instrumentc=0;
-  
-  // We're outside eggdev_rom_add_directory() here, so we don't have a concept of DATAROOT.
-  // That's kind of stupid.
-  // Borrow the path from metadata:1... hopefully it exists.
-  int mp=eggdev_rom_search(rom,EGG_TID_metadata,1);
-  if (mp<0) return 0;
-  const char *mpath=rom->resv[mp].path;
-  int mpathc=rom->resv[mp].pathc;
-  while (mpathc&&(mpath[mpathc-1]!='/')) mpathc--;
-  char path[1024];
-  int pathc=snprintf(path,sizeof(path),"%.*sinstruments",mpathc,mpath);
-  if ((pathc<1)||(pathc>=sizeof(path))) return 0;
-  
-  char *src=0;
-  int srcc=file_read(&src,path);
-  if (srcc<0) return 0;
-  eggdev_rom_parse_instruments(rom,src,srcc,path);
-  free(src);
-  return 0;
-}
-
-int eggdev_rom_get_instrument(void *dstpp,struct eggdev_rom *rom,int fqpid) {
-  if (eggdev_rom_require_instruments(rom)<0) return 0;
-  int p=eggdev_rom_search_instruments(rom,fqpid);
-  if (p<0) return 0;
-  const struct eggdev_instrument *ins=rom->instrumentv+p;
-  if (dstpp) *(const void**)dstpp=ins->v;
-  return ins->c;
 }
 
 /* Validate.

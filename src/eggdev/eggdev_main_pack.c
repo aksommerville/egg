@@ -17,7 +17,6 @@ static int eggdev_pack_convert(struct eggdev_rom *rom) {
   if (eggdev.raw) return 0;
   
   /* Reformat resources individually.
-   * This is the bulk of what we do.
    */
   struct eggdev_res *res=rom->resv;
   int i=rom->resc;
@@ -33,45 +32,6 @@ static int eggdev_pack_convert(struct eggdev_rom *rom) {
       if (err!=-2) fprintf(stderr,"%s:%d: Failed to compile resource\n",eggdev_tid_repr(rom,res->tid),res->rid);
       return -2;
     }
-  }
-  
-  /* Sounds have an extra quirk for packing WAV or similar into grouped resources.
-   * Locate sounds with the same lower 16 bits of rid and combine them.
-   * The members of one resource will sort naturally by index, but they won't be adjacent.
-   */
-  int changed_sounds=0;
-  for (res=rom->resv,i=0;i<rom->resc;res++,i++) {
-    if (res->tid!=EGG_TID_sound) continue;
-    if (res->rid<=0xffff) continue;
-    if (!res->serialc) continue;
-    struct synth_sounds_writer writer={0};
-    if (synth_sounds_writer_init(&writer)<0) {
-      synth_sounds_writer_cleanup(&writer);
-      return -1;
-    }
-    int err=synth_sounds_writer_add(&writer,res->serial,res->serialc,res->rid>>16,res->path);
-    if (err<0) {
-      synth_sounds_writer_cleanup(&writer);
-      return err;
-    }
-    struct eggdev_res *b=res+1;
-    int bi=i+1;
-    for (;bi<rom->resc;b++,bi++) {
-      if (b->tid!=EGG_TID_sound) continue;
-      if (b->rid<=0xffff) continue;
-      if (!b->serialc) continue;
-      if ((err=synth_sounds_writer_add(&writer,b->serial,b->serialc,b->rid>>16,b->path))<0) {
-        synth_sounds_writer_cleanup(&writer);
-        return err;
-      }
-      b->serialc=0;
-    }
-    eggdev_res_handoff_serial(res,writer.dst.v,writer.dst.c); // HANDOFF writer.dst.v, do not cleanup.
-    res->rid&=0xffff;
-    changed_sounds=1;
-  }
-  if (changed_sounds) {
-    qsort(rom->resv,rom->resc,sizeof(struct eggdev_res),eggdev_res_cmp);
   }
   
   return 0;
