@@ -65,7 +65,7 @@ struct synth {
   int print_framec; // Nonzero during updates. New printers must produce so much immediately.
 };
 
-int synth_soundv_search(const struct synth *synth,int rid,int index);
+int synth_soundv_search(const struct synth *synth,int rid);
 int synth_songv_search(const struct synth *synth,int rid);
 
 /* Noop if (sound->pcm) exists.

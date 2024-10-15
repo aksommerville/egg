@@ -193,11 +193,11 @@ static int eggrt_drivers_init_audio() {
   const struct rom_res *res=eggrt.resv;
   int i=eggrt.resc;
   for (;i-->0;res++) {
-    if (res->tid==EGG_TID_sounds) {
-      if (synth_install_sounds(eggrt.synth,res->rid,res->v,res->c)<0) return -1;
+    if (res->tid==EGG_TID_sound) {
+      if (synth_install_sound(eggrt.synth,res->rid,res->v,res->c)<0) return -1;
     } else if (res->tid==EGG_TID_song) {
       if (synth_install_song(eggrt.synth,res->rid,res->v,res->c)<0) return -1;
-    } else if ((res->tid>EGG_TID_sounds)&&(res->tid>EGG_TID_song)) {
+    } else if ((res->tid>EGG_TID_sound)&&(res->tid>EGG_TID_song)) {
       break;
     }
   }

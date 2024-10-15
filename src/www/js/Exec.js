@@ -26,7 +26,7 @@ export class Exec {
       egg_input_get_all: (dstp, dsta) => this.rt.input.egg_input_get_all(dstp, dsta),
       egg_input_get_one: plid => this.rt.input.egg_input_get_one(plid),
       egg_input_configure: () => this.rt.egg_input_configure(),
-      egg_play_sound: (rid, p) => this.rt.audio.egg_play_sound(rid, p),
+      egg_play_sound: (rid) => this.rt.audio.egg_play_sound(rid),
       egg_play_song: (rid, f, r) => this.rt.audio.egg_play_song(rid, f, r),
       egg_audio_event: (chid, op, a, b, dms) => this.rt.audio.egg_audio_event(chid, op, a, b, dms),
       egg_audio_get_playhead: () => this.rt.audio.egg_audio_get_playhead(),

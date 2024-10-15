@@ -19,7 +19,7 @@ int egg_store_key_by_index(char *k,int ka,int p);
 int egg_input_get_one(int playerid);
 int egg_input_get_all(int *dst,int dsta);
 int egg_input_configure();
-void egg_play_sound(int rid,int index);
+void egg_play_sound(int rid);
 void egg_play_song(int rid,int force,int repeat);
 void egg_audio_event(int chid,int opcode,int a,int b,int durms);
 double egg_audio_get_playhead();
@@ -201,9 +201,9 @@ int egg_input_configure() {
 /* Play sound from resource.
  */
  
-void egg_play_sound(int rid,int index) {
+void egg_play_sound(int rid) {
   if (hostio_audio_lock(eggrt.hostio)>=0) {
-    synth_play_sound(eggrt.synth,rid,index);
+    synth_play_sound(eggrt.synth,rid);
     hostio_audio_unlock(eggrt.hostio);
   }
 }

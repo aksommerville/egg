@@ -14,6 +14,7 @@ Current state:
 Desired state:
 - Source everything from MIDI and WAV.
 - WAV files pass through verbatim, or maybe light adjustment like drop extra channels, force to 16-bit, force a single "data" chunk...
+- Single resource for sounds, don't pack them into sub-archives.
 - MIDI converts to EGS.
 - No text format for EGS. Maybe supply an optional "disassemble" format for debugging, but not for sourcing.
 - MIDI channel config in one Meta event and optional Control 0x07 and 0x0a. No external instruments.
@@ -32,6 +33,21 @@ In that Desired state, we need to define two things:
 Channel Header should strictly match a portion of EGS, there's some point where it just gets pasted in.
 So when EGS Format is defined, there's nothing more to define for MIDI.
 
+## From WAV
+
+Every WAV in the ROM must be 16-bit signed LPCM in a single channel, with only "fmt " and "data" chunks, 1 each.
+Compiler will accept a broader set of formats and rewrite accordingly.
+Any reasonable frame rate is ok, and compiler will never change rates.
+
+## From MIDI
+
+Meta 0x20 MIDI Channel Prefix, followed by Meta 0xf0 EGS Header.
+Payload of 0xf0 is the EGS Channel Header defined below, starting from "u8 Mode".
+Channel ID from the previous 0x20, Master from Control 0x07, Pan from Control 0x0a.
+
+If the EGS header is missing for a channel, compiler should issue a warning and emit a canned default.
+Do not use Program Change.
+
 ## EGS Format
 
 Universal Header:
@@ -41,6 +57,7 @@ Universal Header:
 Channel Headers:
   u8  Channel ID 0..15
   u8  Master 0..255
+  u8  Pan 0..128..255=Left..Center..Right
   u8  Mode
   u16 Mode config length
   ... Mode config
@@ -63,9 +80,10 @@ Mode 1: Drums:
     u8 pan 0..128..255
     u8 trimlo
     u8 trimhi
+  Channel pan is ignored.
     
 Mode 2: Flat Wave:
-  u16 wheelrange
+  u16 wheelrange, cents
   12  levelenv
   16  pitchenv. Cents, bias 0x8000.
   u8  shape: (0,1,2,3,4)=(custom,sine,square,saw,triangle)
@@ -73,7 +91,7 @@ Mode 2: Flat Wave:
   ... coefv. u16 * coefc
   
 Mode 3: FM:
-  u16 wheelrange
+  u16 wheelrange, cents
   12  levelenv
   16  pitchenv. Cents, bias 0x8000.
   u16 modrate. Relative, unit 0x0100.

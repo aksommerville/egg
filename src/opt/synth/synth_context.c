@@ -113,15 +113,15 @@ struct synth_node *synth_add_bus(struct synth *synth,const struct synth_node_typ
 /* Search sounds.
  */
  
-int synth_soundv_search(const struct synth *synth,int rid,int index) {
+int synth_soundv_search(const struct synth *synth,int rid) {
   int lo=0,hi=synth->soundc;
   while (lo<hi) {
     int ck=(lo+hi)>>1;
     const struct synth_sound *q=synth->soundv+ck;
          if (rid<q->rid) hi=ck;
     else if (rid>q->rid) lo=ck+1;
-    else if (index<q->index) hi=ck;
-    else if (index>q->index) lo=ck+1;
+    //else if (index<q->index) hi=ck;
+    //else if (index>q->index) lo=ck+1;
     else return ck;
   }
   return -lo-1;
@@ -152,7 +152,7 @@ static struct synth_sound *synth_soundv_insert(struct synth *synth,int p,int rid
 /* Install one sound.
  */
  
-static int synth_install_sound(struct synth *synth,int rid,int index,const void *src,int srcc) {
+static int _synth_install_sound(struct synth *synth,int rid,int index,const void *src,int srcc) {
   
   // It is extremely likely that every time we ever get called, insertion point is at the end.
   // So it's worth checking for that case, to avoid the search.
@@ -165,7 +165,7 @@ static int synth_install_sound(struct synth *synth,int rid,int index,const void 
   ) {
     p=synth->soundc;
   } else {
-    if ((p=synth_soundv_search(synth,rid,index))>=0) return -1;
+    if ((p=synth_soundv_search(synth,rid))>=0) return -1;
     p=-p-1;
   }
   
@@ -180,7 +180,7 @@ static int synth_install_sound(struct synth *synth,int rid,int index,const void 
 /* Install sounds.
  */
 
-int synth_install_sounds(struct synth *synth,int rid,const void *src,int srcc) {
+int synth_install_sound(struct synth *synth,int rid,const void *src,int srcc) {
   if (!src||(srcc<1)) return 0;
   struct synth_sounds_reader reader;
   if (synth_sounds_reader_init(&reader,src,srcc)<0) return -1;
@@ -188,7 +188,7 @@ int synth_install_sounds(struct synth *synth,int rid,const void *src,int srcc) {
   const void *subsrc;
   while ((subsrcc=synth_sounds_reader_next(&index,&subsrc,&reader))>0) {
     if (synth_sound_is_empty(subsrc,subsrcc)) continue;
-    int err=synth_install_sound(synth,rid,index,subsrc,subsrcc);
+    int err=_synth_install_sound(synth,rid,index,subsrc,subsrcc);
     if (err<0) return err;
   }
   return 0;

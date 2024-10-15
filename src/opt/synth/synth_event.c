@@ -67,8 +67,8 @@ int synth_sound_require(struct synth *synth,struct synth_sound *sound) {
 /* Play sound.
  */
 
-void synth_play_sound(struct synth *synth,int rid,int index) {
-  int p=synth_soundv_search(synth,rid,index);
+void synth_play_sound(struct synth *synth,int rid) {
+  int p=synth_soundv_search(synth,rid);
   if (p<0) return;
   struct synth_sound *sound=synth->soundv+p;
   if (synth_sound_require(synth,sound)<0) return;

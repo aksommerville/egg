@@ -25,7 +25,7 @@ struct synth *synth_new(int rate,int chanc);
  * BEWARE: Buffers are borrowed weakly. You must not free or modify anything delivered to synth this way.
  * We assume that everything you supply comes from the ROM.
  */
-int synth_install_sounds(struct synth *synth,int rid,const void *src,int srcc);
+int synth_install_sound(struct synth *synth,int rid,const void *src,int srcc);
 int synth_install_song(struct synth *synth,int rid,const void *src,int srcc);
 
 /* Advance internal state and produce PCM.
@@ -37,7 +37,7 @@ void synth_updatei(int16_t *v,int c,struct synth *synth);
 
 /* Begin a fire-and-forget sound effect.
  */
-void synth_play_sound(struct synth *synth,int rid,int index);
+void synth_play_sound(struct synth *synth,int rid);
 
 /* Stop the current song, and if (rid) exists, begin playing it.
  * (force) to restart even if the requested song is already playing.

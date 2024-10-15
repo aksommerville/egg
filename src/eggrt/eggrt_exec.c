@@ -122,8 +122,8 @@
     return egg_input_configure();
   }
   
-  static void egg_wasm_play_sound(wasm_exec_env_t ee,int rid,int index) {
-    egg_play_sound(rid,index);
+  static void egg_wasm_play_sound(wasm_exec_env_t ee,int rid) {
+    egg_play_sound(rid);
   }
   
   static void egg_wasm_play_song(wasm_exec_env_t ee,int rid,int force,int repeat) {
@@ -235,7 +235,7 @@
     {"egg_input_get_one",egg_wasm_input_get_one,"(i)i"},
     {"egg_input_get_all",egg_wasm_input_get_all,"(ii)i"},
     {"egg_input_configure",egg_wasm_input_configure,"()i"},
-    {"egg_play_sound",egg_wasm_play_sound,"(ii)"},
+    {"egg_play_sound",egg_wasm_play_sound,"(i)"},
     {"egg_play_song",egg_wasm_play_song,"(iii)"},
     {"egg_audio_event",egg_wasm_audio_event,"(iiiii)"},
     {"egg_audio_get_playhead",egg_wasm_audio_get_playhead,"()F"},
@@ -328,8 +328,8 @@
     return egg_input_configure();
   }
   
-  void w2c_env_egg_play_sound(struct w2c_env *env,int rid,int index) {
-    egg_play_sound(rid,index);
+  void w2c_env_egg_play_sound(struct w2c_env *env,int rid) {
+    egg_play_sound(rid);
   }
   
   void w2c_env_egg_play_song(struct w2c_env *env,int rid,int force,int repeat) {

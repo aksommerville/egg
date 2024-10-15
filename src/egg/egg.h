@@ -86,14 +86,14 @@ void egg_set_language(int lang);
 #define EGG_TID_code 2
 #define EGG_TID_strings 3
 #define EGG_TID_image 4
-#define EGG_TID_sounds 5
+#define EGG_TID_sound 5
 #define EGG_TID_song 6
 #define EGG_TID_FOR_EACH \
   _(metadata) \
   _(code) \
   _(strings) \
   _(image) \
-  _(sounds) \
+  _(sound) \
   _(song)
 
 /* Copy the entire ROM file into (dst) and return its length.
@@ -174,7 +174,7 @@ int egg_input_configure();
  * Beware that they may conflict with the song; avoiding that is up to you.
  * (durms) is only used by the non-MIDI event 0x98, indicating Note On now and a deferred Note Off.
  */
-void egg_play_sound(int rid,int index);
+void egg_play_sound(int rid);
 void egg_play_song(int rid,int force,int repeat);
 void egg_audio_event(int chid,int opcode,int a,int b,int durms);
 

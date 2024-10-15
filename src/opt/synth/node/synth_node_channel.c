@@ -356,7 +356,7 @@ static int synth_node_channel_init_voice(
   }
   if (voice->type==&synth_node_type_pcm) {
     int sndid=noteid+NODE->drumsbias;
-    int p=synth_soundv_search(node->synth,NODE->drumsrid,sndid);
+    int p=synth_soundv_search(node->synth,NODE->drumsrid);
     if (p<0) {
       // This is definitely not an error and not worth logging. But keeping it loggable for troubleshooting.
       fprintf(stderr,"%s: Drum %d:%d (note 0x%02x) not found.\n",__func__,NODE->drumsrid,sndid,noteid);

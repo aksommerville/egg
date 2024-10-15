@@ -523,7 +523,6 @@ int eggdev_rom_parse_path(
     parsed->tnamec=8;
     return 0;
   }
-  if ((basec==8)&&!memcmp(base,"manifest",8)) return -1;
   if ((basec==9)&&!memcmp(base,"code.wasm",9)) {
     parsed->tid=EGG_TID_code;
     parsed->rid=1;
@@ -531,12 +530,27 @@ int eggdev_rom_parse_path(
     parsed->tnamec=4;
     return 0;
   }
-  if ((basec==11)&&!memcmp(base,"instruments",11)) return -1;
   
   // Directory must name a type.
-  if ((parsed->tid=eggdev_tid_eval(rom,dir,dirc))<1) return -1;
-  parsed->tname=dir;
-  parsed->tnamec=dirc;
+  if ((dir[0]>='0')&&(dir[0]<='9')) {
+    int sepp=-1,i=0;
+    for (;i<dirc;i++) {
+      if (dir[i]=='-') {
+        sepp=i;
+        break;
+      }
+    }
+    if (sepp<0) return -1;
+    int v;
+    if ((sr_int_eval(&v,dir,sepp)<2)||(v<1)||(v>0xff)) return -1;
+    parsed->tid=v;
+    parsed->tname=dir+sepp+1;
+    parsed->tnamec=dirc-sepp-1;
+  } else {
+    if ((parsed->tid=eggdev_tid_eval(rom,dir,dirc))<1) return -1;
+    parsed->tname=dir;
+    parsed->tnamec=dirc;
+  }
   
   // Basename may begin with language code. strings are expected to use this, and no other type, but any can.
   int basep=0,lang=0;
@@ -560,29 +574,6 @@ int eggdev_rom_parse_path(
       return -2;
     }
     parsed->rid|=lang<<6;
-  }
-  
-  // For sounds only, rid may be followed by "-INDEX", which we shift 16 and combine with rid.
-  if (parsed->tid==EGG_TID_sounds) {
-    if ((basep<=basec-2)&&(base[basep]=='-')&&(base[basep+1]>='0')&&(base[basep+1]<='9')) {
-      basep++;
-      int index=0;
-      while (basep<basec) {
-        if ((base[basep]=='-')||(base[basep]=='.')) break;
-        if ((base[basep]<'0')||(base[basep]>'9')) {
-          fprintf(stderr,"%s: Malformed sounds basename. Expected 'RID[-INDEX][-NAME][.FORMAT]'\n",path);
-          return -2;
-        }
-        index*=10;
-        index+=base[basep++]-'0';
-        if (index>0xfff) break;
-      }
-      if ((index<1)||(index>0xfff)) {
-        fprintf(stderr,"%s: Sounds index must be in 1..4095\n",path);
-        return -2;
-      }
-      parsed->rid|=index<<16;
-    }
   }
   
   // If there's a dash, it's followed by name.

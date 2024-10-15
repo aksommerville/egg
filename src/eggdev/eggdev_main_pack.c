@@ -41,7 +41,7 @@ static int eggdev_pack_convert(struct eggdev_rom *rom) {
    */
   int changed_sounds=0;
   for (res=rom->resv,i=0;i<rom->resc;res++,i++) {
-    if (res->tid!=EGG_TID_sounds) continue;
+    if (res->tid!=EGG_TID_sound) continue;
     if (res->rid<=0xffff) continue;
     if (!res->serialc) continue;
     struct synth_sounds_writer writer={0};
@@ -57,7 +57,7 @@ static int eggdev_pack_convert(struct eggdev_rom *rom) {
     struct eggdev_res *b=res+1;
     int bi=i+1;
     for (;bi<rom->resc;b++,bi++) {
-      if (b->tid!=EGG_TID_sounds) continue;
+      if (b->tid!=EGG_TID_sound) continue;
       if (b->rid<=0xffff) continue;
       if (!b->serialc) continue;
       if ((err=synth_sounds_writer_add(&writer,b->serial,b->serialc,b->rid>>16,b->path))<0) {

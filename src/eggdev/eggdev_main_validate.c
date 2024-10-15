@@ -815,10 +815,10 @@ static int eggdev_validate_wav(const uint8_t *src,int srcc,const char *path,int 
   return status;
 }
 
-/* Validate sounds.
+/* Validate sound.
  */
  
-static int eggdev_validate_sounds(const struct eggdev_res *res,const struct eggdev_rom *rom,const char *path) {
+static int eggdev_validate_sound(const struct eggdev_res *res,const struct eggdev_rom *rom,const char *path) {
   const uint8_t *src=res->serial;
   int srcc=res->serialc,err,status=0;
   if ((srcc<4)||memcmp(src,"\0MSF",4)) {
@@ -908,7 +908,7 @@ static int eggdev_validate_rom(struct eggdev_rom *rom,const char *path) {
         
       case EGG_TID_strings: CALLOUT(eggdev_validate_strings(res,rom,path)) break;
       case EGG_TID_image: CALLOUT(eggdev_validate_image(res,rom,path)) break;
-      case EGG_TID_sounds: CALLOUT(eggdev_validate_sounds(res,rom,path)) break;
+      case EGG_TID_sound: CALLOUT(eggdev_validate_sound(res,rom,path)) break;
       case EGG_TID_song: CALLOUT(eggdev_validate_song(res,rom,path)) break;
       
     }

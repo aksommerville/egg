@@ -72,7 +72,7 @@ static void test_full_api() {
   }
   
   // Audio.
-  egg_play_sound(1,2);
+  egg_play_sound(1);
   //egg_play_song(1,0,1);
   egg_audio_event(0,0x90,0x48,0x40,500);
   fprintf(stderr,"egg_audio_get_playhead(): %f\n",egg_audio_get_playhead());
@@ -173,8 +173,8 @@ void egg_client_update(double elapsed) {
     _(CD)
     #undef _
     fprintf(stderr,"%.*s\n",msgc,msg);
-    if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1,36);
-    if ((instate&EGG_BTN_EAST)&&!(pvinstate&EGG_BTN_EAST)) egg_play_sound(2,1);
+    if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1);
+    if ((instate&EGG_BTN_EAST)&&!(pvinstate&EGG_BTN_EAST)) egg_play_sound(2);
     if ((instate&EGG_BTN_WEST)&&!(pvinstate&EGG_BTN_WEST)) {
       if (++songid>5) songid=0;
       fprintf(stderr,"Play song %d...\n",songid);

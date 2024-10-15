@@ -67,7 +67,7 @@ export class Audio {
   /* Platform entry points.
    ****************************************************************************/
   
-  egg_play_sound(rid, p) {
+  egg_play_sound(rid) {
     if (!this.ctx) return;
     const snd = this.acquireSound(rid, p);
     if (!snd) return;
