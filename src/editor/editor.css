@@ -28,7 +28,7 @@ body {
 .radioBar {
   cursor: pointer;
   user-select: none;
-  margin: 5px;
+  margin: 10px 5px;
 }
 .radioBar > input {
   display: none;
@@ -46,6 +46,35 @@ body {
   border-bottom-left-radius: 15px;
 }
 .radioBar > label:last-of-type {
+  border-top-right-radius: 15px;
+  border-bottom-right-radius: 15px;
+}
+
+.checkBar {
+  cursor: pointer;
+  user-select: none;
+  margin: 10px 5px;
+}
+.checkBar > input {
+  display: none;
+}
+.checkBar > label {
+  background-color: #ccc;
+  padding: 5px;
+  border: 1px solid #000;
+}
+.checkBar > input:checked + label {
+  background-color: #ff0;
+}
+.checkBar > input:disabled + label {
+  background-color: #aaa;
+  color: #666;
+}
+.checkBar > label:first-of-type {
+  border-top-left-radius: 15px;
+  border-bottom-left-radius: 15px;
+}
+.checkBar > label:last-of-type {
   border-top-right-radius: 15px;
   border-bottom-right-radius: 15px;
 }
@@ -297,67 +326,72 @@ body {
   flex: 1;
 }
 
-.MsfEditor {
-  overflow-y: scroll;
-}
-.MsfEditor > .list {
+.EgsChannelEditor {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
 }
-.MsfEditor .sound {
+.EditorModal .EgsChannelEditor {
+  min-width: 70vw;
+}
+.EgsChannelEditor > .voice {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.EgsChannelEditor > .voice .modeContainer {
+  min-height: 70vh;
+  overflow-y: scroll;
+}
+.EditorModal .EgsChannelEditor > .voice .modeContainer {
+  max-height: 70vh;
+}
+.EgsChannelEditor > .post {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.EnvUi {
+  min-width: 400px;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+.EnvUi canvas {
+  user-select: none;
+}
+.EnvUi .controls {
+  display: flex;
+  flex-direction: row;
+}
+
+.EgsOpCard {
+  border: 1px solid #000;
+  border-radius: 5px;
   margin: 5px;
   padding: 5px;
+  display: flex;
+  flex-direction: row;
+}
+.EgsOpCard input[value='mute'] {
+  display: none;
+}
+.EgsOpCard input[value='mute'] + label {
   border: 1px solid #000;
-  background-color: #222;
-  box-shadow: #000 0 0 6px;
-  width: 200px;
-  height: 60px;
-  display: flex;
-  flex-direction: column;
+  background-color: #ccc;
+  user-select: none;
 }
-.MsfEditor .title {
-  font-weight: bold;
-  cursor: pointer;
+.EgsOpCard input[value='mute']:checked + label {
+  background-color: #ff0;
 }
-.MsfEditor .buttonsRow {
-  display: flex;
-  flex-direction: row;
+.EgsOpCard .title {
+  margin-left: 5px;
 }
-.MsfEditor .spacer {
+.EgsOpCard .spacer {
   flex: 1;
 }
 
-.MsfTitleModal .buttonsRow {
-  display: flex;
-  flex-direction: row;
-}
-
-.EgsEditor {
+.WavEditor {
   display: flex;
   flex-direction: column;
-}
-.EditorModal .EgsEditor {
-  width: 75vw;
-  height: 75vh;
-}
-.EgsEditor > .channels {
-  overflow-x: scroll;
-  min-height: 200px;
-  display: flex;
-  flex-direction: row;
-}
-.EgsEditor > .channels > .channel {
-  border: 1px solid #888;
-  display: flex;
-  flex-direction: column;
-}
-.EgsEditor .channel .lfo input[type='number'] {
-  width: 60px;
-}
-.EgsEditor > .events {
-  overflow-y: scroll;
-  flex: 1;
-}
-.EgsEditor > .events > .event {
 }

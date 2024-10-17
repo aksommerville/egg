@@ -9,7 +9,12 @@ import { Data } from "./Data.js";
 
 class RedirectingData extends Data {
   dirty(path, cb) {
-    this.serial = cb();
+    // Clients depend on being able to spam this. We have to debounce at least a little.
+    if (this.rdTimeout) return;
+    this.rdTimeout = window.setTimeout(() => {
+      this.rdTimeout = null;
+      this.serial = cb();
+    }, 100);
   }
 }
 

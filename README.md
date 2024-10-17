@@ -82,6 +82,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [x] Consider adding a uniform "linearFilter" parameter to mode7 blit.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
 - [ ] native: Neuter synth when dummy output.
+- [ ] Standard map and sprite support. Prove it out further in Spelling Bee, then migrate here.
 
 ## Third-Party Code
 

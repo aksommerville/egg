@@ -9,7 +9,7 @@ import { MidiFile } from "./MidiFile.js";
 import { MidiEventModal } from "./MidiEventModal.js";
 import { MidiChannelFieldModal } from "./MidiChannelFieldModal.js";
 import { EditorModal } from "./EditorModal.js";
-import { EgsEditor } from "./EgsEditor.js";
+import { EgsChannelEditor } from "./EgsChannelEditor.js";
  
 export class MidiEditor {
   static getDependencies() {
@@ -56,13 +56,9 @@ export class MidiEditor {
     );
     this.dom.spawn(globals, "SELECT", { name: "operations", "on-input": e => this.onOperation(e) },
       this.dom.spawn(null, "OPTION", { value: "" }, "Operations:"),
-      this.dom.spawn(null, "OPTION", { value: "zeroLeadTime" }, "Zero lead time"),
-      this.dom.spawn(null, "OPTION", { value: "autoEndTime" }, "Auto end time"),
-      this.dom.spawn(null, "OPTION", { value: "removeUselessMeta" }, "Remove useless Meta (keep Tempo and EGS)"),
-      this.dom.spawn(null, "OPTION", { value: "removeSysex" }, "Remove all Sysex"),
-      this.dom.spawn(null, "OPTION", { value: "removeNoteAdjust" }, "Remove all Note Adjust"),
-      this.dom.spawn(null, "OPTION", { value: "removeWheel" }, "Remove all Wheel"),
-      this.dom.spawn(null, "OPTION", { value: "removeChannels" }, "Remove unused channels (no Note On)"),
+      ...Object.getOwnPropertyNames(this.__proto__).filter(n => n.startsWith("op_")).map(k => {
+        return this.dom.spawn(null, "OPTION", { value: k }, this.labelForOperation(k));
+      })
     );
     
     const channelsSizer = this.dom.spawn(this.element, "DIV", ["channelsSizer"]);
@@ -101,14 +97,6 @@ export class MidiEditor {
     const card = this.dom.spawn(parent, "DIV", ["channel"], { "data-chid": chid });
     this.dom.spawn(card, "DIV", ["title"], `Channel ${chid}`);
     this.dom.spawn(card, "DIV", ["nonZeroTimeWarning", "hidden"], "Nonzero config time.");
-    this.dom.spawn(card, "DIV", ["field"], { "on-click": () => this.onEditChannelField(chid, "program") },
-      this.dom.spawn(null, "SPAN", ["key"], "Program:"),
-      this.dom.spawn(null, "SPAN", ["value", "bankMsb"], "0"),
-      this.dom.spawn(null, "SPAN", ","),
-      this.dom.spawn(null, "SPAN", ["value", "bankLsb"], "0"),
-      this.dom.spawn(null, "SPAN", ","),
-      this.dom.spawn(null, "SPAN", ["value", "program"], "0")
-    );
     this.dom.spawn(card, "DIV", ["field"], { "on-click": () => this.onEditChannelField(chid, "volume") },
       this.dom.spawn(null, "SPAN", ["key"], "Volume:"),
       this.dom.spawn(null, "SPAN", ["value", "volume"])
@@ -128,13 +116,10 @@ export class MidiEditor {
     card.classList.add("present");
     switch (event.opcode) {
       case 0xb0: switch (event.a) {
-          case 0x00: card.querySelector(".value.bankMsb").innerText = event.b; break;
           case 0x07: card.querySelector(".value.volume").innerText = event.b; break;
           case 0x0a: card.querySelector(".value.pan").innerText = event.b; break;
-          case 0x20: card.querySelector(".value.bankLsb").innerText = event.b; break;
           default: return;
         } break;
-      case 0xc0: card.querySelector(".value.program").innerText = event.a; break;
       case 0xff: switch (event.a) {
           case 0xf0: card.querySelector(".value.egs").innerText = `${event.v.length} bytes`; break;
           default: return;
@@ -288,28 +273,57 @@ export class MidiEditor {
           if (event.chid !== chid) continue;
           if (event.opcode !== 0xff) continue;
           if (event.a !== 0xf0) continue;
-          const padded = new Uint8Array(6 + event.v.length);
-          padded[0] = 0x00;
-          padded[1] = 0x45;
-          padded[2] = 0x47;
-          padded[3] = 0x53;
-          padded[4] = event.v.length >> 8;
-          padded[5] = event.v.length;
-          new Uint8Array(padded.buffer, 6, event.v.length).set(event.v);
-          return padded;
+          return event.v || [];
         }
       }
     }
-    return new Uint8Array([0x00, 0x45, 0x47, 0x53]);
+    return [];
+  }
+  
+  setChannelEgsHeader(chid, serial) {
+    console.log(`setChannelEgsHeaders ${chid}`, serial);
+    if (this.file) {
+      for (const track of this.file.tracks) {
+        for (const event of track) {
+          if (event.time) break;
+          if (event.chid !== chid) continue;
+          if (event.opcode !== 0xff) continue;
+          if (event.a !== 0xf0) continue;
+          event.v = serial;
+          return;
+        }
+      }
+      if (!this.file.tracks.length) this.file.tracks.push([]);
+      this.file.tracks[0].splice(0, 0, {
+        time: 0,
+        chid,
+        opcode: 0xff,
+        a: 0x20,
+        b: 0,
+        v: new Uint8Array([chid]),
+        id: this.file.nextEventId++,
+      }, {
+        time: 0,
+        chid,
+        opcode: 0xff,
+        a: 0xf0,
+        b: 0,
+        v: serial,
+        id: this.file.nextEventId++,
+      });
+    }
   }
   
   onEditChannelField(chid, k) {
     if (k === "egs") {
       const serial = this.getChannelEgsHeader(chid);
       const modal = this.dom.spawnModal(EditorModal);
-      const controller = modal.setupWithSerial(EgsEditor, serial);
+      const controller = modal.setupWithSerial(EgsChannelEditor, serial);
       modal.result.then((result) => {
-        console.log(`MidiEditor result from EgsEditor`, serial);
+        if (!result) return;
+        this.setChannelEgsHeader(chid, result);
+        this.data.dirty(this.res.path, () => this.file.encode());
+        this.populateUi();
       }).catch(e => this.dom.modalError(e));
     } else {
       const modal = this.dom.spawnModal(MidiChannelFieldModal);
@@ -335,22 +349,22 @@ export class MidiEditor {
     if (!event?.target) return;
     const opname = event.target.value;
     event.target.value = "";
-    switch (opname) {
-      case "zeroLeadTime": this.op_zeroLeadTime(); break;
-      case "autoEndTime": this.op_autoEndTime(); break;
-      case "removeUselessMeta": this.op_removeUselessMeta(); break;
-      case "removeSysex": this.op_removeSysex(); break;
-      case "removeNoteAdjust": this.op_removeNoteAdjust(); break;
-      case "removeWheel": this.op_removeWheel(); break;
-      case "removeChannels": this.op_removeChannels(); break;
-      default: this.dom.modalMessage(`Unimplemented operation ${JSON.stringify(opname)}`);
+    try {
+      this[opname]();
+    } catch (e) {
+      this.dom.modalError(e);
     }
+  }
+  
+  labelForOperation(name) {
+    return this[name]("label") || name.replace("op_", "");
   }
   
   /* Named operations.
    **********************************************************************************/
    
-  op_zeroLeadTime() {
+  op_zeroLeadTime(q) {
+    if (q === "label") return "Zero lead time";
     if (!this.file) return;
     let firstNoteTime = 999999999;
     for (const track of this.file.tracks) {
@@ -378,7 +392,8 @@ export class MidiEditor {
     this.populateUi();
   }
   
-  op_autoEndTime() {
+  op_autoEndTime(q) {
+    if (q === "label") return "Auto end time";
     if (!this.file) return;
     let endTime=0, endEventId=0;
     for (const track of this.file.tracks) {
@@ -424,7 +439,8 @@ export class MidiEditor {
     this.populateUi();
   }
       
-  op_removeUselessMeta() {
+  op_removeUselessMeta(q) {
+    if (q === "label") return "Remove useless Meta";
     let rmc=0;
     for (const track of this.file.tracks) {
       for (let i=track.length; i-->0; ) {
@@ -449,7 +465,8 @@ export class MidiEditor {
     this.populateUi();
   }
   
-  op_removeSysex() {
+  op_removeSysex(q) {
+    if (q === "label") return "Remove Sysex";
     let rmc=0;
     for (const track of this.file.tracks) {
       for (let i=track.length; i-->0; ) {
@@ -468,12 +485,13 @@ export class MidiEditor {
     this.populateUi();
   }
   
-  op_removeNoteAdjust() {
+  op_removeNoteAdjust(q) {
+    if (q === "label") return "Remove Aftertouch";
     let rmc=0, chans=new Set();
     for (const track of this.file.tracks) {
       for (let i=track.length; i-->0; ) {
         const event = track[i];
-        if (event.opcode !== 0xa0) continue;
+        if ((event.opcode !== 0xa0) && (event.opcode !== 0xd0)) continue;
         chans.add(event.chid);
         track.splice(i, 1);
         rmc++;
@@ -488,7 +506,8 @@ export class MidiEditor {
     this.populateUi();
   }
   
-  op_removeWheel() {
+  op_removeWheel(q) {
+    if (q === "label") return "Remove Pitch Wheel";
     let rmc=0, chans=new Set();
     for (const track of this.file.tracks) {
       for (let i=track.length; i-->0; ) {
@@ -508,7 +527,8 @@ export class MidiEditor {
     this.populateUi();
   }
   
-  op_removeChannels() {
+  op_removeChannels(q) {
+    if (q === "label") return "Remove unused channels";
     const eventsExist=[], notesExist=[];
     for (const track of this.file.tracks) {
       for (const event of track) {
@@ -536,6 +556,50 @@ export class MidiEditor {
       return;
     }
     this.dom.modalMessage(`Removed ${rmc} events from ${chanc} channels.`);
+    this.data.dirty(this.res.path, () => this.file.encode());
+    this.populateUi();
+  }
+  
+  op_reassignChannels(q) {
+    if (q === "label") return "Reassign channels";
+    const usage = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const track of this.file.tracks) {
+      for (const event of track) {
+        if (event.chid >= 0x10) continue;
+        usage[event.chid] = 1;
+      }
+    }
+    const reassign = usage.map(() => -1);
+    let nchanc = 0;
+    for (let chid=0; chid<16; chid++) {
+      if (usage[chid]) reassign[chid] = nchanc++;
+    }
+    // Now if there's anything in (reassign) which is >=0 and not its own index, we have something to do.
+    let noop = true;
+    for (let chid=0; chid<16; chid++) {
+      if ((reassign[chid] >= 0) && (reassign[chid] !== chid)) {
+        noop = false;
+        false;
+      }
+    }
+    if (noop) {
+      this.dom.modalMessage("Channel assignments already packed.");
+      return;
+    }
+    // OK do it.
+    for (const track of this.file.tracks) {
+      for (const event of track) {
+        if (event.chid >= 0x10) continue;
+        event.chid = reassign[event.chid];
+      }
+    }
+    let desc = "";
+    for (let chid=0; chid<16; chid++) {
+      if (reassign[chid] < 0) continue;
+      if (reassign[chid] === chid) continue;
+      desc += `${chid} => ${reassign[chid]}\n`;
+    }
+    this.dom.modalMessage(`Reassigned channels:\n${desc}`);
     this.data.dirty(this.res.path, () => this.file.encode());
     this.populateUi();
   }

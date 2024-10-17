@@ -330,6 +330,7 @@ export class MidiFile {
     const stopp = srcp + len;
     let time = 0;
     let status = 0;
+    let chpfx = 0xff;
     while (srcp < stopp) {
       
       // Delay.
@@ -403,9 +404,10 @@ export class MidiFile {
             if (srcp > stopp - paylen) throw new Error(`Sysex/Meta length error`);
             const v = new Uint8Array(src.buffer, src.byteOffset + srcp, paylen);
             srcp += paylen;
+            if ((a === 0x20) && (v.length === 1)) chpfx = v[0];
             track.push({
               time,
-              chid: 0xff,
+              chid: chpfx,
               opcode: status,
               a, v,
               b: 0,

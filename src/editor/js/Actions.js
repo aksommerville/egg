@@ -9,8 +9,6 @@ import { HexEditor } from "./HexEditor.js";
 import { ImageEditor } from "./ImageEditor.js";
 import { MetadataEditor } from "./MetadataEditor.js";
 import { StringsEditor } from "./StringsEditor.js";
-import { MsfEditor } from "./MsfEditor.js";
-import { EgsEditor } from "./EgsEditor.js";
 import { WavEditor } from "./WavEditor.js";
 import { MidiEditor } from "./MidiEditor.js";
  
@@ -30,8 +28,6 @@ export class Actions {
       ImageEditor,
       TextEditor,
       HexEditor,
-      MsfEditor,
-      EgsEditor,
       WavEditor,
       MidiEditor,
     ];

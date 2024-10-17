@@ -63,7 +63,7 @@ Channel Header:
 -  u8  Master 0..255
 -  u8  Pan 0..128..255=Left..Center..Right
 -  u8  Mode
--  u16 Mode config length
+-  u16 Mode config length: Mandatory lengths per mode, you don't get to make something up here.
 -  ... Mode config
 -  u16 Post length
 -  ... Post
@@ -77,8 +77,8 @@ Mode:
   
 Mode 1: Drums:
 -  u16 ridbase
--  u8  count
 -  u8  noteid0
+-  u8  count
 -  ... For (count):
 -    u8 ridoffset
 -    u8 pan 0..128..255
