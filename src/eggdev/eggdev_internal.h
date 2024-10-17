@@ -7,6 +7,8 @@
 #include "opt/fs/fs.h"
 #include "opt/rom/rom.h"
 #include "opt/http/http.h"
+#include "opt/hostio/hostio.h"
+#include "opt/synth/synth.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,8 +36,15 @@ extern struct eggdev {
   int iconImage;
   int posterImage;
   const char *default_rom_path;
+  const char *audio_drivers;
+  int audio_rate;
+  int audio_chanc;
+  int audio_buffer;
+  const char *audio_device;
   
   struct http_context *http;
+  struct hostio *hostio; // (serve). We only use audio, and (hostio) is null if not in use.
+  struct synth *synth;
   volatile int terminate;
   
 } eggdev;

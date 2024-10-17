@@ -389,14 +389,10 @@ static int eggdev_cb_disconnect(struct http_websocket *ws,void *userdata) {
   return 0;
 }
 
-/* serve, main entry point.
+/* Init HTTP context.
  */
  
-int eggdev_main_serve() {
-  int err=0;
-  if (!eggdev.port) eggdev.port=8080;
-  if (eggdev.http) return -1;
-  signal(SIGINT,eggdev_http_rcvsig);
+static int eggdev_serve_init_http() {
   struct http_context_delegate delegate={
     .cb_serve=eggdev_cb_serve,
     .cb_connect=eggdev_cb_connect,
@@ -408,16 +404,88 @@ int eggdev_main_serve() {
   }
   if (http_listen(eggdev.http,eggdev.external?0:1,eggdev.port)<0) {
     fprintf(stderr,"%s: Failed to open %s HTTP server on port %d\n",eggdev.exename,eggdev.external?"external":"local",eggdev.port);
-    err=-2;
-    goto _done_;
+    return -2;
   }
   fprintf(stderr,"%s: Serving HTTP on port %d %s\n",eggdev.exename,eggdev.port,eggdev.external?"*** ON ALL INTERFACES ***":"");
+  return 0;
+}
+
+/* Pump synthesizer.
+ */
+ 
+static void eggdev_serve_cb_pcm_out(int16_t *v,int c,struct hostio_audio *driver) {
+  synth_updatei(v,c,eggdev.synth);
+}
+
+/* Init audio driver and synthesizer, if configured.
+ */
+ 
+static int eggdev_serve_init_audio() {
+  if (!eggdev.audio_drivers) return 0;
+  if (!strcmp(eggdev.audio_drivers,"none")) return 0;
+  struct hostio_audio_delegate delegate={
+    .cb_pcm_out=eggdev_serve_cb_pcm_out,
+  };
+  struct hostio_audio_setup setup={
+    .rate=eggdev.audio_rate,
+    .chanc=eggdev.audio_chanc,
+    .device=eggdev.audio_device,
+    .buffer_size=eggdev.audio_buffer,
+  };
+  if (!(eggdev.hostio=hostio_new(0,&delegate,0))) return -1;
+  if ((hostio_init_audio(eggdev.hostio,eggdev.audio_drivers,&setup)<0)||!eggdev.hostio->audio) {
+    fprintf(stderr,"%s: Failed to initialize audio driver.\n",eggdev.exename);
+    return -2;
+  }
+  struct hostio_audio *driver=eggdev.hostio->audio;
+  if (!(eggdev.synth=synth_new(driver->rate,driver->chanc))) {
+    fprintf(stderr,"%s: Failed to initialize synthesizer. rate=%d chanc=%d\n",eggdev.exename,driver->rate,driver->chanc);
+    return -2;
+  }
+  fprintf(stderr,"%s: Native audio via '%s', rate=%d, chanc=%d\n",eggdev.exename,driver->type->name,driver->rate,driver->chanc);
+  hostio_audio_play(eggdev.hostio,1);
+  return 0;
+}
+
+/* Cleanup.
+ */
+ 
+static void eggdev_serve_cleanup() {
+  if (eggdev.hostio) {
+    hostio_audio_play(eggdev.hostio,0);
+    hostio_del(eggdev.hostio);
+    eggdev.hostio=0;
+  }
+  if (eggdev.synth) {
+    synth_del(eggdev.synth);
+    eggdev.synth=0;
+  }
+  if (eggdev.http) {
+    http_context_del(eggdev.http);
+    eggdev.http=0;
+  }
+}
+
+/* serve, main entry point.
+ */
+ 
+int eggdev_main_serve() {
+  int err=0;
+  if (!eggdev.port) eggdev.port=8080;
+  if (eggdev.http) return -1;
+  signal(SIGINT,eggdev_http_rcvsig);
+  if ((err=eggdev_serve_init_http())<0) goto _done_;
+  if ((err=eggdev_serve_init_audio())<0) goto _done_;
   while (!eggdev.terminate) {
-    if ((err=http_update(eggdev.http,1000))<0) goto _done_;
+    if (eggdev.hostio) {
+      if ((err=http_update(eggdev.http,50))<0) goto _done_;
+      if ((err=hostio_update(eggdev.hostio))<0) goto _done_;
+    } else {
+      if ((err=http_update(eggdev.http,500))<0) goto _done_;
+    }
   }
  _done_:;
-  http_context_del(eggdev.http);
-  eggdev.http=0;
+  eggdev_serve_cleanup();
   if (err>=0) fprintf(stderr,"%s: Normal exit\n",eggdev.exename);
   return err;
 }

@@ -114,6 +114,7 @@ export class MidiEditor {
   
   addEventToChannelCard(card, event) {
     card.classList.add("present");
+    card.style.backgroundColor = this.colorForChid(event.chid);
     switch (event.opcode) {
       case 0xb0: switch (event.a) {
           case 0x07: card.querySelector(".value.volume").innerText = event.b; break;
@@ -281,7 +282,6 @@ export class MidiEditor {
   }
   
   setChannelEgsHeader(chid, serial) {
-    console.log(`setChannelEgsHeaders ${chid}`, serial);
     if (this.file) {
       for (const track of this.file.tracks) {
         for (const event of track) {

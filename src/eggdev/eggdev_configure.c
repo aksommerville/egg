@@ -79,7 +79,7 @@ static void eggdev_print_help_validate() {
  */
  
 static void eggdev_print_help_serve() {
-  fprintf(stderr,"\nUsage: %s serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH]\n\n",eggdev.exename);
+  fprintf(stderr,"\nUsage: %s serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n\n",eggdev.exename);
   fprintf(stderr,
     "Run the dev server, mostly a generic HTTP server.\n"
     "BEWARE: This server is not hardened for use on untrusted networks.\n"
@@ -88,6 +88,7 @@ static void eggdev_print_help_serve() {
     "--write should match one of your --htdocs. The only directory we PUT or DELETE in.\n"
     "--default-rom gets inserted in the runtime's bootstrap.js.\n"
     "See etc/doc/eggdev-http.md for REST API and more details.\n"
+    "--audio to enable audio output and synthesizer, for editing songs and sounds. Try `egg --help` for options.\n"
     "\n"
   );
 }
@@ -169,7 +170,7 @@ static void eggdev_print_help_default() {
     "    bundle -oEXE|HTML ROM [LIB|--recompile]\n"
     "      list ROM|EXE|HTML|DIRECTORY [-fFORMAT]\n"
     "  validate ROM|EXE|HTML|DIRECTORY\n"
-    "     serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH]\n"
+    "     serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n"
     "    config [KEYS...]\n"
     "      dump ROM TYPE:ID\n"
     "   project\n"
@@ -304,6 +305,31 @@ static int eggdev_configure_kv(const char *k,int kc,const char *v,int vc) {
   
   if ((kc==11)&&!memcmp(k,"default-rom",11)) {
     eggdev.default_rom_path=v;
+    return 0;
+  }
+  
+  if ((kc==5)&&!memcmp(k,"audio",5)) {
+    eggdev.audio_drivers=v;
+    return 0;
+  }
+  
+  if ((kc==10)&&!memcmp(k,"audio-rate",10)) {
+    eggdev.audio_rate=vn;
+    return 0;
+  }
+  
+  if ((kc==11)&&!memcmp(k,"audio-chanc",11)) {
+    eggdev.audio_chanc=vn;
+    return 0;
+  }
+  
+  if ((kc==12)&&!memcmp(k,"audio-buffer",12)) {
+    eggdev.audio_buffer=vn;
+    return 0;
+  }
+  
+  if ((kc==12)&&!memcmp(k,"audio-device",12)) {
+    eggdev.audio_device=v;
     return 0;
   }
   
