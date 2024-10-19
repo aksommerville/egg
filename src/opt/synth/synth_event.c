@@ -144,6 +144,20 @@ void synth_play_song(struct synth *synth,int rid,int force,int repeat) {
   synth->song=bus;
 }
 
+/* Play song, handoff and borrow.
+ */
+ 
+int synth_play_song_handoff(struct synth *synth,void *src,int srcc,int repeat) {
+  fprintf(stderr,"%s srcc=%d\n",__func__,srcc);
+  if (src) free(src);
+  return 0;
+}
+ 
+int synth_play_song_borrow(struct synth *synth,const void *src,int srcc,int repeat) {
+  fprintf(stderr,"%s srcc=%d\n",__func__,srcc);
+  return 0;
+}
+
 /* Send event.
  */
 

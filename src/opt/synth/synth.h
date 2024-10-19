@@ -46,8 +46,15 @@ void synth_play_sound(struct synth *synth,int rid);
  */
 void synth_play_song(struct synth *synth,int rid,int force,int repeat);
 
+/* Basically equivalent to synth_play_song(), but accepts a single-use serial dump.
+ * After success, 'handoff' will eventually free (src).
+ */
+int synth_play_song_handoff(struct synth *synth,void *src,int srcc,int repeat);
+int synth_play_song_borrow(struct synth *synth,const void *src,int srcc,int repeat);
+
 /* Rid of current song, or zero if silent.
  * It's zero if an invalid song was requested (not that invalid rid), and also after a non-repeating song finishes.
+ * If we're playing something manual via synth_play_song_handoff or _borrow, this returns 0x00010000.
  */
 int synth_get_song(const struct synth *synth);
 

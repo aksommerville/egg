@@ -10,15 +10,17 @@ import { MidiEventModal } from "./MidiEventModal.js";
 import { MidiChannelFieldModal } from "./MidiChannelFieldModal.js";
 import { EditorModal } from "./EditorModal.js";
 import { EgsChannelEditor } from "./EgsChannelEditor.js";
+import { AudioService } from "./AudioService.js";
  
 export class MidiEditor {
   static getDependencies() {
-    return [HTMLElement, Dom, Data];
+    return [HTMLElement, Dom, Data, AudioService];
   }
-  constructor(element, dom, data) {
+  constructor(element, dom, data, audioService) {
     this.element = element;
     this.dom = dom;
     this.data = data;
+    this.audioService = audioService;
     
     this.res = null;
     this.file = null;
@@ -60,6 +62,8 @@ export class MidiEditor {
         return this.dom.spawn(null, "OPTION", { value: k }, this.labelForOperation(k));
       })
     );
+    this.dom.spawn(globals, "INPUT", { type: "button", value: ">", "on-click": () => this.onPlay() });
+    this.dom.spawn(globals, "INPUT", { type: "button", value: "!!", "on-click": () => this.onStop() });
     
     const channelsSizer = this.dom.spawn(this.element, "DIV", ["channelsSizer"]);
     const channelsScroller = this.dom.spawn(channelsSizer, "DIV", ["channelsScroller"]);
@@ -342,6 +346,15 @@ export class MidiEditor {
     if ((bpm < 4) || (bpm > 0xffffff)) return;
     this.file.setTempoBpm(bpm);
     this.data.dirty(this.res.path, () => this.file.encode());
+  }
+  
+  onPlay() {
+    //TODO Position and repeat. Can we ask for those somehow? I guess repeat can always be zero.
+    this.audioService.play(this.file.encode(), 0, 0).then(() => {}).catch(e => this.dom.modalError(e));
+  }
+  
+  onStop() {
+    this.audioService.stop().then(() => {}).catch(e => this.dom.modalError(e));
   }
   
   onOperation(event) {

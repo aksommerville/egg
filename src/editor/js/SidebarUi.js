@@ -7,20 +7,23 @@ import { Dom } from "./Dom.js";
 import { Data } from "./Data.js";
 import { ResOptionsModal } from "./ResOptionsModal.js";
 import { Actions } from "./Actions.js";
+import { AudioService } from "./AudioService.js";
 
 export class SidebarUi {
   static getDependencies() {
-    return [HTMLElement, Dom, Data, Window, Actions];
+    return [HTMLElement, Dom, Data, Window, Actions, AudioService];
   }
-  constructor(element, dom, data, window, actions) {
+  constructor(element, dom, data, window, actions, audioService) {
     this.element = element;
     this.dom = dom;
     this.data = data;
     this.window = window;
     this.actions = actions;
+    this.audioService = audioService;
     
     this.dataListener = this.data.listenToc(() => this.onTocChanged());
     this.dirtyListener = this.data.listenDirty(state => this.onDirtyStateChanged(state));
+    this.audioListener = this.audioService.listen(e => this.onAudioEvent(e));
     
     this.buildUi();
   }
@@ -28,6 +31,7 @@ export class SidebarUi {
   onRemoveFromDom() {
     this.data.unlistenToc(this.dataListener);
     this.data.unlistenDirty(this.dirtyListener);
+    this.audioService.unlisten(this.audioListener);
   }
   
   setHighlight(path) {
@@ -60,6 +64,14 @@ export class SidebarUi {
       this.dom.spawn(actionsMenu, "OPTION", { value: op }, label);
     }
     actionsMenu.value = "";
+    
+    let nativeOption = null;
+    const audioMenu = this.dom.spawn(this.element, "SELECT", ["audio"], { "on-change": () => this.onAudioChanged() },
+      this.dom.spawn(null, "OPTION", { value: "none" }, "No audio"),
+      nativeOption = this.dom.spawn(null, "OPTION", { value: "server" }, "Native audio"),
+      this.dom.spawn(null, "OPTION", { value: "client" }, "Web audio")
+    );
+    if (!this.audioService.serverAvailable) nativeOption.disabled = true;
     
     const toolbar = this.dom.spawn(this.element, "DIV", ["toolbar"]);
     this.dom.spawn(toolbar, "DIV", ["dirtyState", "clean"])
@@ -205,5 +217,20 @@ export class SidebarUi {
     
     // Load for real by setting location fragment. RootUi will notice.
     this.window.location = "#" + res.path + "?" + clazz.name;
+  }
+  
+  onAudioChanged() {
+    const value = this.element.querySelector("select.audio")?.value;
+    if (!value) return;
+    this.audioService.setOutputMode(value);
+  }
+  
+  onAudioEvent(event) {
+    switch (event.id) {
+      case "availability": {
+          const option = this.element.querySelector("select.audio option[value='server']");
+          if (option) option.disabled = !this.audioService.serverAvailable;
+        } break;
+    }
   }
 }

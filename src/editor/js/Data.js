@@ -123,6 +123,7 @@ export class Data {
     const base = words[words.length - 1] || "";
     let type = words[words.length - 2] || "";
     if (base === "metadata") type = "metadata";
+    else type = type.replace(/^\d+-/, "");
     let rid=0, name="";
     let match = base.match(/^([a-z]{2}-)?(\d*)/);
     if (match) {

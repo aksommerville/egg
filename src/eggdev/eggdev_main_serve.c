@@ -360,6 +360,54 @@ static int eggdev_cb_get_api_resources(struct http_xfer *req,struct http_xfer *r
   return http_xfer_set_status(rsp,200,"OK");
 }
 
+/* POST /api/sound
+ */
+ 
+static int eggdev_cb_post_api_sound(struct http_xfer *req,struct http_xfer *rsp) {
+
+  /* Not configured, must return 501.
+   * Then empty body, must do nothing and return 200.
+   * These are for testing availability of audio.
+   */
+  if (!eggdev.hostio||!eggdev.hostio->audio||!eggdev.synth) return http_xfer_set_status(rsp,501,"Audio not available");
+  struct sr_encoder *body=http_xfer_get_body(req);
+  if (!body->c) return http_xfer_set_status(rsp,200,"OK");
+  
+  /* Eval query params.
+   */
+  int positionms=0,repeat=0;
+  http_xfer_get_param_int(&positionms,req,"position",8);
+  http_xfer_get_param_int(&repeat,req,"repeat",6);
+  
+  /* Pass it through the resource compiler, to get a format amenable to synth.
+   */
+  struct eggdev_res res={0};
+  if (eggdev_res_set_serial(&res,body->v,body->c)<0) return -1;
+  int err=eggdev_compile_sound(&res,0);
+  if (err<0) {
+    eggdev_res_cleanup(&res);
+    return http_xfer_set_status(rsp,500,"Compilation failed");
+  }
+  
+  /* Hand off to the synthesizer.
+   */
+  if (hostio_audio_lock(eggdev.hostio)<0) {
+    eggdev_res_cleanup(&res);
+    return http_xfer_set_status(rsp,500,"Failed to lock audio");
+  }
+  if (synth_play_song_handoff(eggdev.synth,res.serial,res.serialc,repeat)<0) {
+    hostio_audio_unlock(eggdev.hostio);
+    eggdev_res_cleanup(&res);
+    return http_xfer_set_status(rsp,500,"Failed to play song");
+  }
+  res.serial=0; // HANDOFF
+  if (positionms) synth_set_playhead(eggdev.synth,(double)positionms/1000.0);
+  hostio_audio_unlock(eggdev.hostio);
+  
+  eggdev_res_cleanup(&res);
+  return http_xfer_set_status(rsp,200,"OK");
+}
+
 /* Serve HTTP request.
  * Note that errors returned here do not fall through http_update; http handles and eats them.
  */
@@ -369,6 +417,7 @@ static int eggdev_cb_serve(struct http_xfer *req,struct http_xfer *rsp,void *use
     HTTP_METHOD_GET,"/api/make/**",eggdev_cb_get_api_make,
     HTTP_METHOD_GET,"/api/make",eggdev_cb_get_api_make,
     HTTP_METHOD_GET,"/api/resources/**",eggdev_cb_get_api_resources,
+    HTTP_METHOD_POST,"/api/sound",eggdev_cb_post_api_sound,
     HTTP_METHOD_PUT,"",eggdev_cb_put,
     HTTP_METHOD_DELETE,"",eggdev_cb_delete,
     HTTP_METHOD_GET,"",eggdev_cb_get

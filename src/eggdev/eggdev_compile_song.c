@@ -237,7 +237,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
   return tempo;
 }
  
-static int eggdev_song_egs_from_midi(struct sr_encoder *dst,struct eggdev_res *res,struct eggdev_rom *rom) {
+static int eggdev_song_egs_from_midi(struct sr_encoder *dst,struct eggdev_res *res) {
   if (sr_encode_raw(dst,"\0EGS",4)<0) return -1;
   int tempop=dst->c;
   if (sr_encode_raw(dst,"\x02\x00",2)<0) return -1;
@@ -254,7 +254,7 @@ static int eggdev_song_egs_from_midi(struct sr_encoder *dst,struct eggdev_res *r
 /* MIDI from EGS.
  */
  
-static int eggdev_song_midi_from_egs(struct sr_encoder *dst,struct eggdev_res *res,struct eggdev_rom *rom) {
+static int eggdev_song_midi_from_egs(struct sr_encoder *dst,struct eggdev_res *res) {
   int err;
   struct synth_egs_reader reader;
   if (synth_egs_reader_init(&reader,res->serial,res->serialc)<0) return -1;
@@ -394,7 +394,7 @@ static int eggdev_song_midi_from_egs(struct sr_encoder *dst,struct eggdev_res *r
 /* PCM from WAV.
  */
  
-static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *res,struct eggdev_rom *rom) {
+static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *res) {
   const uint8_t *src=res->serial;
   int srcc=res->serialc;
   if ((srcc<12)||memcmp(src,"RIFF",4)||memcmp(src+8,"WAVE",4)) return -1;
@@ -462,7 +462,7 @@ static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *re
 /* WAV from PCM.
  */
  
-static int eggdev_song_wav_from_pcm(struct sr_encoder *dst,struct eggdev_res *res,struct eggdev_rom *rom) {
+static int eggdev_song_wav_from_pcm(struct sr_encoder *dst,struct eggdev_res *res) {
   const uint8_t *src=res->serial;
   if (res->serialc<8) return -1;
   if (res->serialc&1) return -1;
@@ -496,7 +496,7 @@ int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
   
   // MIDI compiles to EGS.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"MThd",4)) {
-    err=eggdev_song_egs_from_midi(&dst,res,rom);
+    err=eggdev_song_egs_from_midi(&dst,res);
     eggdev_res_set_format(res,"egs",3);
     
   // Nothing else is allowed.
@@ -523,7 +523,7 @@ int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
     
   // EGS uncompiles to MIDI.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"\0EGS",4)) {
-    err=eggdev_song_midi_from_egs(&dst,res,rom);
+    err=eggdev_song_midi_from_egs(&dst,res);
     eggdev_res_set_format(res,"mid",3);
     
   // Nothing else is allowed, but we'll keep it verbatim.
@@ -539,7 +539,7 @@ int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
   return 0;
 }
 
-int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom_DONT_USE) {
   struct sr_encoder dst={0};
   int err=0;
   
@@ -553,12 +553,12 @@ int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom) {
   
   // MIDI compiles to EGS.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"MThd",4)) {
-    err=eggdev_song_egs_from_midi(&dst,res,rom);
+    err=eggdev_song_egs_from_midi(&dst,res);
     eggdev_res_set_format(res,"egs",3);
     
   // WAV compiles to PCM.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"RIFF",4)) {
-    err=eggdev_song_pcm_from_wav(&dst,res,rom);
+    err=eggdev_song_pcm_from_wav(&dst,res);
     eggdev_res_set_format(res,"pcm",3);
     
   // Nothing else is allowed.
@@ -589,12 +589,12 @@ int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom) {
     
   // EGS uncompiles to MIDI.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"\0EGS",4)) {
-    err=eggdev_song_midi_from_egs(&dst,res,rom);
+    err=eggdev_song_midi_from_egs(&dst,res);
     eggdev_res_set_format(res,"mid",3);
     
   // PCM uncompiles to WAV.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"\0PCM",4)) {
-    err=eggdev_song_wav_from_pcm(&dst,res,rom);
+    err=eggdev_song_wav_from_pcm(&dst,res);
     eggdev_res_set_format(res,"wav",3);
     
   // Nothing else is allowed, but we'll keep it verbatim.

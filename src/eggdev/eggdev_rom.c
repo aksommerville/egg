@@ -519,6 +519,45 @@ int eggdev_rom_parse_path(
   return 0;
 }
 
+/* Resource from loose string "TYPE:ID".
+ */
+ 
+struct eggdev_res *eggdev_rom_res_by_string(const struct eggdev_rom *rom,const char *src,int srcc) {
+  if (!rom||!src) return 0;
+  if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
+  int sepp=0; for (;sepp<srcc;sepp++) {
+    if (src[sepp]==':') {
+      int tid=eggdev_tid_eval(rom,src,sepp);
+      if (tid<1) return 0;
+      const char *rname=src+sepp+1;
+      int rnamec=srcc-sepp-1;
+      if (rnamec<1) return 0;
+      
+      // If it starts with a digit, it must be rid exactly.
+      if ((rname[0]>='0')&&(rname[0]<='9')) {
+        int rid;
+        if ((sr_int_eval(&rid,rname,rnamec)<2)||(rid<1)||(rid>0xffff)) return 0;
+        int p=eggdev_rom_search(rom,tid,rid);
+        if (p<0) return 0;
+        return rom->resv+p;
+      }
+      
+      // Not a number, so it must be res name exactly.
+      struct eggdev_res *res=rom->resv;
+      int i=rom->resc;
+      for (;i-->0;res++) {
+        if (res->tid<tid) continue;
+        if (res->tid>tid) break;
+        if (res->namec!=rnamec) continue;
+        if (memcmp(res->name,rname,rnamec)) continue;
+        return res;
+      }
+      break;
+    }
+  }
+  return 0;
+}
+
 /* Synthesize basename.
  */
  

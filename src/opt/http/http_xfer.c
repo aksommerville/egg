@@ -296,6 +296,7 @@ static int http_xfer_for_each_param_urlencoded(
 ) {
   int srcp=0,err;
   while (srcp<srcc) {
+    if (src[srcp]=='&') { srcp++; continue; }
     const char *k=src+srcp,*v=0;
     int kc=0,vc=0;
     while ((srcp<srcc)&&(src[srcp]!='=')&&(src[srcp]!='&')) { srcp++; kc++; }

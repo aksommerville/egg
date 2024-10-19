@@ -15,6 +15,11 @@ export class Comm {
     this.playheadConnected = false;
   }
   
+  httpStatusOnly(method, path) {
+    const options = { method };
+    return this.window.fetch(this.composeHttpUrl(path, null), options).then(rsp => rsp.status);
+  }
+  
   http(method, path, query, headers, body, returnType) {
     const options = { method };
     if (headers) options.headers = headers;
@@ -31,7 +36,7 @@ export class Comm {
   httpJson(method, path, query, headers, body) { return this.http(method, path, query, headers, body, "json"); }
   
   composeHttpUrl(path, query) {
-    if (query) path += '?' + Object.keys(query).map(k => encodeUriComponent(k) + '=' + encodeUriComponent(query[k])).join('&');
+    if (query) path += '?' + Object.keys(query).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(query[k])).join('&');
     return path;
   }
   

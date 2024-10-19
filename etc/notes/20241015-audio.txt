@@ -7,9 +7,12 @@ Conversion plan:
 - [x] Eliminate resource manifest in favor of "TID-NAME", I'd been meaning to do that anyway.
 - [x] Update eggdev compile/uncompile with new formats.
 - [x] Update editor. Get the data manipulation all done, but no playback yet.
+- - [x] POST /api/sound
+- [x] New eggdev command to play a sound.
 - [ ] Native synthesizer.
 - [ ] Web synthesizer.
-- [ ] Playback in editor. Must be able to use both WebAudio, and native via the server.
+- [ ] New resource in editor.
+- [x] Playback in editor. Must be able to use both WebAudio, and native via the server.
 - [ ] MIDI input to editor.
 
 Current state:

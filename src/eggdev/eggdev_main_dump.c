@@ -40,26 +40,12 @@ int eggdev_main_dump() {
     eggdev_rom_cleanup(&rom);
     return -2;
   }
-  int tid=0,rid=0,rnamep=0;
-  for (;rname[rnamep];rnamep++) {
-    if (rname[rnamep]==':') {
-      tid=eggdev_tid_eval(&rom,rname,rnamep);
-      sr_int_eval(&rid,rname+rnamep+1,-1);
-      break;
-    }
-  }
-  if ((tid<1)||(rid<1)) {
+  struct eggdev_res *res=eggdev_rom_res_by_string(&rom,rname,-1);
+  if (!res) {
     fprintf(stderr,"%s: Invalid resource identifier '%s'\n",eggdev.exename,rname);
     eggdev_rom_cleanup(&rom);
     return -2;
   }
-  int p=eggdev_rom_search(&rom,tid,rid);
-  if (p<0) {
-    fprintf(stderr,"%s: Resource '%s' (%d:%d) not found\n",path,rname,tid,rid);
-    eggdev_rom_cleanup(&rom);
-    return -2;
-  }
-  const struct eggdev_res *res=rom.resv+p;
   eggdev_hexdump(res->serial,res->serialc);
   eggdev_rom_cleanup(&rom);
   return 0;

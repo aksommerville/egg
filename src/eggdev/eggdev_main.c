@@ -23,6 +23,7 @@ int main(int argc,char **argv) {
   _(dump)
   _(project)
   _(metadata)
+  _(sound)
   #undef _
   else {
     fprintf(stderr,"%s: Unknown command '%s'\n",eggdev.exename,eggdev.command);

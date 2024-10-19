@@ -48,7 +48,8 @@ int eggdev_rom_add_executable(struct eggdev_rom *rom,const char *path);
 int eggdev_rom_add_html_text(struct eggdev_rom *rom,const char *src,int srcc,const char *path);
 int eggdev_rom_add_html(struct eggdev_rom *rom,const char *path);
 int eggdev_rom_add_file(struct eggdev_rom *rom,const char *path);
-int eggdev_rom_add_manifest_file(struct eggdev_rom *rom,const char *path);
+
+struct eggdev_res *eggdev_rom_res_by_string(const struct eggdev_rom *rom,const char *src,int srcc);
 
 /* Extract the meaningful components from a loose resource file's path.
  * (rid) may come out >0xffff for sounds only, with the index in the upper 16 bits.

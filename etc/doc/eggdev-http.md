@@ -46,3 +46,11 @@ Intended for the initial load from the editor.
 This could be done with individual calls but that would be wildly inefficient.
 Beware that overrides will not work; once we find the root of the request, there's no more looking things up.
 Returns `{ path, serial }[]`, no nesting. `serial` is encoded base64. `path` does not include the common root directory.
+
+`POST /api/sound?position=ms&repeat=0|1`
+
+Request body is a MIDI or WAV file, or empty to silence playback.
+Fails 501 if the server launched without an audio driver. You can call with an empty body to test availability.
+Only one thing can play at a time.
+TODO Can we make drums work?
+TODO Can we get playhead feedback over a WebSocket?
