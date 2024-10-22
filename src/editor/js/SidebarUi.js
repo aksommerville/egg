@@ -231,6 +231,10 @@ export class SidebarUi {
           const option = this.element.querySelector("select.audio option[value='server']");
           if (option) option.disabled = !this.audioService.serverAvailable;
         } break;
+      case "outputMode": {
+          const select = this.element.querySelector("select.audio");
+          if (select) select.value = this.audioService.outputMode;
+        } break;
     }
   }
 }

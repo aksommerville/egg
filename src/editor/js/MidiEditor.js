@@ -100,6 +100,7 @@ export class MidiEditor {
   buildBlankChannelCard(parent, chid) {
     const card = this.dom.spawn(parent, "DIV", ["channel"], { "data-chid": chid });
     this.dom.spawn(card, "DIV", ["title"], `Channel ${chid}`);
+    this.dom.spawn(card, "DIV", ["name"], "\u00a0", { "on-click": () => this.onEditChannelName(chid) });
     this.dom.spawn(card, "DIV", ["nonZeroTimeWarning", "hidden"], "Nonzero config time.");
     this.dom.spawn(card, "DIV", ["field"], { "on-click": () => this.onEditChannelField(chid, "volume") },
       this.dom.spawn(null, "SPAN", ["key"], "Volume:"),
@@ -126,6 +127,7 @@ export class MidiEditor {
           default: return;
         } break;
       case 0xff: switch (event.a) {
+          case 0x04: card.querySelector(".name").innerText = new TextDecoder("utf8").decode(event.v) || "\u00a0"; break;
           case 0xf0: card.querySelector(".value.egs").innerText = `${event.v.length} bytes`; break;
           default: return;
         } break;
@@ -340,6 +342,19 @@ export class MidiEditor {
     }
   }
   
+  onEditChannelName(chid) {
+    const element = this.element.querySelector(`.channel[data-chid='${chid}'] .name`);
+    if (!element) return;
+    const pvname = element.innerText.trim();
+    this.dom.modalInput(`Name for channel ${chid}:`, pvname).then((response) => {
+      if (typeof(response) !== "string") return;
+      element.innerText = response || "\u00a0";
+      this.file.setChannelName(chid, response);
+      this.data.dirty(this.res.path, () => this.file.encode());
+      this.populateUi();
+    }).catch(e => this.dom.modalError(e));
+  }
+  
   onTempoChanged() {
     const bpm = +this.element.querySelector("input[name='tempo']")?.value;
     if (!bpm) return;
@@ -350,6 +365,11 @@ export class MidiEditor {
   
   onPlay() {
     //TODO Position and repeat. Can we ask for those somehow? I guess repeat can always be zero.
+    if (this.audioService.outputMode === "none") {
+      if (this.audioService.serverAvailable) this.audioService.outputMode = "server";
+      else this.audioService.outputMode = "client";
+      this.audioService.broadcast({ id: "outputMode" });
+    }
     this.audioService.play(this.file.encode(), 0, 0).then(() => {}).catch(e => this.dom.modalError(e));
   }
   

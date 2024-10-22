@@ -76,6 +76,12 @@ void synth_update_inner(float *v,int c,struct synth *synth);
 
 struct synth_res *synth_res_get(const struct synth *synth,int tid,int rid);
 
+/* Look up a sound resource in our store.
+ * If it exists but hasn't been printed yet, arrange to start that.
+ * Returns WEAK.
+ */
+struct synth_pcm *synth_get_pcm(struct synth *synth,int rid);
+
 /* Bits.
  *************************************************************************/
  

@@ -32,14 +32,14 @@ static void _waveshaper_update_dc(float *v,int framec,struct synth_node *node) {
   int i=framec*node->chanc;
   for (;i-->0;v++) *v=NODE->vv[0];
 }
- 
+
 static void _waveshaper_update(float *v,int framec,struct synth_node *node) {
   int i=framec*node->chanc;
-  float vcf=(float)NODE->vc;
+  float vcf=(float)NODE->vc-1.0f;
   for (;i-->0;v++) {
     float p=(((*v)+1.0f)*vcf)/2.0f;
     if (p<=0.0f) *v=NODE->vv[0];
-    else if (p>=NODE->vc-1) *v=NODE->vv[NODE->vc-1];
+    else if (p>=vcf) *v=NODE->vv[NODE->vc-1];
     else {
       int pi=(int)p;
       float bw=p-(float)pi;
@@ -84,12 +84,9 @@ int synth_node_waveshaper_configure(struct synth_node *node,const void *src,int 
     NODE->vc=1;
     return 0;
   }
-  // If input is even, double it. Odd, 2n-1.
   int dstc=vc<<1;
-  if (vc&1) dstc--;
   if (!(NODE->vv=malloc(sizeof(float)*dstc))) return -1;
   float *dst=NODE->vv+vc;
-  if (vc&1) dst--;
   // Read from (src) into the back half of (NODE->vv).
   int i=vc;
   for (;i-->0;SRC+=2,dst++) {

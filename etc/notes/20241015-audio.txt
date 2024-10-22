@@ -13,13 +13,17 @@ Conversion plan:
 - [ ] Native synthesizer.
 - [ ] Web synthesizer.
 - [ ] Native drums.
+- [ ] Native wheel.
 - [ ] Native subtractive voice and IIR filter -- Punted until WebAudio is done, so I can compare closely while working.
 - [ ] New resource in editor.
+- [ ] Add arbitrary events in editor.
 - [ ] EGS Channel Header as hex dump in editor, or something. Must be stupid easy to copy an existing header across resources.
-- [ ] ^ And to help with that, maybe enable one of the Meta Text events like Channel Name?
+- [x] ^ And to help with that, maybe enable one of the Meta Text events like Channel Name?
 - [ ] Editor: Intuitive controls for post.
 - [x] Playback in editor. Must be able to use both WebAudio, and native via the server.
 - [ ] MIDI input to editor.
+- [ ] eggdev and editor need to be able to reach sound resources for drums... how?
+- [ ] Editor UI for drums: No, not even close
 
 Current state:
 - BAD: Data source from MIDI, WAV, EGS, and MSF.

@@ -33,6 +33,50 @@ export class MidiFile {
     return Math.floor(60000000 / this.getTempo());
   }
   
+  setChannelName(chid, name) {
+    let preferTrack = this.tracks[0];
+    for (const track of this.tracks) {
+      for (const event of track) {
+        if ((event.chid === chid) && (event.opcode === 0xff) && (event.a === 0x04)) {
+          if (name) {
+            event.v = new TextEncoder("utf8").encode(name);
+          } else {
+            this.deleteEvent(event.id);
+          }
+          return;
+        } else if (event.chid === chid) {
+          preferTrack = track;
+        }
+      }
+    }
+    if (!preferTrack) {
+      preferTrack = [];
+      this.tracks.push(preferTrack);
+    }
+    let pfxp = preferTrack.findIndex(e => ((e.opcode === 0xff) && (e.a === 0x20) && (e.v?.[0] === chid)));
+    if (pfxp < 0) {
+      preferTrack.splice(0, 0, {
+        time: 0,
+        id: this.nextEventId++,
+        chid: chid,
+        opcode: 0xff,
+        a: 0x20,
+        b: 0,
+        v: new Uint8Array([chid]),
+      });
+      pfxp = 0;
+    }
+    preferTrack.splice(pfxp + 1, 0, {
+      time: preferTrack[pfxp].time,
+      id: this.nextEventId++,
+      chid: chid,
+      opcode: 0xff,
+      a: 0x04,
+      b: 0,
+      v: new TextEncoder("utf8").encode(name),
+    });
+  }
+  
   eventById(id) {
     for (const track of this.tracks) {
       const event = track.find(e => e.id === id);

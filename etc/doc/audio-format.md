@@ -39,6 +39,8 @@ Channel config is omitted for channels with no notes.
 
 If you set a channel's volume to zero, compiler omits all of its config and notes.
 
+Meta 0x04 Instrument Name is preserved as a comment for the editor. It is dropped during compile.
+
 ## EGS Format
 
 Universal Header, multiple Channel Header, u8 0xff Events Introducer, multiple Event.

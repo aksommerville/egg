@@ -235,6 +235,20 @@ static struct synth_pcm *synth_acquire_pcm(struct synth *synth,const void *src,i
   return 0;
 }
 
+/* Acquire PCM, for other synth parties (synth_node_channel).
+ */
+ 
+struct synth_pcm *synth_get_pcm(struct synth *synth,int rid) {
+  struct synth_res *res=synth_res_get(synth,EGG_TID_sound,rid);
+  if (!res) return 0;
+  if (!res->pcm) {
+    if (!(res->pcm=synth_acquire_pcm(synth,res->src,res->srcc,rid))) {
+      res->pcm=synth_pcm_new(1);
+    }
+  }
+  return res->pcm;
+}
+
 /* Play sound.
  */
 

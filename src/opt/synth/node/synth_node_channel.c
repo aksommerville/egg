@@ -19,6 +19,7 @@ struct synth_node_channel {
 // mode==EGS_MODE_DRUM:
   struct synth_drum {
     int rid; // absolute
+    int warned; // Nonzero if there's a problem (either rid zero, or the named resource doesn't exist), and we've logged it.
     float pan; // -1..1
     float trimlo;
     float trimhi;
@@ -80,7 +81,7 @@ static void _channel_update_post(float *v,int framec,struct synth_node *node) {
   memset(NODE->buffer,0,bufsize);
   _channel_update_straight(NODE->buffer,framec,node);
   if (NODE->post) NODE->post->update(NODE->buffer,framec,NODE->post);
-  synth_signal_mlts(v,samplec,SYNTH_GLOBAL_TRIM);
+  synth_signal_mlts(NODE->buffer,samplec,SYNTH_GLOBAL_TRIM);
   synth_signal_add(v,NODE->buffer,samplec);
 }
 
@@ -331,7 +332,33 @@ int synth_node_channel_get_chid(const struct synth_node *node) {
  */
  
 static void channel_begin_DRUM(struct synth_node *node,uint8_t noteid,float velocity) {
-  fprintf(stderr,"%s TODO 0x%02x %f\n",__func__,noteid,velocity);
+  if (!NODE->drumv||(noteid>=0x80)) return;
+  struct synth_drum *drum=NODE->drumv+noteid;
+  if (drum->warned) return;
+  if (!drum->rid) {
+    drum->warned=1;
+    fprintf(stderr,"WARNING: Drum channel %d, noteid 0x%02x, note tried to play but no sound resource assigned.\n",NODE->chid,noteid);
+    return;
+  }
+  struct synth_pcm *pcm=synth_get_pcm(node->synth,drum->rid);
+  if (!pcm) {
+    drum->warned=1;
+    fprintf(stderr,"WARNING: Drum channel %d, noteid 0x%02x, sound:%d does not exist or failed to print.\n",NODE->chid,noteid,drum->rid);
+    return;
+  }
+  struct synth_node *voice=synth_node_spawn(node,&synth_node_type_pcm,0);
+  if (!voice) return;
+  float trim;
+  if (velocity<=0.0f) trim=drum->trimlo;
+  else if (velocity>=1.0f) trim=drum->trimhi;
+  else trim=drum->trimhi*velocity+drum->trimlo*(1.0f-velocity);
+  if (
+    (synth_node_pcm_configure(voice,pcm,trim,drum->pan,drum->rid)<0)||
+    (synth_node_ready(voice)<0)
+  ) {
+    synth_node_remove_child(node,voice);
+    return;
+  }
 }
 
 /* Begin wave note.
@@ -393,7 +420,7 @@ void synth_node_channel_begin_note(struct synth_node *node,uint8_t noteid,uint8_
   float freq=node->synth->freq_by_noteid[noteid];
   //TODO Apply wheel.
   switch (NODE->mode) {
-    case EGS_MODE_DRUM: channel_begin_DRUM(node,freq,fvel); break;
+    case EGS_MODE_DRUM: channel_begin_DRUM(node,noteid,fvel); break;
     case EGS_MODE_WAVE: channel_begin_WAVE(node,freq,fvel,durms); break;
     case EGS_MODE_FM: channel_begin_FM(node,freq,fvel,durms); break;
     case EGS_MODE_SUB: channel_begin_SUB(node,freq,fvel,durms); break;

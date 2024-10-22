@@ -65,10 +65,14 @@ static void _wave_update_mono_flatrate(float *v,int framec,struct synth_node *no
 }
  
 static void _wave_update_stereo_flatrate(float *v,int framec,struct synth_node *node) {
+  float hi=NODE->level.v;
+  float lo=hi;
   for (;framec--;v+=2) {
     float sample=NODE->wave[NODE->p>>SYNTH_WAVE_SHIFT];
     NODE->p+=NODE->dp;
-    sample*=synth_env_update(&NODE->level);
+    float e=synth_env_update(&NODE->level);
+    if (e<lo) lo=e; else if (e>hi) hi=e;
+    sample*=e;
     v[0]+=sample*NODE->triml;
     v[1]+=sample*NODE->trimr;
   }
