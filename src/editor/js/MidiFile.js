@@ -20,7 +20,7 @@ export class MidiFile {
   }
   
   getTempo() {
-    const event = this.getZEvent({ chid: 0xff, opcode: 0xff, a: 0x51 });
+    const event = this.getZEvent({ opcode: 0xff, a: 0x51 });
     if (!event || (event.v?.length !== 3)) return 500000;
     return (event.v[0] << 16) | (event.v[1] << 8) | event.v[2];
   }

@@ -162,13 +162,14 @@ static void eggdev_print_help_metadata() {
  */
  
 static void eggdev_print_help_sound() {
-  fprintf(stderr,"\nUsage: %s sound [ROM TYPE:ID] [FILE] [-oPATH] [--audio=DRIVER] [--audio-rate=HZ] [--audio-chanc=1|2] [--audio-buffer=INT] [--audio-device=STRING]\n\n",eggdev.exename);
+  fprintf(stderr,"\nUsage: %s sound [ROM TYPE:ID] [FILE] [-oPATH] [--audio=DRIVER] [--audio-rate=HZ] [--audio-chanc=1|2] [--audio-buffer=INT] [--audio-device=STRING] [--repeat]\n\n",eggdev.exename);
   fprintf(stderr,
     "Play a sound using the same audio driver and synthesizer available to the native runtime.\n"
     "We accept all ROM and source formats, ie: MIDI, WAV, EGS, PCM.\n"
     "With '-o', dump raw PCM to a file.\n"
     "One of [ROM TYPE:ID], [FILE] is required.\n"
-    "[-oPATH], [--audio-DRIVER] typically you specify just one, but both is fine and neither is fine too, to only show the summary.\n"
+    "[-oPATH], [--audio=DRIVER] typically you specify just one, but both is fine and neither is fine too, to only show the summary.\n"
+    "--repeat is only allowed with a driver and no output file.\n"
     "After synth completes, we print runtime, peak, and RMS to stdout.\n"
     "Mind that the output we analyze will always include some amount of trailing silence.\n"
     "\n"
@@ -192,7 +193,7 @@ static void eggdev_print_help_default() {
     "      dump ROM TYPE:ID\n"
     "   project\n"
     "  metadata ROM [--lang=all|LANG] [--iconImage] [--posterImage]\n"
-    "     sound [ROM TYPE:ID] [FILE] [-oPATH] [--audio=DRIVER] [--audio-rate=HZ] [--audio-chanc=1|2] [--audio-buffer=INT] [--audio-device=STRING]\n"
+    "     sound [ROM TYPE:ID] [FILE] [-oPATH] [--audio=DRIVER] [--audio-rate=HZ] [--audio-chanc=1|2] [--audio-buffer=INT] [--audio-device=STRING] [--repeat]\n"
     "\n"
   );
 }
@@ -349,6 +350,11 @@ static int eggdev_configure_kv(const char *k,int kc,const char *v,int vc) {
   
   if ((kc==12)&&!memcmp(k,"audio-device",12)) {
     eggdev.audio_device=v;
+    return 0;
+  }
+  
+  if ((kc==6)&&!memcmp(k,"repeat",6)) {
+    eggdev.repeat=vn;
     return 0;
   }
   

@@ -1,11 +1,34 @@
 #include "eggdev_internal.h"
 #include <math.h>
 #include <unistd.h>
+#include <time.h>
+#include <signal.h>
 
 static struct sr_encoder capture={0};
 static int samplec=0;
 static int16_t lo=0,hi=0;
 static double sqsum=0.0;
+
+/* Signal handler.
+ */
+ 
+static void eggdev_sound_rcvsig(int sigid) {
+  switch (sigid) {
+    case SIGINT: if (++(eggdev.terminate)>=3) {
+        fprintf(stderr,"%s: Too many unprocessed signals\n",eggdev.exename);
+        exit(1);
+      } break;
+  }
+}
+
+/* Current CPU time.
+ */
+ 
+static double now_cpu() {
+  struct timespec tv={0};
+  clock_gettime(CLOCK_PROCESS_CPUTIME_ID,&tv);
+  return (double)tv.tv_sec+(double)tv.tv_nsec/1000000000.0;
+}
 
 /* Callback from audio driver. Also called manually with (driver) null, if we're running headless.
  */
@@ -22,7 +45,7 @@ static void eggdev_sound_cb_pcm_out(int16_t *v,int c,struct hostio_audio *maybe)
   samplec+=c;
   for (;c-->0;v++) {
     if (*v<lo) lo=*v; else if (*v>hi) hi=*v;
-    double norm=(*v)*32767.0;
+    double norm=(*v)/32767.0;
     sqsum+=norm*norm;
   }
 }
@@ -32,7 +55,6 @@ static void eggdev_sound_cb_pcm_out(int16_t *v,int c,struct hostio_audio *maybe)
  */
  
 static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,const char *path) {
-  fprintf(stderr,"%s '%s' srcc=%d\n",__func__,path,srcc);
   capture.c=0;
   samplec=0;
   lo=0;
@@ -79,18 +101,22 @@ static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,co
   
   /* Begin playing the song.
    */
-  if (synth_play_song_borrow(eggdev.synth,src,srcc,0)<0) {
+  int repeat=0;
+  if (eggdev.repeat&&eggdev.hostio&&!eggdev.dstpath) repeat=1;
+  else if (eggdev.repeat) fprintf(stderr,"%s:WARNING: Ignoring '--repeat' due to output path or no driver.\n",eggdev.exename);
+  if (synth_play_song_borrow(eggdev.synth,src,srcc,repeat)<0) {
     fprintf(stderr,"%s: Error starting playback.\n",path);
     return -2;
   }
   
-  /* If we have a driver, start it up and sleep until playback finishes.
+  /* If we have a driver, start it up and sleep until all the busses (just 1) get dropped.
    */
+  double starttime=now_cpu();
   if (eggdev.hostio) {
     if (hostio_audio_play(eggdev.hostio,1)<0) return -1;
-    for (;;) {
+    while (!eggdev.terminate) {
       if (hostio_update(eggdev.hostio)<0) return -1;
-      if (!synth_get_song(eggdev.synth)) break;
+      if (!synth_count_busses(eggdev.synth)) break;
       usleep(20000);
     }
     hostio_audio_play(eggdev.hostio,0);
@@ -99,10 +125,11 @@ static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,co
    */
   } else {
     int16_t tmp[1024];
-    while (synth_get_song(eggdev.synth)) {
+    while (!eggdev.terminate&&synth_count_busses(eggdev.synth)) {
       eggdev_sound_cb_pcm_out(tmp,sizeof(tmp)>>1,0);
     }
   }
+  double endtime=now_cpu();
   
   /* If we're capturing, write that out.
    */
@@ -123,7 +150,13 @@ static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,co
     double rms=sqrt(sqsum/(double)samplec);
     int framec=samplec/eggdev.audio_chanc;
     double dur=(double)framec/(double)eggdev.audio_rate;
-    fprintf(stdout,"%s: %d frames, %.03f s, peak=%.06f, rms=%.06f\n",path,framec,dur,peak,rms);
+    double load=0.0;
+    int invload=0;
+    if (starttime<endtime) {
+      load=(endtime-starttime)/dur;
+      invload=lround(1.0/load);
+    }
+    fprintf(stdout,"%s: %d frames, %.03f s, peak=%.06f, rms=%.06f, cpu=%06f(%dx)\n",path,framec,dur,peak,rms,load,invload);
   } else {
     fprintf(stdout,"%s: No output.\n",path);
   }
@@ -136,6 +169,8 @@ static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,co
  
 int eggdev_main_sound() {
   int err;
+  
+  signal(SIGINT,eggdev_sound_rcvsig);
   
   /* Positional arguments must be one of: [ROM,RES], [FILE]
    */
@@ -212,5 +247,5 @@ int eggdev_main_sound() {
   }
   free(src);
   eggdev_rom_cleanup(&rom);
-  return 0;
+  return err;
 }

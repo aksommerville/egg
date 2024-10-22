@@ -1,27 +1,33 @@
 /* synth_printer.h
- * Run a private mono bus to generate a PCM dump.
+ * Plays an EGS song and captures into a mono buffer.
  */
  
 #ifndef SYNTH_PRINTER_H
 #define SYNTH_PRINTER_H
 
 struct synth_printer {
-  struct synth *synth; // WEAK
-  struct synth_pcm *pcm; // STRONG. Length is established at startup, but we may reduce it at the end. Samples are zero until we reach them.
-  struct synth_node *bus; // STRONG
-  int p;
+  int TODO;
+  struct synth_pcm *pcm;
 };
 
-void synth_printer_del(struct synth_printer *printer);
+//TODO
+static inline void synth_printer_del(struct synth_printer *printer) {}
+static inline struct synth_printer *synth_printer_new(struct synth *synth,const void *src,int srcc) { return 0; }
+static inline int synth_printer_update(struct synth_printer *printer,int c) { return 0; }
 
-/* Caller must arrange to keep (src) in scope until printing completes.
- */
-struct synth_printer *synth_printer_new(struct synth *synth,const void *src,int srcc);
+struct synth_pcm {
+  int refc;
+  int c;
+  float v[];
+};
 
-/* Print at least (c) more samples, or up to the end.
- * Return >0 if more remains to be printed.
- * Update with (c<=0) to only test completion.
+void synth_pcm_del(struct synth_pcm *pcm);
+int synth_pcm_ref(struct synth_pcm *pcm);
+struct synth_pcm *synth_pcm_new(int c);
+
+/* Decode PCM resource.
+ * These have a declared sample rate, and we resample to suit the provided master rate.
  */
-int synth_printer_update(struct synth_printer *printer,int c);
+static inline struct synth_pcm *synth_pcm_decode(int rate,const void *src,int srcc) { return 0; }//TODO
 
 #endif

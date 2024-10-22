@@ -1,29 +1,19 @@
 #include "../synth_internal.h"
 
-#define FM_PSCALE (SYNTH_WAVE_SIZE_SAMPLES/(M_PI*2.0f))
-#define FM_WAVE_MASK (SYNTH_WAVE_SIZE_SAMPLES-1)
-
 /* Instance definition.
  */
  
 struct synth_node_fm {
   struct synth_node hdr;
-  float baserate;
-  float carrate;
-  float velocity;
-  int durframes;
-  float mixl,mixr;
+  float carp;
+  float dpbase; // delta radians
+  float modp;
+  float modrate;
+  float range;
+  float triml,trimr;
   struct synth_env_runner level;
-  float carp,modp; // -pi..pi
-  const struct synth_wave *carwave; // WEAK
-  const struct synth_wave *modwave; // WEAK
   struct synth_env_runner pitchenv;
-  const struct synth_env *pitchenv_source;
-  const float *pitchlfo;
-  float fmrate,fmrange;
   struct synth_env_runner rangeenv;
-  const struct synth_env *rangeenv_source;
-  const float *rangelfo;
 };
 
 #define NODE ((struct synth_node_fm*)node)
@@ -34,185 +24,185 @@ struct synth_node_fm {
 static void _fm_del(struct synth_node *node) {
 }
 
-/* Update.
- */
- 
-static void _fm_update_universal(float *v,int framec,struct synth_node *node) {
-  const float *src=NODE->carwave->v;
-  const float *msrc=NODE->modwave->v;
-  const float *rlfo=NODE->rangelfo;
-  const float *pitchlfo=NODE->pitchlfo;
-  for (;framec-->0;) {
-    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
-    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
-    
-    if (NODE->rangeenv_source) {
-      mod*=synth_env_runner_next(NODE->rangeenv);
-    }
-    if (NODE->rangelfo) {
-      mod*=(*rlfo);
-      rlfo++;
-    }
-    
-    float carrate=NODE->carrate;
-    if (NODE->pitchenv.env) {
-      int cents=(int)synth_env_runner_next(NODE->pitchenv);
-      float scale=synth_multiplier_from_cents(cents);
-      carrate*=scale;
-    }
-    if (pitchlfo) {
-      int cents=(int)(*pitchlfo);
-      float scale=synth_multiplier_from_cents(cents);
-      carrate*=scale;
-      pitchlfo++;
-    }
-    NODE->modp+=carrate*NODE->fmrate;
-    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
-    
-    NODE->carp+=carrate+carrate*mod*NODE->fmrange;
-    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
-    
-    sample*=synth_env_runner_next(NODE->level);
-    (*v)+=sample*NODE->mixl; v++;
-    if (node->chanc==2) {
-      (*v)+=sample*NODE->mixr; v++;
-    }
-  }
-  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
-}
- 
-static void _fm_update_fixedpitch_stereo(float *v,int framec,struct synth_node *node) {
-  const float *src=NODE->carwave->v;
-  const float *msrc=NODE->modwave->v;
-  const float *rlfo=NODE->rangelfo;
-  for (;framec-->0;v+=2) {
-    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
-    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
-    NODE->modp+=NODE->carrate*NODE->fmrate;
-    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
-    
-    if (NODE->rangeenv_source) {
-      mod*=synth_env_runner_next(NODE->rangeenv);
-    }
-    if (NODE->rangelfo) {
-      mod*=(*rlfo);
-      rlfo++;
-    }
-    
-    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
-    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
-    
-    sample*=synth_env_runner_next(NODE->level);
-    v[0]+=sample*NODE->mixl;
-    v[1]+=sample*NODE->mixr;
-  }
-  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
-}
- 
-static void _fm_update_fixedpitch_mono(float *v,int framec,struct synth_node *node) {
-  const float *src=NODE->carwave->v;
-  const float *msrc=NODE->modwave->v;
-  const float *rlfo=NODE->rangelfo;
-  for (;framec-->0;v+=1) {
-    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
-    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
-    NODE->modp+=NODE->carrate*NODE->fmrate;
-    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
-    
-    if (NODE->rangeenv_source) {
-      mod*=synth_env_runner_next(NODE->rangeenv);
-    }
-    if (NODE->rangelfo) {
-      mod*=(*rlfo);
-      rlfo++;
-    }
-    
-    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
-    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
-    
-    sample*=synth_env_runner_next(NODE->level);
-    v[0]+=sample*NODE->mixl;
-  }
-  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
-}
- 
-static void _fm_update_fixedpitch_fixedrange_stereo(float *v,int framec,struct synth_node *node) {
-  const float *src=NODE->carwave->v;
-  const float *msrc=NODE->modwave->v;
-  for (;framec-->0;v+=2) {
-    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
-    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
-    NODE->modp+=NODE->carrate*NODE->fmrate;
-    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
-    
-    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
-    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
-    
-    sample*=synth_env_runner_next(NODE->level);
-    v[0]+=sample*NODE->mixl;
-    v[1]+=sample*NODE->mixr;
-  }
-  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
-}
- 
-static void _fm_update_fixedpitch_fixedrange_mono(float *v,int framec,struct synth_node *node) {
-  const float *src=NODE->carwave->v;
-  const float *msrc=NODE->modwave->v;
-  for (;framec-->0;v+=1) {
-    float sample=src[((int)(NODE->carp*FM_PSCALE))&FM_WAVE_MASK];
-    float mod=msrc[((int)(NODE->modp*FM_PSCALE))&FM_WAVE_MASK];
-    NODE->modp+=NODE->carrate*NODE->fmrate;
-    while (NODE->modp>M_PI) NODE->modp-=M_PI*2.0f;
-    
-    NODE->carp+=NODE->carrate+NODE->carrate*mod*NODE->fmrange;
-    while (NODE->carp>M_PI) NODE->carp-=M_PI*2.0f;
-    
-    sample*=synth_env_runner_next(NODE->level);
-    v[0]+=sample*NODE->mixl;
-  }
-  if (synth_env_runner_is_finished(&NODE->level)) node->finished=1;
-}
-
 /* Init.
  */
  
 static int _fm_init(struct synth_node *node) {
-  node->update=_fm_update_universal;
   return 0;
+}
+
+/* Update.
+ * Hooks are named "[ms][p][r]" for the 3 switches, which turn off for optimization:
+ */
+ 
+static void _fm_update_mpr(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=1) {
+    float cardp=NODE->dpbase;
+    cardp*=powf(2.0f,synth_env_update(&NODE->pitchenv));
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=synth_env_update(&NODE->rangeenv);
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_spr(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=2) {
+    float cardp=NODE->dpbase;
+    cardp*=powf(2.0f,synth_env_update(&NODE->pitchenv));
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=synth_env_update(&NODE->rangeenv);
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+    v[1]+=sample*NODE->trimr;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_mp(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=1) {
+    float cardp=NODE->dpbase;
+    cardp*=powf(2.0f,synth_env_update(&NODE->pitchenv));
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=NODE->range;
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_sp(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=2) {
+    float cardp=NODE->dpbase;
+    cardp*=powf(2.0f,synth_env_update(&NODE->pitchenv));
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=NODE->range;
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+    v[1]+=sample*NODE->trimr;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_mr(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=1) {
+    float cardp=NODE->dpbase;
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=synth_env_update(&NODE->rangeenv);
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_sr(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=2) {
+    float cardp=NODE->dpbase;
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=synth_env_update(&NODE->rangeenv);
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+    v[1]+=sample*NODE->trimr;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_m(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=1) {
+    float cardp=NODE->dpbase;
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=NODE->range;
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
+}
+ 
+static void _fm_update_s(float *v,int framec,struct synth_node *node) {
+  for (;framec--;v+=2) {
+    float cardp=NODE->dpbase;
+    
+    float sample=sinf(NODE->carp);
+    float mod=sinf(NODE->modp);
+    NODE->modp+=cardp*NODE->modrate;
+    if (NODE->modp>=M_PI) NODE->modp-=M_PI*2.0f;
+    mod*=NODE->range;
+    NODE->carp+=cardp+cardp*mod;
+    
+    sample*=synth_env_update(&NODE->level);
+    v[0]+=sample*NODE->triml;
+    v[1]+=sample*NODE->trimr;
+  }
+  if (synth_env_is_finished(&NODE->level)) node->finished=1;
 }
 
 /* Ready.
  */
  
 static int _fm_ready(struct synth_node *node) {
-  if (!NODE->carwave) NODE->carwave=&node->synth->sine;
-  if (!NODE->modwave) NODE->modwave=&node->synth->sine;
-  synth_env_runner_init(&NODE->rangeenv,NODE->rangeenv_source,NODE->velocity);
-  synth_env_runner_release_later(&NODE->rangeenv,NODE->durframes);
-  synth_env_runner_init(&NODE->pitchenv,NODE->pitchenv_source,NODE->velocity);
-  synth_env_runner_release_later(&NODE->pitchenv,NODE->durframes);
-  
-  /* _fm_update_universal is selected by default and it's OK to keep that, no matter how we're configured.
-   * A few common cases have more efficient updaters, we'll check for those here.
-   */
-  if (node->chanc==2) {
-    if (!NODE->pitchlfo&&!NODE->pitchenv_source) {
-      if (!NODE->rangelfo&&!NODE->rangeenv_source) {
-        node->update=_fm_update_fixedpitch_fixedrange_stereo;
-      } else {
-        node->update=_fm_update_fixedpitch_stereo;
-      }
-    }
-  } else if (node->chanc==1) {
-    if (!NODE->pitchlfo&&!NODE->pitchenv_source) {
-      if (!NODE->rangelfo&&!NODE->rangeenv_source) {
-        node->update=_fm_update_fixedpitch_fixedrange_mono;
-      } else {
-        node->update=_fm_update_fixedpitch_mono;
-      }
-    }
+  if (!synth_env_is_ready(&NODE->level)) return -1;
+  int stereo=(node->chanc==2),pitch=0,range=0;
+  if (NODE->pitchenv.atkt) {
+    if (!synth_env_is_ready(&NODE->pitchenv)) return -1;
+    pitch=1;
   }
-  
+  if (NODE->rangeenv.atkt) {
+    if (!synth_env_is_ready(&NODE->rangeenv)) return -1;
+    range=1;
+  }
+  switch ((stereo?0x100:0)|(pitch?0x010:0)|(range?0x001:0)) {
+    case 0x000: node->update=_fm_update_m; break;
+    case 0x001: node->update=_fm_update_mr; break;
+    case 0x010: node->update=_fm_update_mp; break;
+    case 0x011: node->update=_fm_update_mpr; break;
+    case 0x100: node->update=_fm_update_s; break;
+    case 0x101: node->update=_fm_update_sr; break;
+    case 0x110: node->update=_fm_update_sp; break;
+    case 0x111: node->update=_fm_update_spr; break;
+  }
   return 0;
 }
 
@@ -227,55 +217,33 @@ const struct synth_node_type synth_node_type_fm={
   .ready=_fm_ready,
 };
 
-/* Setup.
+/* Trivial accessors.
  */
  
-int synth_node_fm_setup(
-  struct synth_node *node,
-  const struct synth_wave *wave,
-  float fmrate,float fmrange,
-  float rate,float velocity,int durframes,
-  const struct synth_env *env,
-  float trim,float pan
-) {
-  if (!node||(node->type!=&synth_node_type_fm)||node->ready) return -1;
-  NODE->baserate=rate*M_PI*2.0f;
-  NODE->carrate=NODE->baserate;
-  NODE->velocity=velocity;
-  NODE->durframes=durframes;
-  NODE->fmrate=fmrate;
-  NODE->fmrange=fmrange;
-  
-  NODE->mixl=NODE->mixr=trim;
-  if (node->chanc==2) {
-    if (pan<0.0f) NODE->mixr*=pan+1.0f;
-    else if (pan>0.0f) NODE->mixl*=1.0f-pan;
-  }
-  
-  synth_env_runner_init(&NODE->level,env,velocity);
-  synth_env_runner_release_later(&NODE->level,durframes);
-  
-  NODE->carwave=wave;
-  
-  return 0;
+struct synth_env_runner *synth_node_fm_get_levelenv(struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_fm)) return 0;
+  return &NODE->level;
 }
 
-void synth_node_fm_set_pitch_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo) {
-  if (!node||(node->type!=&synth_node_type_fm)||node->ready) return;
-  NODE->pitchenv_source=env;
-  NODE->pitchlfo=lfo;
+struct synth_env_runner *synth_node_fm_get_pitchenv(struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_fm)) return 0;
+  return &NODE->pitchenv;
 }
 
-void synth_node_fm_set_modulation_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo) {
-  if (!node||(node->type!=&synth_node_type_fm)||node->ready) return;
-  NODE->rangeenv_source=env;
-  NODE->rangelfo=lfo;
+struct synth_env_runner *synth_node_fm_get_rangeenv(struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_fm)) return 0;
+  return &NODE->rangeenv;
 }
 
-/* Adjust rate.
+/* Configure.
  */
-
-void synth_node_fm_adjust_rate(struct synth_node *node,float multiplier) {
-  if (!node||(node->type!=&synth_node_type_fm)) return;
-  NODE->carrate=NODE->baserate*multiplier;
+ 
+int synth_node_fm_configure(struct synth_node *node,float modrate,float range,float freq,float triml,float trimr) {
+  if (!node||(node->type!=&synth_node_type_fm)||node->ready) return -1;
+  NODE->modrate=modrate;
+  NODE->range=range;
+  NODE->dpbase=freq*M_PI*2.0f;
+  NODE->triml=triml;
+  NODE->trimr=trimr;
+  return 0;
 }

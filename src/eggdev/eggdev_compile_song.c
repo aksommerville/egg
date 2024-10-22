@@ -89,7 +89,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
           case 0x0a: WARN_NONZERO else { chcfgv[event.chid].pan=(event.b<<1)|((event.b&0x20)?1:0); } break;
         } break;
       case 0xff: switch (event.a) {
-          case 0xf0: WARN_NONZERO else { chcfgv[event.chid].bin=event.v; chcfg[event.chid].binc=event.c; } break;
+          case 0xf0: WARN_NONZERO else { chcfgv[event.chid].bin=event.v; chcfgv[event.chid].binc=event.c; } break;
           case 0x51: WARN_NONZERO else if (event.c==3) tempo=((event.v[0]<16)|(event.v[1]<<8)|event.v[2])/1000; break;
         } break;
     }

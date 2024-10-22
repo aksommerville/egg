@@ -41,6 +41,7 @@ extern struct eggdev {
   int audio_chanc;
   int audio_buffer;
   const char *audio_device;
+  int repeat;
   
   struct http_context *http;
   struct hostio *hostio; // (serve). We only use audio, and (hostio) is null if not in use.

@@ -1,75 +1,87 @@
 #include "synth_internal.h"
-#include <string.h>
-#include <math.h>
 
-/* Generate primitives.
+/* Require the global sine wave.
  */
  
-void synth_wave_generate_sine(struct synth_wave *wave) {
-  float *v=wave->v;
+int synth_require_sine(struct synth *synth) {
+  if (synth->sine) return 0;
+  if (!(synth->sine=malloc(sizeof(float)*SYNTH_WAVE_SIZE_SAMPLES))) return -1;
+  float *dst=synth->sine;
+  float p=0.0f,dp=(M_PI*2.0f)/SYNTH_WAVE_SIZE_SAMPLES,i=SYNTH_WAVE_SIZE_SAMPLES;
+  for (;i-->0;dst++,p+=dp) *dst=sinf(p);
+  return 0;
+}
+
+/* Primitives.
+ */
+ 
+static void synth_wave_generate_sine(float *dst,struct synth *synth) {
+  if (synth_require_sine(synth)<0) {
+    memset(dst,0,SYNTH_WAVE_SIZE_SAMPLES*sizeof(float));
+    return;
+  }
+  memcpy(dst,synth->sine,SYNTH_WAVE_SIZE_SAMPLES*sizeof(float));
+}
+
+static void synth_wave_generate_square(float *dst) {
+  int frontc=SYNTH_WAVE_SIZE_SAMPLES>>1;
+  int backc=SYNTH_WAVE_SIZE_SAMPLES-frontc;
+  for (;frontc-->0;dst++) *dst=1.0f;
+  for (;backc-->0;dst++) *dst=-1.0f;
+}
+
+static void synth_wave_generate_saw(float *dst) {
+  float p=1.0f;
+  float dp=-2.0f/(float)SYNTH_WAVE_SIZE_SAMPLES;
   int i=SYNTH_WAVE_SIZE_SAMPLES;
-  float p=0.0f,dp=(M_PI*2.0f)/SYNTH_WAVE_SIZE_SAMPLES;
-  for (;i-->0;v++,p+=dp) *v=sinf(p);
-}
- 
-static void synth_wave_generate_square(struct synth_wave *wave) {
-  const int halflen=SYNTH_WAVE_SIZE_SAMPLES>>1;
-  float *v=wave->v;
-  int i=halflen;
-  for (;i-->0;v++) *v=1.0f;
-  for (i=halflen;i-->0;v++) *v=-1.0f;
+  for (;i-->0;dst++,p+=dp) *dst=p;
 }
 
-static void synth_wave_generate_saw(float *v,int c,float d) {
-  d/=(float)c;
-  d*=2.0f;
-  int i=c;
-  float p=(d>=0.0f)?-1.0f:1.0f;
-  for (;i-->0;v++,p+=d) *v=p;
+static void synth_wave_generate_triangle(float *dst) {
+  int halfc=SYNTH_WAVE_SIZE_SAMPLES>>1;
+  float p=-1.0f;
+  float dp=2.0f/(float)halfc;
+  float *head=dst,*tail=dst+SYNTH_WAVE_SIZE_SAMPLES-1;
+  int i=halfc;
+  for (;i-->0;head++,tail--,p+=dp) *head=*tail=p;
 }
 
-static void synth_wave_generate_triangle(struct synth_wave *wave) {
-  const int halflen=SYNTH_WAVE_SIZE_SAMPLES>>1;
-  synth_wave_generate_saw(wave->v,halflen,1.0f);
-  synth_wave_generate_saw(wave->v+halflen,halflen,-1.0f);
-}
-
-/* Harmonize against self.
+/* Primitives, dispatch.
  */
  
-static void synth_wave_add_harmonic(struct synth_wave *dst,const struct synth_wave *src,float coef,int step) {
-  if (step>=SYNTH_WAVE_SIZE_SAMPLES) return;
-  float *dstp=dst->v;
+float *synth_wave_generate_primitive(struct synth *synth,int shape) {
+  float *v=malloc(sizeof(float)*SYNTH_WAVE_SIZE_SAMPLES);
+  if (!v) return 0;
+  switch (shape) { // See etc/doc/audio-format.md
+    case 1: synth_wave_generate_sine(v,synth); break;
+    case 2: synth_wave_generate_square(v); break;
+    case 3: synth_wave_generate_saw(v); break;
+    case 4: synth_wave_generate_triangle(v);
+    default: free(v); return 0;
+  }
+  return v;
+}
+
+/* Harmonics.
+ */
+ 
+static void synth_wave_add_harmonic(float *dst,const float *src,int step,float level) {
   int srcp=0,i=SYNTH_WAVE_SIZE_SAMPLES;
-  for (;i-->0;dstp++) {
-    (*dstp)+=src->v[srcp]*coef;
-    if ((srcp+=step)>=SYNTH_WAVE_SIZE_SAMPLES) srcp-=SYNTH_WAVE_SIZE_SAMPLES;
+  for (;i-->0;dst++,srcp+=step) {
+    if (srcp>=SYNTH_WAVE_SIZE_SAMPLES) srcp-=SYNTH_WAVE_SIZE_SAMPLES;
+    (*dst)+=src[srcp]*level;
   }
 }
  
-static void synth_wave_harmonics(struct synth_wave *wave,const uint8_t *serial,int coefc) {
-  struct synth_wave ref;
-  memcpy(&ref,wave,sizeof(struct synth_wave));
-  memset(wave,0,sizeof(struct synth_wave));
-  int step=1;
-  for (;step<=coefc;step++,serial+=2) {
-    if (!serial[0]&&!serial[1]) continue;
-    float coef=(float)((serial[0]<<8)|serial[1])/65535.0f;
-    synth_wave_add_harmonic(wave,&ref,coef,step);
+float *synth_wave_generate_harmonics(struct synth *synth,const void *src,int coefc) {
+  if (synth_require_sine(synth)<0) return 0;
+  if (coefc>=SYNTH_WAVE_SIZE_SAMPLES) coefc=SYNTH_WAVE_SIZE_SAMPLES-1;
+  const uint8_t *SRC=src;
+  float *dst=calloc(sizeof(float),SYNTH_WAVE_SIZE_SAMPLES);
+  int step=1; for (;step<=coefc;step++,SRC+=2) {
+    int coef=(SRC[0]<<8)|SRC[1];
+    if (!coef) continue;
+    synth_wave_add_harmonic(dst,synth->sine,step,(float)coef/65535.0f);
   }
-}
-
-/* Shape and harmonics.
- */
- 
-void synth_wave_synthesize(struct synth_wave *wave,struct synth *synth,int shape,const uint8_t *coefv,int coefc) {
-  switch (shape) {
-    case 0: memcpy(wave->v,synth->sine.v,sizeof(synth->sine.v)); break;
-    case 1: synth_wave_generate_square(wave); break;
-    case 2: synth_wave_generate_saw(wave->v,SYNTH_WAVE_SIZE_SAMPLES,-1.0f); break;
-    case 3: synth_wave_generate_triangle(wave); break;
-    default: memcpy(wave->v,synth->sine.v,sizeof(synth->sine.v)); break; // unknown => sine
-  }
-  coefc>>=1;
-  if (coefc) synth_wave_harmonics(wave,coefv,coefc);
+  return dst;
 }

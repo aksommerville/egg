@@ -1,32 +1,31 @@
 /* synth_node.h
- * Abstract interface to a node of the signal graph.
- * The event graph is also represented by nodes, but the operations involved have concrete interfaces.
+ * Abstraction of all components that can generate a signal.
  */
  
 #ifndef SYNTH_NODE_H
 #define SYNTH_NODE_H
 
-#include <stdint.h>
-
-struct synth;
-struct synth_pcm;
-struct synth_wave;
 struct synth_node;
 struct synth_node_type;
 
-/* Generic node and type.
- **********************************************************************/
+/* Generic node.
+ *************************************************************************************/
 
 struct synth_node {
   const struct synth_node_type *type;
   struct synth *synth; // WEAK
-  int chanc; // 1 or 2
+  int chanc; // READONLY. Not necessarily the same as (synth->chanc).
+  struct synth_node *parent; // WEAK, OPTIONAL
+  struct synth_node **childv; // STRONG
+  int childc,childa;
+  int refc;
   int ready;
-  int finished; // If nonzero, node asserts that all further updates would be noop.
+  int finished;
   
-  /* Caller must initialize (v).
-   * Nodes that generate a new signal must add to (v), not replace it.
-   * (node->chanc) is how many channels are expected; caller must be aware.
+  /* REQUIRED. You get a noop default from the generic ctor.
+   * (v) is both in and out. Nodes add their own signal to it. (or filters do whatever they do).
+   * (c) is in frames. Caller is responsible for providing a buffer that agrees with your (chanc).
+   * (c) will never exceed SYNTH_UPDATE_LIMIT_FRAMES.
    */
   void (*update)(float *v,int framec,struct synth_node *node);
 };
@@ -35,127 +34,106 @@ struct synth_node_type {
   const char *name;
   int objlen;
   void (*del)(struct synth_node *node);
-  int (*init)(struct synth_node *node); // (synth,chanc) are set before.
-  int (*ready)(struct synth_node *node); // Configuration complete, last chance to fail. Must set (node->update).
+  int (*init)(struct synth_node *node);
+  int (*ready)(struct synth_node *node);
 };
 
 void synth_node_del(struct synth_node *node);
+int synth_node_ref(struct synth_node *node);
 
-struct synth_node *synth_node_new(struct synth *synth,const struct synth_node_type *type,int chanc);
+/* (type,synth) required.
+ * (chanc) may be zero to copy from (synth).
+ */
+struct synth_node *synth_node_new(const struct synth_node_type *type,int chanc,struct synth *synth);
 
+/* (parent,type) required.
+ * (chanc) may be zero to copy from (parent).
+ * Appends to (parent->childv) and returns WEAK.
+ * Newly spawned nodes are not readied yet, caller must do that or remove it.
+ */
+struct synth_node *synth_node_spawn(struct synth_node *parent,const struct synth_node_type *type,int chanc);
+
+/* The meaning of child nodes depends on the parent's type.
+ * Generically, it's just a retention mechanism.
+ */
+int synth_node_add_child(struct synth_node *parent,struct synth_node *child);
+int synth_node_remove_child(struct synth_node *parent,struct synth_node *child);
+
+/* Must call after construction and initialization, before the first update.
+ */
 int synth_node_ready(struct synth_node *node);
 
 /* Node types.
- *********************************************************************/
+ *****************************************************************************************/
  
-// Event graph.
-extern const struct synth_node_type synth_node_type_bus; // Song or sound effect, child of synth.
-extern const struct synth_node_type synth_node_type_channel; // Child of bus.
+extern const struct synth_node_type synth_node_type_bus;
+extern const struct synth_node_type synth_node_type_channel;
+extern const struct synth_node_type synth_node_type_pcm;
+extern const struct synth_node_type synth_node_type_wave;
+extern const struct synth_node_type synth_node_type_fm;
+extern const struct synth_node_type synth_node_type_sub;
+extern const struct synth_node_type synth_node_type_pipe;
+extern const struct synth_node_type synth_node_type_waveshaper;
+extern const struct synth_node_type synth_node_type_delay;
+extern const struct synth_node_type synth_node_type_tremolo;
+extern const struct synth_node_type synth_node_type_iir;
 
-// Voices.
-extern const struct synth_node_type synth_node_type_pcm; // Verbatim playback.
-extern const struct synth_node_type synth_node_type_sub; // Noise+bandpass.
-extern const struct synth_node_type synth_node_type_wave; // No modulation.
-extern const struct synth_node_type synth_node_type_fm; // Bells and whistles.
-
-// Filters.
-extern const struct synth_node_type synth_node_type_pipe; // Filter container.
-extern const struct synth_node_type synth_node_type_gain; // Multiply and clamp.
-extern const struct synth_node_type synth_node_type_waveshaper; // Refined gain alternative.
-extern const struct synth_node_type synth_node_type_delay; // Simple delay and feedback.
-extern const struct synth_node_type synth_node_type_tremolo; // Level LFO.
-extern const struct synth_node_type synth_node_type_iir3; // 3-point IIR (lopass,hipass,bpass,notch).
-
-/* Type-specific API.
- ***********************************************************************/
-
-/* Provide an EGS song for this new (pre-ready) bus.
- * We borrow it weakly; caller ensures it will not change while playing.
+/* (src) is a full EGS file.
+ * Bus will borrow it for the duration; caller must keep it alive and unchanged.
+ * Bus nodes can "terminate", ie fade out.
+ * You can cancel that termination any time before it completes, and the bus fades back in.
+ * Busses set (node->finished) either when the song ends and no repeat, or when termination fades all the way out.
+ * Context will have an arbitrary set of running busses, but will assume that only zero or one is active, ie not terminating.
  */
-int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc);
+int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc,int repeat,int rid);
+int synth_node_bus_get_rid(const struct synth_node *node);
+double synth_node_bus_get_playhead(const struct synth_node *node);
+void synth_node_bus_set_playhead(struct synth_node *node,double s);
+int synth_node_bus_is_terminating(const struct synth_node *node); // TRUE for wrong type, on the assumption that you're ignoring terminating ones.
+int synth_node_bus_terminate(struct synth_node *node);
+int synth_node_bus_unterminate(struct synth_node *node);
+int synth_node_bus_set_repeat(struct synth_node *node,int repeat); // May change before or after ready.
+void synth_node_bus_midi_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms);
 
-void synth_node_bus_set_songid(struct synth_node *node,int songid,int repeat);
-int synth_node_bus_get_songid(struct synth_node *node);
-int synth_node_bus_get_duration(const struct synth_node *node); // frames; => <0 if configured to repeat
-int synth_node_bus_constrain_for_sounds(struct synth_node *node); // Forbid drums, maybe other constraints.
-float synth_node_bus_get_default_pan(const struct synth_node *node); // From Channel 0
-
-/* Fade out a bus to gradually reduce its master level to zero, then signal completion.
- * Fading is the only way to get a bus "finished". (framec==0) is valid for a hard stop.
- * (force) fade out to change its timing even if already fading out.
- * Wait a bus to noop it for so many frames, typically on a new song that you want to wait for the last song to fade out.
- */
-void synth_node_bus_fade_out(struct synth_node *node,int framec,int force);
-void synth_node_bus_cancel_fade(struct synth_node *node);
-void synth_node_bus_wait(struct synth_node *node,int framec);
-
-/* Manually shove events onto the bus.
- * These must compete with the song if there is one.
- */
-void synth_node_bus_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms);
-
-/* Channels must have a bus set before ready.
- * (chid) is optional. 0xff for none.
- */
-void synth_node_channel_setup(struct synth_node *node,uint8_t chid,struct synth_node *bus);
-
-/* Provide one EGS Channel Header for this new (pre-ready) channel.
- * We may borrow things weakly.
+/* (src) is an EGS channel header, starting with (u8 chid), running through (post).
  */
 int synth_node_channel_configure(struct synth_node *node,const void *src,int srcc);
-int synth_node_channel_constrain_for_sounds(struct synth_node *node); // Forbid drums, maybe other constraints.
-float synth_node_channel_get_default_pan(const struct synth_node *node);
+int synth_node_channel_get_chid(const struct synth_node *node);
+void synth_node_channel_begin_note(struct synth_node *node,uint8_t noteid,uint8_t velocity,int durms);
+void synth_node_channel_set_wheel(struct synth_node *node,uint8_t v);
 
-void synth_node_channel_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms);
-
-/* Ensure everything running on this channel has an expiration date.
- * If (framec>=0), force it to end by that time, with a master fade-out if necessary.
- * Channel promises to eventually set its (finished) flag.
+/* We'll play (pcm) once and then signal completion.
+ * (pan) is ignored if we're configured mono.
  */
-void synth_node_channel_terminate(struct synth_node *node,int framec);
+int synth_node_pcm_configure(struct synth_node *node,struct synth_pcm *pcm,float trim,float pan,int rid);
+int synth_node_pcm_get_rid(const struct synth_node *node);
+double synth_node_pcm_get_playhead(const struct synth_node *node);
+void synth_node_pcm_set_playhead(struct synth_node *node,double s);
 
-int synth_node_pcm_setup(struct synth_node *node,struct synth_pcm *pcm,float trim,float pan);
+/* By asking for (pitchenv), you're declaring intent to use it; we'll assume it has some nonzero values.
+ */
+struct synth_env_runner *synth_node_wave_get_levelenv(struct synth_node *node);
+struct synth_env_runner *synth_node_wave_get_pitchenv(struct synth_node *node);
+int synth_node_wave_configure(struct synth_node *node,const float *wave,float freq,float triml,float trimr);
 
-int synth_node_wave_setup(
-  struct synth_node *node,
-  const struct synth_wave *wave,
-  float rate,float velocity,int durframes,
-  const struct synth_env *env,
-  float trim,float pan
-);
-void synth_node_wave_set_pitch_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo); // (lfo) is a shared buffer
-void synth_node_wave_adjust_rate(struct synth_node *node,float multiplier);
+/* Asking for (pitchenv) or (rangeenv) declares that they're in play.
+ * If you populate (rangeenv), you must scale by the scalar (range) and we ignore the scalar.
+ */
+struct synth_env_runner *synth_node_fm_get_levelenv(struct synth_node *node);
+struct synth_env_runner *synth_node_fm_get_pitchenv(struct synth_node *node);
+struct synth_env_runner *synth_node_fm_get_rangeenv(struct synth_node *node);
+int synth_node_fm_configure(struct synth_node *node,float modrate,float range,float freq,float triml,float trimr);
 
-int synth_node_fm_setup(
-  struct synth_node *node,
-  const struct synth_wave *wave,
-  float fmrate,float fmrange,
-  float rate,float velocity,int durframes,
-  const struct synth_env *env,
-  float trim,float pan
-);
-void synth_node_fm_set_pitch_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo);
-void synth_node_fm_set_modulation_adjustment(struct synth_node *node,const struct synth_env *env,const float *lfo);
-void synth_node_fm_adjust_rate(struct synth_node *node,float multiplier);
+/* (src) is multiple (u8 opcode,u8 length,... params), the exact content of the EGS Channel Header "post" field.
+ */
+int synth_node_pipe_configure(struct synth_node *node,const void *src,int srcc);
 
-int synth_node_sub_setup(
-  struct synth_node *node,
-  float width,
-  float rate,float velocity,int durframes,
-  const struct synth_env *env,
-  float trim,float pan
-);
-void synth_node_sub_adjust_rate(struct synth_node *node,float multiplier);
-
-int synth_node_pipe_add_op(struct synth_node *node,uint8_t opcode,const uint8_t *arg,int argc);
-
-int synth_node_gain_setup(struct synth_node *node,const uint8_t *arg,int argc);
-int synth_node_waveshaper_setup(struct synth_node *node,const uint8_t *arg,int argc);
-int synth_node_delay_setup(struct synth_node *node,const uint8_t *arg,int argc);
-int synth_node_tremolo_setup(struct synth_node *node,const uint8_t *arg,int argc);
-int synth_node_iir3_setup_lopass(struct synth_node *node,float norm);
-int synth_node_iir3_setup_hipass(struct synth_node *node,float norm);
-int synth_node_iir3_setup_bpass(struct synth_node *node,float norm,float width);
-int synth_node_iir3_setup_notch(struct synth_node *node,float norm,float width);
+/* Pipe components all work about the same, they take the payload of the op command.
+ * iir covers four distinct commands, so it takes the opcode too.
+ */
+int synth_node_waveshaper_configure(struct synth_node *node,const void *src,int srcc);
+int synth_node_delay_configure(struct synth_node *node,const void *src,int srcc);
+int synth_node_tremolo_configure(struct synth_node *node,const void *src,int srcc);
+int synth_node_iir_configure(struct synth_node *node,uint8_t opcode,const void *src,int srcc);
 
 #endif

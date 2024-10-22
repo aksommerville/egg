@@ -9,9 +9,15 @@ Conversion plan:
 - [x] Update editor. Get the data manipulation all done, but no playback yet.
 - - [x] POST /api/sound
 - [x] New eggdev command to play a sound.
+- [x] Something's broken in the timing during MIDI=>EGS conversion. Listen close to Heart of Stone, you can hear faster and slower bits.
 - [ ] Native synthesizer.
 - [ ] Web synthesizer.
+- [ ] Native drums.
+- [ ] Native subtractive voice and IIR filter -- Punted until WebAudio is done, so I can compare closely while working.
 - [ ] New resource in editor.
+- [ ] EGS Channel Header as hex dump in editor, or something. Must be stupid easy to copy an existing header across resources.
+- [ ] ^ And to help with that, maybe enable one of the Meta Text events like Channel Name?
+- [ ] Editor: Intuitive controls for post.
 - [x] Playback in editor. Must be able to use both WebAudio, and native via the server.
 - [ ] MIDI input to editor.
 

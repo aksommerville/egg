@@ -223,7 +223,6 @@ export class MidiChannelFieldModal {
       case "program": this.applyProgram(model); break;
       case "volume": this.applyControl(0x07, model.number); break;
       case "pan": this.applyControl(0x0a, model.number); break;
-      case "egs": break; //TODO
       default: console.warn(`MidiChannelFieldModal.applyChanges: Unexpected key ${JSON.stringify(this.k)}`);
     }
   }
@@ -237,7 +236,6 @@ export class MidiChannelFieldModal {
   onSave() {
     if (!this.file) return this.reject();
     const model = this.readModelFromDom();
-    console.log(`TODO MidiChannelFieldModal.onSave: Commit to file: ${JSON.stringify(model)}`);
     if (model.present) this.applyChanges(model);
     else this.removeEvents();
     this.resolve(true);

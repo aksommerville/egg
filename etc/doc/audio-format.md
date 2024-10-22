@@ -18,6 +18,8 @@ u32 Rate, hz
 ... Samples, s16le
 ```
 
+**Note that samples are little-endian, and everything else is big-endian.**
+
 Our compiler will drop extra channels and force 16-bit LPCM.
 Beyond that, the relation between WAV and PCM is obvious.
 
@@ -103,9 +105,10 @@ Mode 3: FM:
 -  16  rangeenv
   
 Mode 4: Subtractive:
--  12  levelenv
--  u16 width, hz
--  Decoder applies appropriate gain.
+- 12  levelenv
+- u16 width, hz
+- Decoder applies appropriate gain.
+- No wheel events.
   
 levelenv, 12 bytes:
 -  u8  atktlo
@@ -136,7 +139,7 @@ Post is packed fields:
   
 Post ops:
 - 0x01 waveshaper
-- - u16 output levels starting at zero. Positive side only; decoder infers the negatives.
+- - u16 output levels starting at zero. Positive side only; decoder infers the negatives. No bias: values are 0..65535
 - 0x02 delay
 - - u16 period ms
 - - u8  mix. 0..255=dry..wet

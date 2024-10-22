@@ -5,8 +5,6 @@
  
 struct synth_node_pipe {
   struct synth_node hdr;
-  struct synth_node **opv;
-  int opc,opa;
 };
 
 #define NODE ((struct synth_node_pipe*)node)
@@ -15,36 +13,33 @@ struct synth_node_pipe {
  */
  
 static void _pipe_del(struct synth_node *node) {
-  if (NODE->opv) {
-    while (NODE->opc-->0) synth_node_del(NODE->opv[NODE->opc]);
-    free(NODE->opv);
-  }
-}
-
-/* Update.
- */
- 
-static void _pipe_update(float *v,int framec,struct synth_node *node) {
-  struct synth_node **pp=NODE->opv;
-  int i=NODE->opc;
-  for (;i-->0;pp++) (*pp)->update(v,framec,*pp);
 }
 
 /* Init.
  */
  
 static int _pipe_init(struct synth_node *node) {
-  node->update=_pipe_update;
   return 0;
+}
+
+/* Update.
+ */
+ 
+static void _pipe_update(float *v,int framec,struct synth_node *node) {
+  int i=0;
+  for (;i<node->childc;i++) {
+    struct synth_node *child=node->childv[i];
+    child->update(v,framec,child);
+  }
 }
 
 /* Ready.
  */
  
 static int _pipe_ready(struct synth_node *node) {
-  int i=NODE->opc;
-  while (i-->0) {
-    if (synth_node_ready(NODE->opv[i])<0) return -1;
+  node->update=_pipe_update;
+  int i=node->childc; while (i-->0) {
+    if (synth_node_ready(node->childv[i])<0) return -1;
   }
   return 0;
 }
@@ -60,78 +55,62 @@ const struct synth_node_type synth_node_type_pipe={
   .ready=_pipe_ready,
 };
 
-/* Instantiate op.
+/* Add operation.
  */
  
-static struct synth_node *synth_node_pipe_instantiate_op(struct synth *synth,int chanc,uint8_t opcode,const uint8_t *arg,int argc) {
-  struct synth_node *op=0;
-  int err=0;
+static int pipe_add_op(struct synth_node *node,uint8_t opcode,const uint8_t *src,int srcc) {
+  // See etc/doc/audio-format.md
+  struct synth_node *op;
   switch (opcode) {
-    case 0x80: {
-        if (!(op=synth_node_new(synth,&synth_node_type_gain,chanc))) return 0;
-        err=synth_node_gain_setup(op,arg,argc);
+    case 0x01: {
+        if (
+          !(op=synth_node_spawn(node,&synth_node_type_waveshaper,0))||
+          (synth_node_waveshaper_configure(op,src,srcc)<0)
+        ) return -1;
       } break;
-    case 0x81: {
-        if (!(op=synth_node_new(synth,&synth_node_type_waveshaper,chanc))) return 0;
-        err=synth_node_waveshaper_setup(op,arg,argc);
+    case 0x02: {
+        if (
+          !(op=synth_node_spawn(node,&synth_node_type_delay,0))||
+          (synth_node_delay_configure(op,src,srcc)<0)
+        ) return -1;
       } break;
-    case 0x82: {
-        if (!(op=synth_node_new(synth,&synth_node_type_delay,chanc))) return 0;
-        err=synth_node_delay_setup(op,arg,argc);
+    case 0x03: {
+        if (
+          !(op=synth_node_spawn(node,&synth_node_type_tremolo,0))||
+          (synth_node_tremolo_configure(op,src,srcc)<0)
+        ) return -1;
       } break;
-    case 0x84: {
-        if (!(op=synth_node_new(synth,&synth_node_type_tremolo,chanc))) return 0;
-        err=synth_node_tremolo_setup(op,arg,argc);
+    case 0x04:
+    case 0x05:
+    case 0x06:
+    case 0x07: {
+        if (
+          !(op=synth_node_spawn(node,&synth_node_type_iir,0))||
+          (synth_node_iir_configure(op,opcode,src,srcc)<0)
+        ) return -1;
       } break;
-    case 0x85:
-    case 0x86:
-    case 0x87:
-    case 0x88: {
-        if (!(op=synth_node_new(synth,&synth_node_type_iir3,chanc))) return 0;
-        float mid=0.0,wid=0.0;
-        if (argc>=2) {
-          mid=(float)((arg[0]<<8)|arg[1])/(float)synth->rate;
-          if (argc>=4) {
-            wid=(float)((arg[2]<<8)|arg[3])/(float)synth->rate;
-          }
-        }
-        switch (opcode) {
-          case 0x85: err=synth_node_iir3_setup_lopass(op,mid); break;
-          case 0x86: err=synth_node_iir3_setup_hipass(op,mid); break;
-          case 0x87: err=synth_node_iir3_setup_bpass(op,mid,wid); break;
-          case 0x88: err=synth_node_iir3_setup_notch(op,mid,wid); break;
-        }
-      } break;
+    default: {
+        fprintf(stderr,"Unimplemented synth post opcode 0x%02x\n",opcode);
+        return -1;
+      }
   }
-  if (err<0) {
-    synth_node_del(op);
-    return 0;
-  }
-  return op;
+  return 0;
 }
 
-/* Add op.
+/* Configure.
  */
  
-int synth_node_pipe_add_op(struct synth_node *node,uint8_t opcode,const uint8_t *arg,int argc) {
+int synth_node_pipe_configure(struct synth_node *node,const void *src,int srcc) {
   if (!node||(node->type!=&synth_node_type_pipe)||node->ready) return -1;
-  if (NODE->opc>=NODE->opa) {
-    int na=NODE->opa+4;
-    if (na>INT_MAX/sizeof(void*)) return -1;
-    void *nv=realloc(NODE->opv,sizeof(void*)*na);
-    if (!nv) return -1;
-    NODE->opv=nv;
-    NODE->opa=na;
+  const uint8_t *SRC=src;
+  int srcp=0;
+  while (srcp<srcc) {
+    if (srcp>srcc-2) return -1;
+    uint8_t opcode=SRC[srcp++];
+    uint8_t len=SRC[srcp++];
+    if (srcp>srcc-len) return -1;
+    if (pipe_add_op(node,opcode,SRC+srcp,len)<0) return -1;
+    srcp+=len;
   }
-  struct synth_node *op=synth_node_pipe_instantiate_op(node->synth,node->chanc,opcode,arg,argc);
-  if (!op) {
-    // We are allowed to ignore opcodes 0x80..0xdf. 0xe0..0xff are reserved for future critical ops that can't be ignored.
-    if (opcode>=0xe0) {
-      fprintf(stderr,"ERROR: Synth channel field 0x%02x not defined.\n",opcode);
-      return -2;
-    }
-    return 0;
-  }
-  NODE->opv[NODE->opc++]=op;
   return 0;
 }

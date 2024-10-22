@@ -5,8 +5,9 @@
  
 struct synth_node_tremolo {
   struct synth_node hdr;
-  struct synth_osc osc;
-  float bias;
+  uint32_t p;
+  uint32_t dp;
+  float wave[SYNTH_WAVE_SIZE_SAMPLES];
 };
 
 #define NODE ((struct synth_node_tremolo*)node)
@@ -17,37 +18,37 @@ struct synth_node_tremolo {
 static void _tremolo_del(struct synth_node *node) {
 }
 
-/* Update.
- */
- 
-static void _tremolo_update_stereo(float *v,int framec,struct synth_node *node) {
-  for (;framec-->0;v+=2) {
-    float trim=synth_osc_next(&NODE->osc)+NODE->bias;
-    v[0]*=trim;
-    v[1]*=trim;
-  }
-}
-
-static void _tremolo_update_mono(float *v,int framec,struct synth_node *node) {
-  for (;framec-->0;v+=1) {
-    float trim=synth_osc_next(&NODE->osc)+NODE->bias;
-    v[0]*=trim;
-  }
-}
-
 /* Init.
  */
  
 static int _tremolo_init(struct synth_node *node) {
-  if (node->chanc==2) node->update=_tremolo_update_stereo;
-  else node->update=_tremolo_update_mono;
   return 0;
+}
+
+/* Update.
+ */
+ 
+static void _tremolo_update_mono(float *v,int framec,struct synth_node *node) {
+  for (;framec-->0;v+=1,NODE->p+=NODE->dp) {
+    v[0]*=NODE->wave[NODE->p>>SYNTH_WAVE_SHIFT];
+  }
+}
+ 
+static void _tremolo_update_stereo(float *v,int framec,struct synth_node *node) {
+  for (;framec-->0;v+=2,NODE->p+=NODE->dp) {
+    float adjust=NODE->wave[NODE->p>>SYNTH_WAVE_SHIFT];
+    v[0]*=adjust;
+    v[1]*=adjust;
+  }
 }
 
 /* Ready.
  */
  
 static int _tremolo_ready(struct synth_node *node) {
+  // Check (node->chanc) if you're not LTI.
+  if (node->chanc==1) node->update=_tremolo_update_mono;
+  else node->update=_tremolo_update_stereo;
   return 0;
 }
 
@@ -62,13 +63,38 @@ const struct synth_node_type synth_node_type_tremolo={
   .ready=_tremolo_ready,
 };
 
-/* Setup.
+/* Configure.
  */
  
-int synth_node_tremolo_setup(struct synth_node *node,const uint8_t *arg,int argc) {
+int synth_node_tremolo_configure(struct synth_node *node,const void *src,int srcc) {
   if (!node||(node->type!=&synth_node_type_tremolo)||node->ready) return -1;
-  if (synth_osc_decode(&NODE->osc,node->synth,arg,argc)<0) return -1;
-  NODE->osc.scale*=0.5;
-  NODE->bias=1.0f-NODE->osc.scale;
+  const uint8_t *SRC=src;
+  if (srcc<4) return -1;
+  int period=(SRC[0]<<8)|SRC[1];
+  int depth=SRC[2];
+  int phase=SRC[3];
+  
+  if (period<1) {
+    NODE->dp=0;
+  } else {
+    double hz=1000.0/(double)period;
+    NODE->dp=(uint32_t)((hz*4294967296.0)/(double)node->synth->rate);
+  }
+  
+  NODE->p=phase|(phase<<8)|(phase<<16)|(phase<<24);
+  
+  if (!depth) {
+    int i=SYNTH_WAVE_SIZE_SAMPLES;
+    float *v=NODE->wave;
+    for (;i-->0;v++) *v=1.0f;
+  } else {
+    if (synth_require_sine(node->synth)<0) return -1;
+    memcpy(NODE->wave,node->synth->sine,sizeof(float)*SYNTH_WAVE_SIZE_SAMPLES);
+    int i=SYNTH_WAVE_SIZE_SAMPLES;
+    float *v=NODE->wave;
+    float fdepth=(depth/255.0f)*0.5f;
+    for (;i-->0;v++) *v=1.0f-((*v)+1.0f)*fdepth;
+  }
+  
   return 0;
 }

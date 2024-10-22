@@ -5,8 +5,8 @@
  
 struct synth_node_waveshaper {
   struct synth_node hdr;
-  float *ptv;
-  int ptc;
+  float *vv; // Covers the full range of inputs -1..1.
+  int vc;
 };
 
 #define NODE ((struct synth_node_waveshaper*)node)
@@ -15,44 +15,7 @@ struct synth_node_waveshaper {
  */
  
 static void _waveshaper_del(struct synth_node *node) {
-  if (NODE->ptv) free(NODE->ptv);
-}
-
-/* Update.
- * We are pure LTI; we don't care how many channels there are.
- */
-
-// Zero or one point, emit DC.
-static void _waveshaper_update_0(float *v,int c,struct synth_node *node) {
-  c*=node->chanc;
-  for (;c-->0;v++) *v=0.0f;
-}
-static void _waveshaper_update_1(float *v,int c,struct synth_node *node) {
-  c*=node->chanc;
-  for (;c-->0;v++) *v=NODE->ptv[0];
-}
-
-// 3 points and the middle is zero.
-static void _waveshaper_update_np3(float *v,int c,struct synth_node *node) {
-  c*=node->chanc;
-  for (;c-->0;v++) {
-    if (*v<0.0f) (*v)*=NODE->ptv[0]; // inverted at ready
-    else (*v)*=NODE->ptv[2];
-  }
-}
-
-// General update, suitable for any point count >=2.
-static void _waveshaper_update(float *v,int c,struct synth_node *node) {
-  c*=node->chanc;
-  const float scale=NODE->ptc/2.0f;
-  for (;c-->0;v++) {
-    float norm=((*v)+1.0f)*scale;
-    int i0=(int)norm;
-    if (i0<0) { *v=NODE->ptv[0]; continue; }
-    if (i0>=NODE->ptc-1) { *v=NODE->ptv[NODE->ptc-1]; continue; }
-    float fract=norm-(float)i0;
-    *v=NODE->ptv[i0]*(1.0f-fract)+NODE->ptv[i0+1]*fract;
-  }
+  if (NODE->vv) free(NODE->vv);
 }
 
 /* Init.
@@ -62,13 +25,36 @@ static int _waveshaper_init(struct synth_node *node) {
   return 0;
 }
 
+/* Update.
+ */
+ 
+static void _waveshaper_update_dc(float *v,int framec,struct synth_node *node) {
+  int i=framec*node->chanc;
+  for (;i-->0;v++) *v=NODE->vv[0];
+}
+ 
+static void _waveshaper_update(float *v,int framec,struct synth_node *node) {
+  int i=framec*node->chanc;
+  float vcf=(float)NODE->vc;
+  for (;i-->0;v++) {
+    float p=(((*v)+1.0f)*vcf)/2.0f;
+    if (p<=0.0f) *v=NODE->vv[0];
+    else if (p>=NODE->vc-1) *v=NODE->vv[NODE->vc-1];
+    else {
+      int pi=(int)p;
+      float bw=p-(float)pi;
+      float aw=1.0f-bw;
+      *v=NODE->vv[pi]*aw+NODE->vv[pi+1]*bw;
+    }
+  }
+}
+
 /* Ready.
  */
  
 static int _waveshaper_ready(struct synth_node *node) {
-  if (NODE->ptc<1) node->update=_waveshaper_update_0;
-  else if (NODE->ptc==1) node->update=_waveshaper_update_1;
-  else if ((NODE->ptc==3)&&(NODE->ptv[1]==0.0f)) { node->update=_waveshaper_update_np3; NODE->ptv[0]*=-1.0f; }
+  if (!NODE->vc) return -1;
+  if (NODE->vc==1) node->update=_waveshaper_update_dc;
   else node->update=_waveshaper_update;
   return 0;
 }
@@ -84,22 +70,34 @@ const struct synth_node_type synth_node_type_waveshaper={
   .ready=_waveshaper_ready,
 };
 
-/* Setup.
+/* Configure.
  */
  
-int synth_node_waveshaper_setup(struct synth_node *node,const uint8_t *arg,int argc) {
+int synth_node_waveshaper_configure(struct synth_node *node,const void *src,int srcc) {
   if (!node||(node->type!=&synth_node_type_waveshaper)||node->ready) return -1;
-  if (NODE->ptv) free(NODE->ptv);
-  NODE->ptv=0;
-  NODE->ptc=0;
-  int ptc=argc>>1;
-  if (ptc<1) return 0;
-  if (!(NODE->ptv=malloc(sizeof(float)*ptc))) return -1;
-  NODE->ptc=ptc;
-  float *dst=NODE->ptv;
-  int i=ptc;
-  for (;i-->0;dst++,arg+=2) {
-    *dst=(((arg[0]<<8)|arg[1])-0x8000)/32768.0;
+  if (NODE->vv) return -1;
+  const uint8_t *SRC=src;
+  int vc=srcc>>1;
+  if (vc<1) {
+    if (!(NODE->vv=malloc(sizeof(float)))) return -1;
+    NODE->vv[0]=0.0f;
+    NODE->vc=1;
+    return 0;
   }
+  // If input is even, double it. Odd, 2n-1.
+  int dstc=vc<<1;
+  if (vc&1) dstc--;
+  if (!(NODE->vv=malloc(sizeof(float)*dstc))) return -1;
+  float *dst=NODE->vv+vc;
+  if (vc&1) dst--;
+  // Read from (src) into the back half of (NODE->vv).
+  int i=vc;
+  for (;i-->0;SRC+=2,dst++) {
+    *dst=(float)((SRC[0]<<8)|SRC[1])/65535.0f;
+  }
+  // Copy back half to front half, flipping sign.
+  const float *cpsrc=NODE->vv+dstc-1;
+  for (dst=NODE->vv,i=vc;i-->0;cpsrc--,dst++) *dst=-*cpsrc;
+  NODE->vc=dstc;
   return 0;
 }

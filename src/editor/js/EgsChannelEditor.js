@@ -293,7 +293,8 @@ export class EgsChannelEditor {
   }
   
   evalHarmonics(src) {
-    return src.split(/\s+/g).map(v => parseInt(v, 16));
+    const dst = src.split(/\s+/g).map(v => parseInt(v, 16)).filter(v => ((typeof(v) === "number") && !isNaN(v)));
+    return dst;
   }
   
   encodeDrumsConfig(dst) {
@@ -313,13 +314,13 @@ export class EgsChannelEditor {
   }
   
   encodeWaveConfig(dst) {
-    const wheelrange = +this.element.querySelector(".input[name='wheelrange']").value;
+    const wheelrange = +this.element.querySelector("input[name='wheelrange']").value;
     dst.push(wheelrange >> 8);
     dst.push(wheelrange & 0xff);
     for (const b of this.waveEnv.encodeLevel()) dst.push(b);
     for (const b of this.waveEnv.encodePitch()) dst.push(b);
-    dst.push(+this.element.querySelector(".input[name='shape']").value);
-    const coefv = this.evalHarmonics(this.element.querySelector(".input[name='harmonics']").value);
+    dst.push(+this.element.querySelector("input[name='shape']").value);
+    const coefv = this.evalHarmonics(this.element.querySelector("input[name='harmonics']").value);
     dst.push(coefv.length);
     for (const coef of coefv) {
       dst.push(coef >> 8);
@@ -328,9 +329,9 @@ export class EgsChannelEditor {
   }
   
   encodeFmConfig(dst) {
-    const wheelrange = +this.element.querySelector(".input[name='wheelrange']").value;
-    const modrate = +this.element.querySelector(".input[name='modrate']").value;
-    const modrange = +this.element.querySelector(".input[name='modrange']").value;
+    const wheelrange = +this.element.querySelector("input[name='wheelrange']").value;
+    const modrate = +this.element.querySelector("input[name='modrate']").value;
+    const modrange = +this.element.querySelector("input[name='modrange']").value;
     dst.push(wheelrange >> 8);
     dst.push(wheelrange & 0xff);
     for (const b of this.fmEnv.encodeLevel()) dst.push(b);

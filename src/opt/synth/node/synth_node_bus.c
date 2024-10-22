@@ -1,302 +1,278 @@
 #include "../synth_internal.h"
 
-// To avoid rounding error, fade-out must advance by at least 1/100k each frame.
-// This forces a maximum fade-out time of a little over 2 seconds, at typical output rates.
-#define BUS_DFADE_MIN 0.00001f
+#define SYNTH_BUS_FADE_OUT_TIME 1.0f
+#define SYNTH_BUS_FADE_IN_TIME 1.0f
 
-/* Object definition.
+/* Instance definition.
  */
  
 struct synth_node_bus {
   struct synth_node hdr;
-  int songid;
+  int rid;
   int repeat;
-  struct synth_node *channel_by_chid[SYNTH_CHANNEL_COUNT]; // WEAK, SPARSE. Addressable channels.
-  struct synth_node **channelv;
-  int channelc,channela;
+  int fading; // >0=out, <0=in, 0=none
+  float fade_level;
+  float dfade_level; // sign must agree with (fading)
+  int tempo; // ms/qnote
+  const uint8_t *src; // EGS song, events only. Borrowed.
+  int srcc;
+  int srcp;
+  int playhead; // Frames since start of song.
+  int pending_delay; // Frames
   double framesperms;
-  int songdelay; // Frame count to next song event.
-  int harddelay; // If >0, skip so many frames hard. Don't update song, don't generate a signal.
-  int fadeenable; // -1,0,1=cancelling,none,fading
-  float fade;
-  float dfade; // Per frame.
-  const uint8_t *evv; // Encoded song, events only.
-  int evc;
-  int evp;
-  float buffer[SYNTH_UPDATE_LIMIT_FRAMES*2]; // Used only during fade out.
-  int sounds_constraint;
+  float buffer[SYNTH_UPDATE_LIMIT_SAMPLES];
+  struct synth_node *channel_by_chid[16]; // WEAK, they live for real in (childv).
 };
 
 #define NODE ((struct synth_node_bus*)node)
 
-/* Delete.
+/* Cleanup.
  */
  
 static void _bus_del(struct synth_node *node) {
-  if (NODE->channelv) {
-    while (NODE->channelc-->0) synth_node_del(NODE->channelv[NODE->channelc]);
-    free(NODE->channelv);
-  }
-}
-
-/* Remove all WEAK references to a channel, presumably has just been deleted and removed from (NODE->channelv).
- */
- 
-static void synth_node_bus_unlist_channel(struct synth_node *node,struct synth_node *channel) {
-  int i=SYNTH_CHANNEL_COUNT;
-  while (i-->0) {
-    if (NODE->channel_by_chid[i]==channel) {
-      NODE->channel_by_chid[i]=0;
-    }
-  }
-}
-
-/* Apply fade.
- * Call only if (NODE->fadeenable) nonzero.
- * Set (node->finished) if we strike zero.
- */
- 
-static void synth_node_bus_update_fade(float *v,int framec,struct synth_node *node) {
-  if (node->chanc==1) {
-    if (NODE->fadeenable<0) { // Cancelling, mono.
-      for (;framec-->0;v++) {
-        NODE->fade+=NODE->dfade;
-        if (NODE->fade>=1.0f) {
-          NODE->fade=1.0f;
-          NODE->fadeenable=0;
-          return;
-        }
-        (*v)*=NODE->fade;
-      }
-    } else if (NODE->fadeenable>0) { // Fading, mono.
-      for (;framec-->0;v++) {
-        NODE->fade+=NODE->dfade;
-        if (NODE->fade<=0.0f) {
-          NODE->fade=0.0f;
-          NODE->fadeenable=0;
-          node->finished=1;
-          memset(v,0,sizeof(float)*(framec+1));
-          return;
-        }
-        (*v)*=NODE->fade;
-      }
-    }
-  } else {
-    if (NODE->fadeenable<0) { // Cancelling, stereo.
-      for (;framec-->0;v+=2) {
-        NODE->fade+=NODE->dfade;
-        if (NODE->fade>=1.0f) {
-          NODE->fade=1.0f;
-          NODE->fadeenable=0;
-          return;
-        }
-        v[0]*=NODE->fade;
-        v[1]*=NODE->fade;
-      }
-    } else if (NODE->fadeenable>0) { // Fading, stereo.
-      for (;framec-->0;v+=2) {
-        NODE->fade+=NODE->dfade;
-        if (NODE->fade<=0.0f) {
-          NODE->fade=0.0f;
-          NODE->fadeenable=0;
-          node->finished=1;
-          memset(v,0,sizeof(float)*2*(framec+1));
-          return;
-        }
-        v[0]*=NODE->fade;
-        v[1]*=NODE->fade;
-      }
-    }
-  }
-}
-
-/* Update song.
- * Called repeatedly during update, whether a song exists or not.
- * Must return in (1..limit), how many signal frames to update.
- * Song player state will have updated by that count.
- */
- 
-static int synth_node_bus_update_song(struct synth_node *node,int limit) {
-  if (limit<1) return 1;
-  
-  // If we have some delay pending, pay it out.
-  if (NODE->songdelay>0) {
-    int framec=NODE->songdelay;
-    if (framec>limit) framec=limit;
-    NODE->songdelay-=framec;
-    return framec;
-  }
-  
-  // Read next song event, repeat until we acquire a delay or song ends.
-  for (;;) {
-    
-    // End of song?
-    if ((NODE->evp>=NODE->evc)||!NODE->evv[NODE->evp]) {
-      if (NODE->repeat) {
-        // Report a minimal delay at each repeat, as a safety valve against zero-delay songs.
-        // If there really is zero delay and repeat, this is still going to be a catastrophe.
-        // TODO Determine how bad it could get, and mitigate harder if need be.
-        NODE->evp=0;
-        return 1;
-      }
-      // Not repeating, so fade out any lingering notes and terminate. One second, arbitrarily.
-      synth_node_bus_fade_out(node,node->synth->rate,0);
-      // We're not actually able to turn the song off.
-      // So instead, just delay for 2 gigaframes, and we'll see you again in a month.
-      NODE->songdelay=INT_MAX;
-      return limit;
-    }
-    
-    /* Read the next event. Natural zeroes are already handled.
-     * 00000000                   : End of Song.
-     * 00tttttt                   : Fine Delay, (t) ms. (t) nonzero.
-     * 01tttttt                   : Coarse Delay, ((t+1)*64) ms.
-     * 1000cccc nnnnnnnv vvvvvvxx : Fire and Forget. (c) chid, (n) noteid, (v) velocity.
-     * 1001cccc nnnnnnnv vvvttttt : Short Note. (c) chid, (n) noteid, (v) velocity 4-bit, (t) hold time (t+1)*16ms
-     * 1010cccc nnnnnnnv vvvttttt : Long Note. (c) chid, (n) noteid, (v) velocity 4-bit, (t) hold time (t+1)*128ms
-     * 1011cccc wwwwwwww          : Pitch Wheel. (c) chid, (w) wheel position. 0x80 is neutral.
-     * 11xxxxxx                   : Reserved, decoder must fail.
-     */
-    uint8_t lead=NODE->evv[NODE->evp++];
-    
-    // Delay? Coalesce adjacent delay events. They're all single bytes. But watch out for zeroes.
-    // A delay event interrupts event processing no matter what.
-    if (!(lead&0x80)) {
-      int ms;
-      if (lead&0x40) { // Coarse Delay.
-        ms=((lead&0x3f)+1)<<6;
-      } else { // Fine Delay.
-        ms=lead;
-      }
-      while (NODE->evp<NODE->evc) {
-        lead=NODE->evv[NODE->evp];
-        if (!lead) break;
-        if (lead&0x80) break;
-        if (lead&0x40) ms+=((lead&0x3f)+1)<<6;
-        else ms+=lead;
-        NODE->evp++;
-      }
-      NODE->songdelay=(int)((double)ms*NODE->framesperms);
-      if (NODE->songdelay<1) NODE->songdelay=1;
-      int framec=NODE->songdelay;
-      if (framec>limit) framec=limit;
-      NODE->songdelay-=framec;
-      return framec;
-    }
-    
-    // All other events are identified by the top 4 bits.
-    #define ILLEGAL_EVENT { \
-      fprintf(stderr,"%s: Invalid song, stopping playback.\n",__func__); \
-      NODE->evp=0; \
-      NODE->evc=0; \
-      NODE->songdelay=INT_MAX; \
-      return limit; \
-    }
-    switch (lead&0xf0) {
-      case 0x80:
-      case 0x90:
-      case 0xa0: {
-          if (NODE->evp>NODE->evc-2) ILLEGAL_EVENT
-          uint8_t s1=NODE->evv[NODE->evp++];
-          uint8_t s2=NODE->evv[NODE->evp++];
-          uint8_t noteid=s1>>1;
-          uint8_t velocity=((s1&1)<<6)|(s2>>2);
-          int durms=0;
-          switch (lead&0xf0) {
-            case 0x90: {
-                velocity&=0x78;
-                velocity|=velocity>>4;
-                durms=((s2&0x1f)+1)<<4;
-              } break;
-            case 0xa0: {
-                velocity&=0x78;
-                velocity|=velocity>>4;
-                durms=((s2&0x1f)+1)<<7;
-              } break;
-          }
-          synth_node_bus_event(node,lead&0x0f,0x98,noteid,velocity,durms);
-        } break;
-      case 0xb0: {
-          if (NODE->evp>NODE->evc-1) ILLEGAL_EVENT
-          uint8_t s1=NODE->evv[NODE->evp++];
-          uint8_t b=s1>>1;
-          uint8_t a=((s1&1)?0x40:0)|(s1&0x3f);
-          synth_node_bus_event(node,lead&0x0f,0xe0,a,b,0);
-        } break;
-      default: ILLEGAL_EVENT
-    }
-    #undef ILLEGAL_EVENT
-  }
-  
-  return limit;
-}
-
-/* Main update.
- */
- 
-static void synth_node_bus_update_signal(float *v,int framec,struct synth_node *node) {
-  int i=NODE->channelc;
-  while (i-->0) {
-    struct synth_node *channel=NODE->channelv[i];
-    channel->update(v,framec,channel);
-    if (channel->finished) {
-      NODE->channelc--;
-      memmove(NODE->channelv+i,NODE->channelv+i+1,sizeof(void*)*(NODE->channelc-i));
-      synth_node_del(channel);
-      synth_node_bus_unlist_channel(node,channel);
-    }
-  }
-  if (NODE->fadeenable) synth_node_bus_update_fade(v,framec,node);
-}
-
-static void _bus_update(float *v,int framec,struct synth_node *node) {
-  if (node->finished) return;
-
-  // Hard delay.
-  if (NODE->harddelay>0) {
-    int skipc=NODE->harddelay;
-    if (skipc>framec) skipc=framec;
-    v+=skipc*node->chanc;
-    framec-=skipc;
-    NODE->harddelay-=skipc;
-  }
-  
-  // Interleave song updates and signal updates until we run out of buffer.
-  while (framec>0) {
-    int updc=synth_node_bus_update_song(node,framec);
-    if (NODE->fadeenable) {
-      memset(NODE->buffer,0,sizeof(float)*updc*node->chanc);
-      synth_node_bus_update_signal(NODE->buffer,updc,node);
-      int i=updc*node->chanc;
-      const float *src=NODE->buffer;
-      for (;i-->0;src++,v++) (*v)+=(*src);
-    } else {
-      synth_node_bus_update_signal(v,updc,node);
-      v+=updc*node->chanc;
-    }
-    framec-=updc;
-  }
 }
 
 /* Init.
  */
  
 static int _bus_init(struct synth_node *node) {
-  node->update=_bus_update;
-  NODE->fade=1.0f;
   NODE->framesperms=(double)node->synth->rate/1000.0;
   return 0;
+}
+
+/* Something invalid detected in song events during playback.
+ * Mark the bus for termination.
+ */
+ 
+static void bus_invalid_song(struct synth_node *node) {
+  fprintf(stderr,"song:%d: Error around %d/%d in event stream. Terminating bus.\n",NODE->rid,NODE->srcp,NODE->srcc);
+  node->finished=1; // Stop cold after this update.
+  NODE->srcp=0;
+  NODE->srcc=0;
+}
+
+/* Forward note and wheel events to the appropriate channel, or drop them.
+ */
+ 
+static void bus_begin_note(struct synth_node *node,uint8_t chid,uint8_t noteid,uint8_t velocity,int durms) {
+  if (chid>=0x10) return;
+  struct synth_node *channel=NODE->channel_by_chid[chid];
+  if (!channel) return;
+  synth_node_channel_begin_note(channel,noteid,velocity,durms);
+}
+ 
+static void bus_set_wheel(struct synth_node *node,uint8_t chid,uint8_t v) {
+  if (chid>=0x10) return;
+  struct synth_node *channel=NODE->channel_by_chid[chid];
+  if (!channel) return;
+  synth_node_channel_set_wheel(channel,v);
+}
+
+/* Apply any song events at the playhead time, then advance playhead by up to (framec).
+ * Always returns in 1..framec.
+ */
+ 
+static int bus_update_song(struct synth_node *node,int framec) {
+  #define FAIL { bus_invalid_song(node); return framec; }
+
+  /* If there's any delay held over, we need to pay that out first.
+   */
+  if (NODE->pending_delay>0) {
+    int updc=NODE->pending_delay;
+    if (updc>framec) updc=framec;
+    NODE->pending_delay-=updc;
+    NODE->playhead+=updc;
+    return updc;
+  }
+  
+  /* Process real events -- stop at implicit EOF, explicit EOF, or delay.
+   * Everything we're interested in has its high bit set, and is distinguished by the four high bits.
+   */
+  while ((NODE->srcp<NODE->srcc)&&(NODE->src[NODE->srcp]&0x80)) {
+    uint8_t lead=NODE->src[NODE->srcp++];
+    switch (lead&0xf0) {
+      case 0x80: { // Short Note.
+          if (NODE->srcp>NODE->srcc-2) FAIL
+          uint8_t a=NODE->src[NODE->srcp++];
+          uint8_t b=NODE->src[NODE->srcp++];
+          uint8_t chid=lead&0x0f;
+          uint8_t noteid=a>>1;
+          uint8_t velocity=((a&0x01)<<6)|(b>>2); // 7 bit
+          int durms=(b&0x03)*16;
+          bus_begin_note(node,chid,noteid,velocity,durms);
+        } break;
+      case 0x90: { // Medium Note.
+          if (NODE->srcp>NODE->srcc-2) FAIL
+          uint8_t a=NODE->src[NODE->srcp++];
+          uint8_t b=NODE->src[NODE->srcp++];
+          uint8_t chid=lead&0x0f;
+          uint8_t noteid=a>>1;
+          uint8_t velocity=((a&0x01)<<6)|((b&0xe0)>>2); // 4 bit
+          velocity|=velocity>>4;
+          int durms=((b&0x1f)+1)<<6;
+          bus_begin_note(node,chid,noteid,velocity,durms);
+        } break;
+      case 0xa0: { // Long Note.
+          if (NODE->srcp>NODE->srcc-2) FAIL
+          uint8_t a=NODE->src[NODE->srcp++];
+          uint8_t b=NODE->src[NODE->srcp++];
+          uint8_t chid=lead&0x0f;
+          uint8_t noteid=a>>1;
+          uint8_t velocity=((a&0x01)<<6)|((b&0xe0)>>2); // 4 bit
+          velocity|=velocity>>4;
+          int durms=((b&0x1f)+1)<<9;
+          bus_begin_note(node,chid,noteid,velocity,durms);
+        } break;
+      case 0xb0: { // Wheel.
+          if (NODE->srcp>NODE->srcc-1) FAIL
+          uint8_t v=NODE->src[NODE->srcp++];
+          uint8_t chid=lead&0x0f;
+          bus_set_wheel(node,chid,v);
+        } break;
+      default: FAIL // All else is reserved and illegal.
+    }
+  }
+  
+  /* Collect delays.
+   * It's perfectly normal for there to be multiple delays in a row, and we improve throughput by coalescing them.
+   * The usual case is there's one Long Delay (64..4096ms) followed by one Short Delay (1..63ms).
+   */
+  int delay=0;
+  for (;;) {
+  
+    /* EOF (implicit or explicit).
+     */
+    if ((NODE->srcp>=NODE->srcc)||!NODE->src[NODE->srcp]) {
+      if (delay) break;
+      if (NODE->repeat) {
+        // 1 frame delay at the turnover.
+        // But if the song is empty (ie srcp==0), report a long fake delay instead.
+        int fake_delay=(NODE->srcp?1:framec);
+        NODE->srcp=0;
+        NODE->playhead=0;
+        return fake_delay;
+      } else {
+        NODE->srcp=NODE->srcc;
+        synth_node_bus_terminate(node);
+        return framec;
+      }
+    }
+    
+    /* Non-delay event. Stop processing.
+     */
+    if (NODE->src[NODE->srcp]&0x80) break;
+    
+    uint8_t event=NODE->src[NODE->srcp++];
+    int ms=event&0x3f;
+    if (event&0x40) ms=(ms+1)<<6;
+    delay+=ms;
+  }
+  
+  /* Finally, convert this delay to frames, force positive, and apply it.
+   */
+  NODE->pending_delay=(int)(delay*NODE->framesperms);
+  if (NODE->pending_delay<1) NODE->pending_delay=1;
+  int updc=NODE->pending_delay;
+  if (updc>framec) updc=framec;
+  NODE->pending_delay-=updc;
+  NODE->playhead+=updc;
+  #undef FAIL
+  return updc;
+}
+
+/* Read song and update channels.
+ */
+ 
+static void bus_generate_signal(float *v,int framec,struct synth_node *node) {
+  while (framec>0) {
+    int updc=bus_update_song(node,framec);
+    int i=node->childc;
+    while (i-->0) {
+      struct synth_node *channel=node->childv[i];
+      channel->update(v,updc,channel);
+    }
+    v+=updc*node->chanc;
+    framec-=updc;
+  }
+}
+
+/* Fade out or back in.
+ */
+ 
+static void bus_apply_fade_mono(float *v,int framec,struct synth_node *node) {
+  int i=framec;
+  for (;i-->0;v++) {
+    (*v)*=NODE->fade_level;
+    NODE->fade_level+=NODE->dfade_level;
+    if (NODE->fade_level<=0.0f) { // End of fade-out.
+      NODE->fade_level=0;
+      node->finished=1;
+      memset(v+1,0,sizeof(float)*i);
+      return;
+    } else if (NODE->fade_level>=1.0f) { // End of fade-out cancel.
+      NODE->fade_level=1.0;
+      NODE->fading=0;
+      return;
+    }
+  }
+}
+ 
+static void bus_apply_fade_stereo(float *v,int framec,struct synth_node *node) {
+  int i=framec;
+  for (;i-->0;v+=2) {
+    v[0]*=NODE->fade_level;
+    v[1]*=NODE->fade_level;
+    NODE->fade_level+=NODE->dfade_level;
+    if (NODE->fade_level<=0.0f) { // End of fade-out.
+      NODE->fade_level=0;
+      node->finished=1;
+      memset(v+2,0,sizeof(float)*i*2);
+      return;
+    } else if (NODE->fade_level>=1.0f) { // End of fade-out cancel.
+      NODE->fade_level=1.0;
+      NODE->fading=0;
+      return;
+    }
+  }
+}
+
+/* Update.
+ */
+ 
+static void _bus_update(float *v,int framec,struct synth_node *node) {
+
+  /* If we're fading, we have to update into a buffer, apply the fade, then add that to output.
+   */
+  if (NODE->fading) {
+    int samplec=framec*node->chanc;
+    memset(NODE->buffer,0,sizeof(float)*samplec);
+    bus_generate_signal(NODE->buffer,framec,node);
+    if (node->chanc==1) bus_apply_fade_mono(NODE->buffer,framec,node);
+    else bus_apply_fade_stereo(NODE->buffer,framec,node);
+    synth_signal_add(v,NODE->buffer,samplec);
+  
+  /* No fade in play, we can run direct against the main.
+   */
+  } else {
+    bus_generate_signal(v,framec,node);
+  }
 }
 
 /* Ready.
  */
  
 static int _bus_ready(struct synth_node *node) {
-  int i,err;
-  // Ready all channels.
-  struct synth_node **pp=NODE->channelv;
-  for (i=NODE->channelc;i-->0;pp++) {
-    if ((err=synth_node_ready(*pp))<0) return err;
+  node->update=_bus_update;
+  int i;
+  for (i=node->childc;i-->0;) {
+    struct synth_node *channel=node->childv[i];
+    int chid=synth_node_channel_get_chid(channel);
+    if ((chid<0)||(chid>=0x10)) {
+      synth_node_remove_child(node,channel);
+      continue;
+    }
+    NODE->channel_by_chid[chid]=channel;
+    if (synth_node_ready(channel)<0) return -1;
   }
   return 0;
 }
@@ -312,171 +288,125 @@ const struct synth_node_type synth_node_type_bus={
   .ready=_bus_ready,
 };
 
-/* Apply channel config.
+/* Measure channel header.
+ * Caller must check for the terminator 0xff and not call us with those.
  */
  
-static int synth_node_bus_configure_channel(struct synth_node *node,int chid,const uint8_t *src,int srcc) {
-  if ((chid<0)||(chid>=SYNTH_CHANNEL_COUNT)||NODE->channel_by_chid[chid]) return -1;
-  if (NODE->channelc>=NODE->channela) {
-    int na=NODE->channela+8;
-    if (na>INT_MAX/sizeof(void*)) return -1;
-    void *nv=realloc(NODE->channelv,sizeof(void*)*na);
-    if (!nv) return -1;
-    NODE->channelv=nv;
-    NODE->channela=na;
-  }
-  struct synth_node *channel=synth_node_new(node->synth,&synth_node_type_channel,node->chanc);
-  if (!channel) return -1;
-  NODE->channelv[NODE->channelc++]=channel;
-  NODE->channel_by_chid[chid]=channel;
-  if (NODE->sounds_constraint) {
-    synth_node_channel_constrain_for_sounds(channel);
-  }
-  synth_node_channel_setup(channel,chid,node);
-  if (synth_node_channel_configure(channel,src,srcc)<0) return -1;
-  return 0;
+static int bus_measure_chhdr(const uint8_t *src,int srcc) {
+  if (srcc<6) return -1;
+  int srcp=6;
+  int modelen=(src[4]<<8)|src[5];
+  if (srcp>srcc-modelen) return -1;
+  srcp+=modelen;
+  if (srcp>srcc-2) return -1;
+  int postlen=(src[srcp]<<8)|src[srcp+1];
+  srcp+=2;
+  if (srcp>srcc-postlen) return -1;
+  srcp+=postlen;
+  return srcp;
 }
 
-/* Receive encoded config.
+/* Configure.
  */
  
-int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc) {
+int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc,int repeat,int rid) {
   if (!node||(node->type!=&synth_node_type_bus)||node->ready) return -1;
-  int err;
-  /*TODO
-  struct synth_song_parts parts={0};
-  if (synth_song_split(&parts,src,srcc)<0) return -1;
-  int chid=0; for (;chid<SYNTH_CHANNEL_COUNT;chid++) {
-    const uint8_t *chsrc=parts.channels[chid].v;
-    int chsrcc=parts.channels[chid].c;
-    while ((chsrcc>=2)&&(chsrc[0]==0x00)) { // Skip leading noops.
-      int skipc=2+chsrc[1];
-      chsrc+=skipc;
-      chsrcc-=skipc;
-    }
-    if (chsrcc<1) continue;
-    if ((err=synth_node_bus_configure_channel(node,chid,chsrc,chsrcc))<0) return err;
-  }
-  NODE->evv=parts.events;
-  NODE->evc=parts.eventsc;
-  NODE->evp=0;
-  */
-  return 0;
-}
-
-/* Set songid and repeat.
- */
-
-void synth_node_bus_set_songid(struct synth_node *node,int songid,int repeat) {
-  if (!node||(node->type!=&synth_node_type_bus)) return;
-  NODE->songid=songid;
+  if (node->childc) return -1; // Already configured!
+  if (!src||(srcc<6)||memcmp(src,"\0EGS",4)) return -1;
   NODE->repeat=repeat;
-}
-
-/* Get songid.
- */
- 
-int synth_node_bus_get_songid(struct synth_node *node) {
-  if (!node||(node->type!=&synth_node_type_bus)) return 0;
-  return NODE->songid;
-}
-
-/* Prepare fade-out.
- */
-
-void synth_node_bus_fade_out(struct synth_node *node,int framec,int force) {
-  if (!node||(node->type!=&synth_node_type_bus)||!node->ready) return;
-  if ((framec<1)||NODE->harddelay) { // Immediate.
-    NODE->fadeenable=1;
-    NODE->dfade=-1.0f;
-    NODE->fade=0.0f;
-    node->finished=1;
-  } else if (force||(NODE->fadeenable<1)) {
-    NODE->fadeenable=1;
-    NODE->dfade=-1.0f/(float)framec;
-    if (NODE->dfade>-BUS_DFADE_MIN) NODE->dfade=-BUS_DFADE_MIN;
-  }
-}
-
-/* Cancel fade-out.
- */
- 
-void synth_node_bus_cancel_fade(struct synth_node *node) {
-  if (!node||(node->type!=&synth_node_type_bus)||!node->ready||node->finished) return;
-  if (NODE->fadeenable>0) {
-    NODE->fadeenable=-1;
-    NODE->dfade=-NODE->dfade;
-  }
-}
-
-/* Delay signal.
- */
- 
-void synth_node_bus_wait(struct synth_node *node,int framec) {
-  if (!node||(node->type!=&synth_node_type_bus)||!node->ready) return;
-  if (framec<0) framec=0;
-  NODE->harddelay=framec;
-}
-
-/* Event from outside.
- */
-
-void synth_node_bus_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms) {
-  if (!node||(node->type!=&synth_node_type_bus)||!node->ready) return;
-  if (chid>=SYNTH_CHANNEL_COUNT) return;
-  struct synth_node *channel=NODE->channel_by_chid[chid];
-  if (!channel) return;
-  synth_node_channel_event(channel,chid,opcode,a,b,durms);
-}
-
-/* Get duration.
- */
-
-int synth_node_bus_get_duration(const struct synth_node *node) {
-  if (!node||(node->type!=&synth_node_type_bus)) return 0;
-  if (NODE->repeat) return -1;
+  const uint8_t *SRC=src;
+  NODE->tempo=(SRC[4]<<8)|SRC[5];
+  int srcp=6;
   
-  // Add up delays, skip note and wheel events, and stop on anything else.
-  int p=0,ms=0;
-  while (p<NODE->evc) {
-    uint8_t lead=NODE->evv[p++];
-    if (!lead) break;
-    if (!(lead&0x80)) {
-      int delay=lead&0x3f;
-      if (lead&0x40) delay=(delay+1)<<6;
-      ms+=delay;
-    } else switch (lead&0xf0) {
-      case 0x80: p+=2; break;
-      case 0x90: p+=2; break;
-      case 0xa0: p+=2; break;
-      case 0xb0: p+=1; break;
-      default: p=NODE->evc;
+  /* Channel headers.
+   */
+  while (srcp<srcc) {
+    if (SRC[srcp]==0xff) { srcp++; break; }
+    int len=bus_measure_chhdr(SRC+srcp,srcc-srcp);
+    if (len<1) return -1;
+    if (!SRC[srcp+1]||!SRC[srcp+3]) { // Master or Mode zero, noop channel. Skip it.
+      srcp+=len;
+      continue;
     }
+    struct synth_node *channel=synth_node_spawn(node,&synth_node_type_channel,0);
+    if (!channel) return -1;
+    if (
+      (synth_node_channel_configure(channel,SRC+srcp,len)<0)||
+      (synth_node_ready(channel)<0)
+    ) {
+      synth_node_remove_child(node,channel);
+      return -1;
+    }
+    srcp+=len;
   }
   
-  // At the end of the song, we fade out over 1 second. Account for that.
-  ms+=1000;
+  /* Remainder of (src) is events. Note them.
+   */
+  NODE->src=SRC+srcp;
+  NODE->srcc=srcc-srcp;
   
-  return (int)(NODE->framesperms*ms);
-}
-
-/* Add "sounds" constraint.
- */
- 
-int synth_node_bus_constrain_for_sounds(struct synth_node *node) {
-  if (!node||(node->type!=&synth_node_type_bus)||node->ready) return -1;
-  NODE->sounds_constraint=1;
-  int i=NODE->channelc; while (i-->0) {
-    synth_node_channel_constrain_for_sounds(NODE->channelv[i]);
-  }
   return 0;
 }
 
-/* Default pan.
+/* Trivial accessors.
  */
 
-float synth_node_bus_get_default_pan(const struct synth_node *node) {
-  if (!node||(node->type!=&synth_node_type_bus)) return 0.0f;
-  if (NODE->channelc<1) return 0.0f;
-  return synth_node_channel_get_default_pan(NODE->channelv[0]);
+int synth_node_bus_get_rid(const struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_bus)) return 0;
+  return NODE->rid;
+}
+
+double synth_node_bus_get_playhead(const struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_bus)) return 0.0;
+  return (double)NODE->playhead/(double)node->synth->rate;
+}
+
+int synth_node_bus_is_terminating(const struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_bus)) return 1;
+  return (NODE->fading>0);
+}
+
+int synth_node_bus_set_repeat(struct synth_node *node,int repeat) {
+  if (!node||(node->type!=&synth_node_type_bus)) return -1;
+  NODE->repeat=repeat;
+  return 0;
+}
+
+/* Set playhead.
+ */
+
+void synth_node_bus_set_playhead(struct synth_node *node,double s) {
+  if (!node||(node->type!=&synth_node_type_bus)) return;
+  //TODO
+}
+
+/* Terminate.
+ */
+ 
+int synth_node_bus_terminate(struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_bus)) return -1;
+  if (NODE->fading>0) return 0;
+  if (!NODE->fading) NODE->fade_level=1.0f; // but if already fading in, keep the existing level
+  NODE->fading=1;
+  NODE->dfade_level=-1.0f/(node->synth->rate*SYNTH_BUS_FADE_OUT_TIME);
+  return 0;
+}
+
+/* Unterminate.
+ */
+ 
+int synth_node_bus_unterminate(struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_bus)) return -1;
+  if (NODE->fading<=0) return 0;
+  NODE->fading=-1;
+  NODE->dfade_level=1.0f/(node->synth->rate*SYNTH_BUS_FADE_IN_TIME);
+  return 0;
+}
+
+/* Plain MIDI event.
+ */
+ 
+void synth_node_bus_midi_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms) {
+  if (!node||(node->type!=&synth_node_type_bus)||!node->ready) return;
+  //TODO
 }

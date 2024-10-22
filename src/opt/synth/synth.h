@@ -1,6 +1,5 @@
 /* synth.h
- * The default synthesizer for Egg, and hopefully the only one.
-XXX DEPRECATED 2024-10-15. I'll be writing a new one soon.
+ * Egg's native synthesizer.
  */
  
 #ifndef SYNTH_H
@@ -10,73 +9,54 @@ XXX DEPRECATED 2024-10-15. I'll be writing a new one soon.
 
 struct synth;
 
-void synth_del(struct synth *synth);
-
-/* We accept (rate,chanc) exactly or fail.
- * We're very tolerant of both, pretty much anything goes.
+/* Rates 200..200k are permitted.
+ * Channel count may go up to 8, but we only emit a signal on the first 2.
  */
+void synth_del(struct synth *synth);
 struct synth *synth_new(int rate,int chanc);
 
-/* You have one opportunity to install sounds and songs, immediately after construction.
- * We don't allow replacing after.
- * (technically, we don't prevent installing things after the first update, but might enforce that eventually).
- * MSF sounds will be split and accessible via the rid supplied here and the >0 index stored in the file.
- * Non-MSF sounds will have index zero.
- * Installation is cheap and dumb. We don't assert valid formatting at this point.
- * BEWARE: Buffers are borrowed weakly. You must not free or modify anything delivered to synth this way.
- * We assume that everything you supply comes from the ROM.
+/* In order to use synth_play_sound and synth_play_song, you must install resources ahead of time.
+ * You must keep (src) unchanged for as long as the synth lives.
+ * Installing resources is cheap, we only decode them when they're played.
  */
 int synth_install_sound(struct synth *synth,int rid,const void *src,int srcc);
 int synth_install_song(struct synth *synth,int rid,const void *src,int srcc);
 
-/* Advance internal state and produce PCM.
- * Floating-point output is more natural for us, but ask for what makes sense to you.
- * It's weird but perfectly safe to change formats at any time.
+/* Advance time and produce output.
+ * It's safe (but weird) to change output formats on the fly.
+ * (c) is always in samples -- not bytes, not frames.
  */
-void synth_updatef(float *v,int c,struct synth *synth);
 void synth_updatei(int16_t *v,int c,struct synth *synth);
+void synth_updatef(float *v,int c,struct synth *synth);
 
-/* Begin a fire-and-forget sound effect.
+/* Simple operations for exposure to client games.
+ * Playing a song ends any prior song, and that doesn't necessarily happen immediately.
+ * Synth has some latitude to apply fade-out or similar effects in the transition.
+ * Any subsequent calls to synth_get_song(), synth_get_playhead(), synth_set_playhead() do refer to the new song immediately.
  */
 void synth_play_sound(struct synth *synth,int rid);
-
-/* Stop the current song, and if (rid) exists, begin playing it.
- * (force) to restart even if the requested song is already playing.
- * (repeat) to loop at the end, otherwise we finish and play silence.
- */
 void synth_play_song(struct synth *synth,int rid,int force,int repeat);
+void synth_event(struct synth *synth,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms);
 
-/* Basically equivalent to synth_play_song(), but accepts a single-use serial dump.
- * After success, 'handoff' will eventually free (src).
+/* End current song and play an EGS song or PCM sound.
+ * If 'handoff' reports success, we will eventually free (src).
+ * For 'borrow', you must keep (src) unchanged until completion.
+ * synth_get_song() will return 0x10000 while playing, and 0 once it completes.
  */
 int synth_play_song_handoff(struct synth *synth,void *src,int srcc,int repeat);
 int synth_play_song_borrow(struct synth *synth,const void *src,int srcc,int repeat);
 
-/* Rid of current song, or zero if silent.
- * It's zero if an invalid song was requested (not that invalid rid), and also after a non-repeating song finishes.
- * If we're playing something manual via synth_play_song_handoff or _borrow, this returns 0x00010000.
+/* Current song id and playhead.
+ * Playhead is in seconds from start of song.
+ * It wraps around if repeat enabled.
+ * synth_get_song() is always zero when no song is playing -- if you ask for an invalid rid, we never report that rid as playing.
+ * It reports 0x10000 (OOB for rids) when we're playing an explicitly-provided resource.
+ * Playhead is always 0.0 when no song playing, and never exactly 0.0 when one is.
+ * When reporting playhead to the game, caller should try to adjust by the driver's buffer. That's out of scope for us.
  */
 int synth_get_song(const struct synth *synth);
-
-/* Push an arbitrary event onto the bus.
- * Most MIDI commands are understood, but don't necessarily do anything.
- * Songs occupy the first 8 channels, and the next 8 are available exclusively for programmatic use.
- * Sound effects do not occupy channels.
- * Opcode 0x98 is equivalent to Note On followed by Note Off after (durms) milliseconds.
- */
-void synth_event(struct synth *synth,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms);
-
-/* Current position in song, in seconds.
- * Exactly zero if no song is playing, and never exactly zero if one is.
- * You should try to adjust for driver buffering before reporting this to the client -- that's out of scope for synth.
- * The time we report should be some distance in the future of what's actually playing right now.
- */
 double synth_get_playhead(const struct synth *synth);
 void synth_set_playhead(struct synth *synth,double s);
-
-float synth_multiplier_from_cents(int cents);
-void synth_rates_generate_hz(float *fv/*128*/); // Constant, but we do calculate from scratch when you ask.
-void synth_rates_normalizeip(float *fv/*128*/,int mainratehz);
-void synth_rates_quantize(uint32_t *iv/*128*/,const float *fv/*128*/);
+int synth_count_busses(const struct synth *synth);
 
 #endif
