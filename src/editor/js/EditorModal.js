@@ -31,7 +31,7 @@ export class EditorModal {
   setupWithResource(clazz, res) {
     this.element.innerHTML = "";
     this.data = new RedirectingData();
-    this.data.serial = serial;
+    this.data.serial = res.serial;
     const editor = this.dom.spawnController(this.element, clazz, [this.data]);
     editor.setup(res);
     this.spawnControls();

@@ -10,6 +10,7 @@ struct synth_node_channel {
   float triml,trimr; // master,pan. Equal if chanc==1.
   struct synth_node *post;
   float *buffer;
+  int enable_global_trim;
   
   int wheelrange; // Cents, in mode WAVE or FM.
   struct synth_env_config level; // WAVE,FM,SUB
@@ -18,12 +19,14 @@ struct synth_node_channel {
   
 // mode==EGS_MODE_DRUM:
   struct synth_drum {
-    int rid; // absolute
     int warned; // Nonzero if there's a problem (either rid zero, or the named resource doesn't exist), and we've logged it.
-    float pan; // -1..1
+    float pan;
     float trimlo;
     float trimhi;
-  } *drumv; // null or 128 entries. Unused entries are straight zeroes.
+    const void *v; // Borrowed from incoming serial.
+    int c;
+    struct synth_pcm *pcm; // STRONG
+  } *drumv; // null or 128 entries (indexed by noteid). Unused entries are straight zeroes.
   
 // mode==EGS_MODE_WAVE:
   float *wave; // SYNTH_WAVE_SIZE_SAMPLES
@@ -43,7 +46,13 @@ struct synth_node_channel {
  
 static void _channel_del(struct synth_node *node) {
   if (NODE->buffer) free(NODE->buffer);
-  if (NODE->drumv) free(NODE->drumv);
+  if (NODE->drumv) {
+    struct synth_drum *drum=NODE->drumv;
+    int i=128; for (;i-->0;drum++) {
+      if (drum->pcm) synth_pcm_del(drum->pcm);
+    }
+    free(NODE->drumv);
+  }
   if (NODE->wave) free(NODE->wave);
   synth_node_del(NODE->post);
 }
@@ -52,6 +61,7 @@ static void _channel_del(struct synth_node *node) {
  */
  
 static int _channel_init(struct synth_node *node) {
+  NODE->enable_global_trim=1;
   return 0;
 }
 
@@ -81,7 +91,7 @@ static void _channel_update_post(float *v,int framec,struct synth_node *node) {
   memset(NODE->buffer,0,bufsize);
   _channel_update_straight(NODE->buffer,framec,node);
   if (NODE->post) NODE->post->update(NODE->buffer,framec,NODE->post);
-  synth_signal_mlts(NODE->buffer,samplec,SYNTH_GLOBAL_TRIM);
+  if (NODE->enable_global_trim) synth_signal_mlts(NODE->buffer,samplec,SYNTH_GLOBAL_TRIM);
   synth_signal_add(v,NODE->buffer,samplec);
 }
 
@@ -142,25 +152,30 @@ static void channel_configure_NOOP(struct synth_node *node) {
  */
  
 static int channel_configure_DRUM(struct synth_node *node,const uint8_t *src,int srcc) {
-  if (srcc<4) return -1;
   if (NODE->drumv) return -1;
   if (!(NODE->drumv=calloc(sizeof(struct synth_drum),128))) return -1;
-  int ridbase=(src[0]<<8)|src[1];
-  int noteid0=src[2];
-  int notec=src[3];
-  if (noteid0+notec>0x80) return -1;
-  if (4+notec*4>srcc) return -1;
-  int srcp=4;
-  struct synth_drum *dst=NODE->drumv+noteid0;
-  for (;notec-->0;dst++) {
-    if (!src[srcp+2]&&!src[srcp+3]) { // Both trims zero, the note is unused. Ensure it stays fully zero.
-      srcp+=4;
+  int srcp=0;
+  while (srcp<srcc) {
+    if (srcp>srcc-6) return -1;
+    uint8_t noteid=src[srcp++];
+    uint8_t pan=src[srcp++];
+    uint8_t trimlo=src[srcp++];
+    uint8_t trimhi=src[srcp++];
+    int len=(src[srcp]<<8)|src[srcp+1];
+    srcp+=2;
+    if (srcp>srcc-len) return -1;
+    if (!len) continue;
+    if (noteid>=0x80) {
+      fprintf(stderr,"WARNING: Ignoring drum config for invalid noteid 0x%02x\n",noteid);
     } else {
-      dst->rid=ridbase+src[srcp++];
-      dst->pan=((src[srcp++]-0x80)/128.0f);
-      dst->trimlo=src[srcp++]/255.0f;
-      dst->trimhi=src[srcp++]/255.0f;
+      struct synth_drum *drum=NODE->drumv+noteid;
+      drum->pan=(pan-0x80)/127.0f;
+      drum->trimlo=trimlo/255.0f;
+      drum->trimhi=trimhi/255.0f;
+      drum->v=src+srcp;
+      drum->c=len;
     }
+    srcp+=len;
   }
   return 0;
 }
@@ -328,6 +343,11 @@ int synth_node_channel_get_chid(const struct synth_node *node) {
   return NODE->chid;
 }
 
+void synth_node_channel_enable_global_trim(struct synth_node *node,int enable) {
+  if (!node||(node->type!=&synth_node_type_channel)) return;
+  NODE->enable_global_trim=enable;
+}
+
 /* Begin drum note.
  */
  
@@ -335,16 +355,19 @@ static void channel_begin_DRUM(struct synth_node *node,uint8_t noteid,float velo
   if (!NODE->drumv||(noteid>=0x80)) return;
   struct synth_drum *drum=NODE->drumv+noteid;
   if (drum->warned) return;
-  if (!drum->rid) {
+  if (!drum->c) {
     drum->warned=1;
-    fprintf(stderr,"WARNING: Drum channel %d, noteid 0x%02x, note tried to play but no sound resource assigned.\n",NODE->chid,noteid);
+    fprintf(stderr,"WARNING: Drum channel %d, noteid 0x%02x, note tried to play but no content.\n",NODE->chid,noteid);
     return;
   }
-  struct synth_pcm *pcm=synth_get_pcm(node->synth,drum->rid);
+  struct synth_pcm *pcm=drum->pcm;
   if (!pcm) {
-    drum->warned=1;
-    fprintf(stderr,"WARNING: Drum channel %d, noteid 0x%02x, sound:%d does not exist or failed to print.\n",NODE->chid,noteid,drum->rid);
-    return;
+    if (!(pcm=synth_acquire_pcm(node->synth,drum->v,drum->c,0))) {
+      drum->warned=1;
+      fprintf(stderr,"WARNING: Drum channel %d, noteid 0x%02x, %d-byte sound failed to print.\n",NODE->chid,noteid,drum->c);
+      return;
+    }
+    drum->pcm=pcm;
   }
   struct synth_node *voice=synth_node_spawn(node,&synth_node_type_pcm,0);
   if (!voice) return;
@@ -353,7 +376,7 @@ static void channel_begin_DRUM(struct synth_node *node,uint8_t noteid,float velo
   else if (velocity>=1.0f) trim=drum->trimhi;
   else trim=drum->trimhi*velocity+drum->trimlo*(1.0f-velocity);
   if (
-    (synth_node_pcm_configure(voice,pcm,trim,drum->pan,drum->rid)<0)||
+    (synth_node_pcm_configure(voice,pcm,trim,drum->pan,0)<0)||
     (synth_node_ready(voice)<0)
   ) {
     synth_node_remove_child(node,voice);

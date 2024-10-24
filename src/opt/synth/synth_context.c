@@ -217,7 +217,7 @@ static struct synth_printer *synth_printer_spawn(struct synth *synth,const void 
  * This might happen synchronously, for PCM resources, or it might install a printer.
  */
  
-static struct synth_pcm *synth_acquire_pcm(struct synth *synth,const void *src,int srcc,int rid) {
+struct synth_pcm *synth_acquire_pcm(struct synth *synth,const void *src,int srcc,int rid) {
 
   // From raw PCM resource.
   if ((srcc>=8)&&!memcmp(src,"\0PCM",4)) {

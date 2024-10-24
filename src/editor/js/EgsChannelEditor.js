@@ -7,6 +7,9 @@ import { Data } from "./Data.js";
 import { EnvUi } from "./EnvUi.js";
 import { EGS_CHANNEL_PRESETS } from "./egsPresets.js";
 import { EgsOpCard } from "./EgsOpCard.js";
+import { MidiFile } from "./MidiFile.js";
+import { MidiEditor } from "./MidiEditor.js";
+import { EditorModal } from "./EditorModal.js";
 
 export class EgsChannelEditor {
   static getDependencies() {
@@ -18,11 +21,14 @@ export class EgsChannelEditor {
     this.data = data;
     this.nonce = nonce;
     
-    this.res = null;
+    this.res = null; // Never a real resource.
     this.waveEnv = null;
     this.fmEnv = null;
     this.subEnv = null;
     this.postCards = []; // BEWARE: Order will not match the UI, if user moves cards around. UI is correct.
+    this.drumId = 1;
+    this.drumSerials = []; // Sparse, indexed by drumId. Populates along with UI.
+    this.fullSong = false;
   }
   
   static checkResource(res) {
@@ -31,6 +37,8 @@ export class EgsChannelEditor {
   
   setup(res) {
     this.res = res;
+    this.fullSong = res.fullSong || false;
+    this.drumSerials = [];
     this.buildUi();
   }
   
@@ -48,18 +56,19 @@ export class EgsChannelEditor {
     );
     
     let idBase = `EgsChannelEditor-${this.nonce}-mode-`;
-    this.dom.spawn(voice, "DIV", ["radioBar"], { "data-k": "mode", "on-change": () => this.onModeChanged() },
-      this.dom.spawn(null, "INPUT", { type: "radio", name: "mode", id: idBase + "noop", value: 0 }),
-      this.dom.spawn(null, "LABEL", { for: idBase + "noop" }, "Noop"),
-      this.dom.spawn(null, "INPUT", { type: "radio", name: "mode", id: idBase + "drums", value: 1 }),
-      this.dom.spawn(null, "LABEL", { for: idBase + "drums" }, "Drums"),
-      this.dom.spawn(null, "INPUT", { type: "radio", name: "mode", id: idBase + "wave", value: 2 }),
-      this.dom.spawn(null, "LABEL", { for: idBase + "wave" }, "Wave"),
-      this.dom.spawn(null, "INPUT", { type: "radio", name: "mode", id: idBase + "fm", value: 3 }),
-      this.dom.spawn(null, "LABEL", { for: idBase + "fm" }, "FM"),
-      this.dom.spawn(null, "INPUT", { type: "radio", name: "mode", id: idBase + "sub", value: 4 }),
-      this.dom.spawn(null, "LABEL", { for: idBase + "sub" }, "Sub"),
-    );
+    const modeBar = this.dom.spawn(voice, "DIV", ["radioBar"], { "data-k": "mode", "on-change": () => this.onModeChanged() });
+    this.dom.spawn(modeBar, "INPUT", { type: "radio", name: `${this.nonce}-mode`, id: idBase + "noop", value: 0 });
+    this.dom.spawn(modeBar, "LABEL", { for: idBase + "noop" }, "Noop");
+    if (this.fullSong) {
+      this.dom.spawn(modeBar, "INPUT", { type: "radio", name: `${this.nonce}-mode`, id: idBase + "drums", value: 1 });
+      this.dom.spawn(modeBar, "LABEL", { for: idBase + "drums" }, "Drums");
+    }
+    this.dom.spawn(modeBar, "INPUT", { type: "radio", name: `${this.nonce}-mode`, id: idBase + "wave", value: 2 });
+    this.dom.spawn(modeBar, "LABEL", { for: idBase + "wave" }, "Wave");
+    this.dom.spawn(modeBar, "INPUT", { type: "radio", name: `${this.nonce}-mode`, id: idBase + "fm", value: 3 });
+    this.dom.spawn(modeBar, "LABEL", { for: idBase + "fm" }, "FM");
+    this.dom.spawn(modeBar, "INPUT", { type: "radio", name: `${this.nonce}-mode`, id: idBase + "sub", value: 4 });
+    this.dom.spawn(modeBar, "LABEL", { for: idBase + "sub" }, "Sub");
     const modeElement = voice.querySelector(`.radioBar input[value='${this.modeFromRes()}']`);
     if (modeElement) modeElement.checked = true;
     
@@ -84,27 +93,34 @@ export class EgsChannelEditor {
   }
   
   rebuildModeDrums(parent, serial) {
-    const table = this.dom.spawn(parent, "TABLE");
-    this.spawnIntRow(table, "Sound ID base", "ridbase", 0, 65535, (serial[0] << 8) | serial[1]);
-    this.spawnIntRow(table, "Note ID base", "noteid0", 0, 255, serial[2] || 0);
-    const count = serial[3];
-    for (let i=0, p=4; i<count; i++) {
-      const ridoffset = serial[p++] || 0;
-      const pan = serial[p++] || 0;
-      const trimlo = serial[p++] || 0;
-      const trimhi = serial[p++] || 0;
-      const tr = this.dom.spawn(table, "TR", ["drum"]);
-      const td = this.dom.spawn(tr, "TD", { colspan: 2 });
-      this.dom.spawn(td, "INPUT", { type: "button", value: "X", "on-click": e => this.onDeleteDrum(e) });
-      this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "ridoffset", value: ridoffset });
-      this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "pan", value: pan });
-      this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "trimlo", value: trimlo });
-      this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "trimhi", value: trimhi });
-      //TODO Comment on the side that shows the GM drum name
+    this.drumSerials = [];
+    for (let srcp=0; srcp<serial.length; ) {
+      const noteid = serial[srcp++] || 0;
+      const pan = serial[srcp++] || 0;
+      const trimlo = serial[srcp++] || 0;
+      const trimhi = serial[srcp++] || 0;
+      const len = (serial[srcp] << 8) | serial[srcp + 1];
+      srcp += 2;
+      if (srcp > serial.length - len) break;
+      const card = this.dom.spawn(parent, "DIV", ["drum"]);
+      this.populateDrumCard(card, noteid, pan, trimlo, trimhi, serial.slice(srcp, srcp + len));
+      srcp += len;
     }
-    this.dom.spawn(table, "TR", ["add"], this.dom.spawn(null, "TD",
-      this.dom.spawn(null, "INPUT", { type: "button", value: "+", "on-click": () => this.onAddDrum() })
-    ));
+    this.dom.spawn(parent, "INPUT", ["add"], { type: "button", value: "+", "on-click": () => this.onAddDrum() })
+  }
+  
+  populateDrumCard(card, noteid, pan, trimlo, trimhi, serial) {
+    const id = this.drumId++;
+    this.drumSerials[id] = serial;
+    card.setAttribute("data-drumId", id);
+    this.dom.spawn(card, "DIV", ["title"], `${MidiFile.reprNote(noteid, true)} ${MidiFile.GM_DRUM_NAMES[noteid] || ''}`);
+    const controls = this.dom.spawn(card, "DIV", ["controls"]);
+    this.dom.spawn(controls, "INPUT", { type: "button", value: "X", "on-click": () => this.onDeleteDrum(id) });
+    this.dom.spawn(controls, "INPUT", { type: "number", min: 0, max: 255, value: noteid, name: "noteid", "on-input": () => this.onDrumNoteidChanged(id) });
+    this.dom.spawn(controls, "INPUT", { type: "number", min: 0, max: 255, value: pan, name: "pan" });
+    this.dom.spawn(controls, "INPUT", { type: "number", min: 0, max: 255, value: trimlo, name: "trimlo" });
+    this.dom.spawn(controls, "INPUT", { type: "number", min: 0, max: 255, value: trimhi, name: "trimhi" });
+    this.dom.spawn(controls, "INPUT", { type: "button", value: "Edit...", "on-click": () => this.onEditDrum(id) });
   }
   
   rebuildModeWave(parent, serial) {
@@ -216,9 +232,6 @@ export class EgsChannelEditor {
   defaultModeConfig(mode) {
     switch (mode) {
       case 1: return new Uint8Array([ // drums
-          0,0, // ridbase
-          0, // noteid0
-          0, // count
         ]);
       case 2: return new Uint8Array([ // wave
           0,200, // wheelrange
@@ -266,11 +279,7 @@ export class EgsChannelEditor {
   
   okModeConfigLength(mode, serial) {
     switch (mode) {
-      case 1: {
-          if (serial.length < 4) return false;
-          const c = serial[3];
-          return (serial.length === 4 + 4 * c);
-        }
+      case 1: return true; // DRUM: Could be validated but would have to scan all the way thru.
       case 2: {
           if (serial.length < 32) return false;
           const c = serial[31];
@@ -298,18 +307,20 @@ export class EgsChannelEditor {
   }
   
   encodeDrumsConfig(dst) {
-    const ridbase = +this.element.querySelector("input[name='ridbase']").value;
-    const noteid0 = +this.element.querySelector("input[name='noteid0']").value;
-    dst.push(ridbase >> 8);
-    dst.push(ridbase & 0xff);
-    dst.push(noteid0);
-    const rows = Array.from(this.element.querySelectorAll("tr.drum"));
-    dst.push(rows.length);
-    for (const tr of rows) {
-      dst.push(+tr.querySelector("input[name='ridoffset']").value);
-      dst.push(+tr.querySelector("input[name='pan']").value);
-      dst.push(+tr.querySelector("input[name='trimlo']").value);
-      dst.push(+tr.querySelector("input[name='trimhi']").value);
+    for (const card of this.element.querySelectorAll(".modeContainer .drum")) {
+      const drumId = +card.getAttribute("data-drumId");
+      const noteid = +card.querySelector("input[name='noteid']")?.value || 0;
+      const pan = +card.querySelector("input[name='pan']")?.value || 0;
+      const trimlo = +card.querySelector("input[name='trimlo']")?.value || 0;
+      const trimhi = +card.querySelector("input[name='trimhi']")?.value || 0;
+      const serial = this.drumSerials[drumId] || [];
+      dst.push(noteid);
+      dst.push(pan);
+      dst.push(trimlo);
+      dst.push(trimhi);
+      dst.push(serial.length >> 8);
+      dst.push(serial.length & 0xff);
+      for (const b of serial) dst.push(b);
     }
   }
   
@@ -410,28 +421,76 @@ export class EgsChannelEditor {
     this.dirty();
   }
   
-  onDeleteDrum(event) {
-    let row = event.target;
-    while (row && (row.tagName !== "TR")) row = row.parentNode;
+  onDeleteDrum(id) {
+    const row = this.element.querySelector(`.drum[data-drumId='${id}']`);
     if (!row) return;
     row.remove();
+    delete this.drumSerials[id];
     this.dirty();
   }
   
+  nextDrumNoteid() {
+    const present = Array.from(this.element.querySelectorAll(".modeContainer .drum input[name='noteid']")).map(e => +e.value).filter(v => !isNaN(v));
+    if (!present.length) return 35; // Acoustic Bass Drum; the lowest assigned GM drum.
+    present.sort((a, b) => a - b);
+    // First, if the highest present note is below 81 (Open Triangle; highest assigned drum), take the next after it.
+    const max = present[present.length - 1];
+    if (max < 81) return max + 1;
+    // Next, if there's a gap in the present noteids, and below 128, take that.
+    for (let i=0, noteid=present[0]; (i<present.length) && (noteid<128); i++, noteid++) {
+      if (present[i] !== noteid) return noteid;
+    }
+    // Finally, whatever, use zero and let the user figure it out.
+    return 0;
+  }
+  
   onAddDrum() {
-    const table = this.element.querySelector(".modeContainer table");
-    if (!table) return;
-    const addRow = table.querySelector("tr.add");
-    if (!addRow) return;
-    const newRow = this.dom.spawn(table, "TR", ["drum"]);
-    const td = this.dom.spawn(newRow, "TD", { colspan: 2 });
-    this.dom.spawn(td, "INPUT", { type: "button", value: "X", "on-click": e => this.onDeleteDrum(e) });
-    this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "ridoffset", value: 0 });
-    this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "pan", value: 128 });
-    this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "trimlo", value: 128 });
-    this.dom.spawn(td, "INPUT", { type: "number", min: 0, max: 255, name: "trimhi", value: 255 });
-    table.insertBefore(newRow, addRow);
+    const parent = this.element.querySelector(".modeContainer");
+    if (!parent) return;
+    const noteid = this.nextDrumNoteid();
+    const card = this.dom.spawn(null, "DIV", ["drum"]);
+    this.populateDrumCard(card, noteid, 0x80, 0x80, 0xff, new Uint8Array(0));
+    parent.insertBefore(card, parent.querySelector("input.add"));
     this.dirty();
+  }
+  
+  onEditDrum(id) {
+    const card = this.element.querySelector(`.drum[data-drumId='${id}']`);
+    const serial = this.drumSerials[id];
+    if (!card || !serial) return;
+    const modal = this.dom.spawnModal(EditorModal);
+    modal.setupWithSerial(MidiEditor, serial);
+    modal.result.then((result) => {
+      if (!result) return;
+      this.drumSerials[id] = result;
+      this.dirty();
+    }).catch(e => this.dom.modalError(e));
+  }
+  
+  onDrumNoteidChanged(id) {
+    const focusCard = this.element.querySelector(`.drum[data-drumId='${id}']`);
+    if (!focusCard) return;
+    const focusInput = focusCard.querySelector("input[name='noteid']");
+    if (!focusInput) return;
+    const focusNoteid = +focusInput.value;
+    if (isNaN(focusNoteid)) return;
+    const title = focusCard.querySelector(".title");
+    if (title) {
+      title.innerText = `${MidiFile.reprNote(focusNoteid, true)} ${MidiFile.GM_DRUM_NAMES[focusNoteid] || ''}`;
+    }
+    for (const card of this.element.querySelectorAll(".drum")) {
+      const drumId = +card.getAttribute("data-drumId");
+      if (drumId === id) continue;
+      const input = card.querySelector("input[name='noteid']");
+      if (!input) continue;
+      const noteid = +input.value;
+      if (isNaN(noteid)) continue;
+      if (noteid === focusNoteid) {
+        focusInput.classList.add("invalid");
+        return;
+      }
+    }
+    focusInput.classList.remove("invalid");
   }
   
   deletePostCard(controller) {

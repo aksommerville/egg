@@ -84,6 +84,7 @@ extern const struct synth_node_type synth_node_type_iir;
  * You can cancel that termination any time before it completes, and the bus fades back in.
  * Busses set (node->finished) either when the song ends and no repeat, or when termination fades all the way out.
  * Context will have an arbitrary set of running busses, but will assume that only zero or one is active, ie not terminating.
+ * (rid<0) for PCM printers. We disable global trim on all channels.
  */
 int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc,int repeat,int rid);
 int synth_node_bus_get_rid(const struct synth_node *node);
@@ -94,6 +95,7 @@ int synth_node_bus_terminate(struct synth_node *node);
 int synth_node_bus_unterminate(struct synth_node *node);
 int synth_node_bus_set_repeat(struct synth_node *node,int repeat); // May change before or after ready.
 void synth_node_bus_midi_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms);
+int synth_node_bus_get_duration(const struct synth_node *node); // => ms
 
 /* (src) is an EGS channel header, starting with (u8 chid), running through (post).
  */
@@ -101,6 +103,7 @@ int synth_node_channel_configure(struct synth_node *node,const void *src,int src
 int synth_node_channel_get_chid(const struct synth_node *node);
 void synth_node_channel_begin_note(struct synth_node *node,uint8_t noteid,uint8_t velocity,int durms);
 void synth_node_channel_set_wheel(struct synth_node *node,uint8_t v);
+void synth_node_channel_enable_global_trim(struct synth_node *node,int enable); // Enabled by default
 
 /* We'll play (pcm) once and then signal completion.
  * (pan) is ignored if we're configured mono.

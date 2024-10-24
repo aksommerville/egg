@@ -85,6 +85,23 @@ export class MidiFile {
     return null;
   }
   
+  addEvent(event) {
+    event = { ...event, id: this.nextEventId++ };
+    for (const track of this.tracks) {
+      if (track.find(e => e.chid === event.chid)) {
+        this.insertEvent(track, event);
+        return;
+      }
+    }
+    if (!this.tracks.length) this.tracks.push([]);
+    this.insertEvent(this.tracks[0], event);
+  }
+  
+  insertEvent(track, event) {
+    track.push(event);
+    track.sort((a, b) => a.time - b.time);
+  }
+  
   // Must have an ID already present in my lists.
   replaceEvent(event) {
     if (!event?.id) return false;
@@ -515,7 +532,7 @@ MidiFile.GM_DRUM_NAMES = [
   /* 10 */ "", "", "", "", "", "", "", "",
   /* 18 */ "", "", "", "", "", "", "", "",
   /* 20 */ "", "", "", "Acoustic Bass Drum", "Bass Drum 1", "Side Stick", "Acoustic Snare", "Hand Clap",
-  /* 28 */ "Electic Snare", "Low Floor Tom", "Closed Hi Hat", "High Floor Tom", "Pedal Hi Hat", "Low Tom", "Open Hi Hat", "Low Mid Tom",
+  /* 28 */ "Electric Snare", "Low Floor Tom", "Closed Hi Hat", "High Floor Tom", "Pedal Hi Hat", "Low Tom", "Open Hi Hat", "Low Mid Tom",
   /* 30 */ "Hi Mid Tom", "Crash 1", "High Tom", "Ride 1", "Chinese Cymbal", "Ride Bell", "Tambourine", "Splash",
   /* 38 */ "Cowbell", "Crash 2", "Vibraslap", "Ride 2", "Hi Bongo", "Low Bongo", "Mute High Conga", "Open High Conga",
   /* 40 */ "Low Conga", "High Timbale", "Low Timbale", "High Agogo", "Low Agogo", "Cabasa", "Maracas", "Short Whistle",

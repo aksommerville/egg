@@ -330,6 +330,7 @@ int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc,in
     }
     struct synth_node *channel=synth_node_spawn(node,&synth_node_type_channel,0);
     if (!channel) return -1;
+    if (rid<0) synth_node_channel_enable_global_trim(channel,0);
     if (
       (synth_node_channel_configure(channel,SRC+srcp,len)<0)||
       (synth_node_ready(channel)<0)
@@ -409,4 +410,28 @@ int synth_node_bus_unterminate(struct synth_node *node) {
 void synth_node_bus_midi_event(struct synth_node *node,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms) {
   if (!node||(node->type!=&synth_node_type_bus)||!node->ready) return;
   //TODO
+}
+
+/* Get song duration in ms.
+ */
+ 
+int synth_node_bus_get_duration(const struct synth_node *node) {
+  if (!node||(node->type!=&synth_node_type_bus)) return 0;
+  int dur=0,srcp=0;
+  while (srcp<NODE->srcc) {
+    uint8_t lead=NODE->src[srcp++];
+    if (!lead) break;
+    if (lead&0x80) switch (lead&0xf0) {
+      case 0x80: srcp+=2; break;
+      case 0x90: srcp+=2; break;
+      case 0xa0: srcp+=2; break;
+      case 0xb0: srcp+=1; break;
+      default: return -1;
+    } else {
+      int delay=lead&0x3f;
+      if (lead&0x40) delay=(delay+1)<<6;
+      dur+=delay;
+    }
+  }
+  return dur;
 }

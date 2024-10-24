@@ -251,6 +251,12 @@ body {
   display: flex;
   flex-direction: column;
 }
+.EditorModal .MidiEditor .channels {
+  color: #fff;
+}
+.EditorModal .MidiEditor .events {
+  color: #fff;
+}
 .MidiEditor .globals {
   display: flex;
   flex-direction: row;
@@ -344,6 +350,14 @@ body {
 }
 .EditorModal .EgsChannelEditor > .voice .modeContainer {
   max-height: 70vh;
+}
+.EgsChannelEditor .modeContainer .drum {
+  margin: 10px;
+  min-height: 40px;
+  border: 1px solid #000;
+}
+.EgsChannelEditor .modeContainer .drum .invalid {
+  background-color: #f88;
 }
 .EgsChannelEditor > .post {
   flex: 1;

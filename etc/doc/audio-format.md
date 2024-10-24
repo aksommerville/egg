@@ -78,17 +78,17 @@ Mode:
 - 2: Flat Wave.
 - 3: FM.
 - 4: Subtractive.
-  
-Mode 1: Drums:
--  u16 ridbase
--  u8  noteid0
--  u8  count
--  ... For (count):
--    u8 ridoffset
--    u8 pan 0..128..255
--    u8 trimlo
--    u8 trimhi
--  Channel pan is ignored.
+
+Mode 1: Drums, zero or more of:
+- u8  noteid
+- u8  pan 0..128..255
+- u8  trimlo
+- u8  trimhi
+- u16 length
+- ... EGS file
+- Channel pan is ignored.
+- Inner files are like `sound` resources: No drums, and 5-second limit.
+- Entries need not be sorted, but duplicate (noteid) is an error.
     
 Mode 2: Flat Wave:
 -  u16 wheelrange, cents

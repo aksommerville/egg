@@ -1,6 +1,9 @@
 #include "eggdev_internal.h"
 #include "opt/synth/synth_formats.h"
 
+static int eggdev_song_egs_from_midi(struct sr_encoder *dst,struct eggdev_res *res);
+static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *res);
+
 #define HOLD_LIMIT 32
 
 struct midi_hold {
@@ -26,6 +29,67 @@ static const uint8_t eggdev_song_default_channel_header[]={
     0x00, // Coefficient count, must be zero due to shape.
   0x00,0x00, // Post length
 };
+
+/* Rewrite a DRUM channel header mode config section.
+ * This contains a brief header and some sound file for each drum.
+ * When compiling a song from MIDI, the drums are allowed to also be MIDI.
+ * And WAV=>PCM too, why not.
+ */
+ 
+static int eggdev_recompile_drums_1(struct sr_encoder *dst,const uint8_t *src,int srcc) {
+  struct eggdev_res res={.serial=(void*)src,.serialc=srcc,.path="(embedded)"};
+  if ((srcc>=4)&&!memcmp(src,"MThd",4)) return eggdev_song_egs_from_midi(dst,&res);
+  if ((srcc>=4)&&!memcmp(src,"RIFF",4)) return eggdev_song_pcm_from_wav(dst,&res);
+  return sr_encode_raw(dst,src,srcc);
+}
+ 
+static int eggdev_recompile_drums_config(struct sr_encoder *dst,const uint8_t *src,int srcc) {
+  int srcp=0;
+  while (srcp<srcc) {
+    if (srcp>srcc-6) return -1;
+    if (sr_encode_raw(dst,src+srcp,4)<0) return -1; // (noteid,pan,trimlo,trimhi): No change
+    srcp+=4;
+    int olen=(src[srcp]<<8)|src[srcp+1];
+    srcp+=2;
+    if (srcp>srcc-olen) return -1;
+    int lenp=dst->c;
+    if (sr_encode_raw(dst,"\0\0",2)<0) return -1;
+    if (eggdev_recompile_drums_1(dst,src+srcp,olen)<0) return -1;
+    srcp+=olen;
+    int nlen=dst->c-lenp-2;
+    ((uint8_t*)dst->v)[lenp]=nlen>>8;
+    ((uint8_t*)dst->v)[lenp+1]=nlen;
+  }
+  return 0;
+}
+
+/* Compile a channel header.
+ * Usually we get them in the finished output format, and this is noop.
+ * But drums are provided with an embedded MIDI file instead of EGS -- we have to recursively compile that.
+ * That's only pertinent to mode 1 DRUM, but we'll check regardless of mode. There's no case where a MIDI file could be grokked by the runtime.
+ * Populates (*dstpp,*dstc) on all successes.
+ * Returns >0 if (*dstpp) contains a new buffer which you must free (otherwise it's (src)).
+ */
+ 
+static int eggdev_compile_channel_header(void *dstpp,int *dstc,const uint8_t *src,int srcc) {
+  *(const void**)dstpp=src;
+  *dstc=srcc;
+  if (srcc<3) return 0;
+  if (src[0]!=0x01) return 0; // DRUM only.
+  int configc=(src[1]<<8)|src[2];
+  if (3>srcc-configc) return -1;
+  const uint8_t *config=src+3;
+  struct sr_encoder dst={0};
+  if (sr_encode_raw(&dst,src,3)<0) return -1; // include incorrect configc for now
+  if (eggdev_recompile_drums_config(&dst,config,configc)<0) return -1;
+  int nconfigc=dst.c-3;
+  ((uint8_t*)dst.v)[1]=nconfigc>>8;
+  ((uint8_t*)dst.v)[2]=nconfigc;
+  if (sr_encode_raw(&dst,src+3+configc,srcc-3-configc)<0) return -1;
+  *(void**)dstpp=dst.v; // HANDOFF
+  *dstc=dst.c;
+  return 1;
+}
 
 /* Confirm that the (param) and (post) lengths encoded here match the expected length.
  * When we read them from MIDI, they could be anything.
@@ -108,14 +172,23 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
         chcfg->bin=eggdev_song_default_channel_header;
         chcfg->binc=sizeof(eggdev_song_default_channel_header);
       }
+      void *bin=0;
+      int binc=0,own=0;
+      if ((own=eggdev_compile_channel_header(&bin,&binc,chcfg->bin,chcfg->binc))<0) return own;
       if (eggdev_validate_partial_channel_header(chcfg->bin,chcfg->binc)<0) {
         fprintf(stderr,"%s: Header for channel %d contains inconsistent lengths.\n",res->path,chid);
+        if (own&&bin) free(bin);
         return -2;
       }
-      if (sr_encode_u8(dst,chid)<0) return -1;
-      if (sr_encode_u8(dst,chcfg->master)<0) return -1;
-      if (sr_encode_u8(dst,chcfg->pan)<0) return -1;
-      if (sr_encode_raw(dst,chcfg->bin,chcfg->binc)<0) return -1;
+      if (
+        (sr_encode_u8(dst,chid)<0)||
+        (sr_encode_u8(dst,chcfg->master)<0)||
+        (sr_encode_u8(dst,chcfg->pan)<0)||
+        (sr_encode_raw(dst,bin,binc)<0)
+      ) {
+        if (own&&bin) free(bin);
+        return -2;
+      }
     } else { // No notes. Drop the channel even if configured.
       memset(chcfg,0,sizeof(struct chcfg));
     }

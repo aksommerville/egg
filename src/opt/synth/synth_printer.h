@@ -6,14 +6,17 @@
 #define SYNTH_PRINTER_H
 
 struct synth_printer {
-  int TODO;
-  struct synth_pcm *pcm;
+  struct synth *synth; // WEAK
+  struct synth_pcm *pcm; // STRONG
+  struct synth_node *bus; // STRONG
+  int p;
 };
 
-//TODO
-static inline void synth_printer_del(struct synth_printer *printer) {}
-static inline struct synth_printer *synth_printer_new(struct synth *synth,const void *src,int srcc) { return 0; }
-static inline int synth_printer_update(struct synth_printer *printer,int c) { return 0; }
+void synth_printer_del(struct synth_printer *printer);
+struct synth_printer *synth_printer_new(struct synth *synth,const void *src,int srcc);
+
+// Returns zero if finished.
+int synth_printer_update(struct synth_printer *printer,int c);
 
 struct synth_pcm {
   int refc;

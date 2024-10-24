@@ -82,6 +82,9 @@ struct synth_res *synth_res_get(const struct synth *synth,int tid,int rid);
  */
 struct synth_pcm *synth_get_pcm(struct synth *synth,int rid);
 
+// => STRONG
+struct synth_pcm *synth_acquire_pcm(struct synth *synth,const void *src,int srcc,int rid);
+
 /* Bits.
  *************************************************************************/
  

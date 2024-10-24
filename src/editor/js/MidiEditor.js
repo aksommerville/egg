@@ -24,6 +24,7 @@ export class MidiEditor {
     
     this.res = null;
     this.file = null;
+    this.fullSong = false;
     
     this.buildUi();
   }
@@ -36,10 +37,12 @@ export class MidiEditor {
       (res.serial[2] === 0x68) &&
       (res.serial[3] === 0x64)
     ) return 2;
+    if (!res.serial.length && ((res.type === "sound") || (res.type === "song"))) return 1;
     return 0;
   }
   
   setup(res) {
+    this.fullSong = (res.type === "song"); // False for 'sound' or undefined (when opened via EgsChannelEditor drums config).
     this.res = res;
     this.file = new MidiFile(res.serial);
     this.populateUi();
@@ -88,6 +91,11 @@ export class MidiEditor {
         channelCards.push(this.buildBlankChannelCard(channels, chid));
       }
       
+      this.dom.spawn(events, "TR",
+        this.dom.spawn(null, "TD", { colspan: 6 },
+          this.dom.spawn(null, "INPUT", { type: "button", value: "+", "on-click": () => this.onAddEvent() })
+        )
+      );
       for (const event of this.file.mergeEvents()) {
         if (event.chid < 16) {
           this.addEventToChannelCard(channelCards[event.chid], event);
@@ -106,10 +114,12 @@ export class MidiEditor {
       this.dom.spawn(null, "SPAN", ["key"], "Volume:"),
       this.dom.spawn(null, "SPAN", ["value", "volume"])
     );
-    this.dom.spawn(card, "DIV", ["field"], { "on-click": () => this.onEditChannelField(chid, "pan") },
-      this.dom.spawn(null, "SPAN", ["key"], "Pan:"),
-      this.dom.spawn(null, "SPAN", ["value", "pan"])
-    );
+    if (this.fullSong) {
+      this.dom.spawn(card, "DIV", ["field"], { "on-click": () => this.onEditChannelField(chid, "pan") },
+        this.dom.spawn(null, "SPAN", ["key"], "Pan:"),
+        this.dom.spawn(null, "SPAN", ["value", "pan"])
+      );
+    }
     this.dom.spawn(card, "DIV", ["field"], { "on-click": () => this.onEditChannelField(chid, "egs") },
       this.dom.spawn(null, "SPAN", ["key"], "EGS Config:"),
       this.dom.spawn(null, "SPAN", ["value", "egs"])
@@ -123,7 +133,10 @@ export class MidiEditor {
     switch (event.opcode) {
       case 0xb0: switch (event.a) {
           case 0x07: card.querySelector(".value.volume").innerText = event.b; break;
-          case 0x0a: card.querySelector(".value.pan").innerText = event.b; break;
+          case 0x0a: {
+              const element = card.querySelector(".value.pan");
+              if (element) element.innerText = event.b;
+            } break;
           default: return;
         } break;
       case 0xff: switch (event.a) {
@@ -254,7 +267,12 @@ export class MidiEditor {
         if (this.file.deleteEvent(newEvent.id, newEvent.partnerToo)) {
           this.data.dirty(this.res.path, () => this.file.encode());
         }
-      } else if (this.file.replaceEvent(newEvent)) {
+      } else if (event.id) {
+        if (this.file.replaceEvent(newEvent)) {
+          this.data.dirty(this.res.path, () => this.file.encode());
+        }
+      } else {
+        this.file.addEvent(newEvent);
         this.data.dirty(this.res.path, () => this.file.encode());
       }
       this.populateUi();
@@ -271,6 +289,17 @@ export class MidiEditor {
     const midiEvent = this.file.eventById(id);
     if (!midiEvent) return;
     this.onEditEvent(midiEvent);
+  }
+  
+  onAddEvent() {
+    this.onEditEvent({
+      time: 0,
+      opcode: 0,
+      chid: 0,
+      a: 0,
+      b: 0,
+      v: [],
+    });
   }
   
   getChannelEgsHeader(chid) {
@@ -324,7 +353,7 @@ export class MidiEditor {
     if (k === "egs") {
       const serial = this.getChannelEgsHeader(chid);
       const modal = this.dom.spawnModal(EditorModal);
-      const controller = modal.setupWithSerial(EgsChannelEditor, serial);
+      const controller = modal.setupWithResource(EgsChannelEditor, { serial, fullSong: this.fullSong });
       modal.result.then((result) => {
         if (!result) return;
         this.setChannelEgsHeader(chid, result);

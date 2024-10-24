@@ -40,6 +40,10 @@ export class MidiEventModal {
   
   spawnInnards() {
     const table = this.dom.spawn(this.element, "TABLE");
+    this.spawnRow(table, "Channel", "chid");
+    if (!this.event.opcode) {
+      this.spawnRow(table, "Opcode", "opcode", v => this.reprOpcode(v));
+    }
     this.spawnRow(table, "Time", "time", v => this.reprTime(v));
     switch (this.event.opcode) {
       case 0x80: {
@@ -85,6 +89,7 @@ export class MidiEventModal {
     this.dom.spawn(tr, "TD", ["key"], label);
     const tdv = this.dom.spawn(tr, "TD", ["value"]);
     const input = this.dom.spawn(tdv, "INPUT", { type: "number", min: 0, max: 127, value: this.event[key] || 0, name: key, "on-input": () => input.classList.remove("invalid") });
+    if (key === "opcode") input.addEventListener("change", () => this.onOpcodeChanged());
     if (repr) {
       const tdadvice = this.dom.spawn(tr, "TD", ["advice"], repr(input.value));
       input.addEventListener("input", e => tdadvice.innerText = repr(input.value));
@@ -160,6 +165,8 @@ export class MidiEventModal {
       let v = element.value;
       let valid = true;
       switch (k) {
+        case "opcode": if (isNaN(v = +v) || (v < 0x80) || (v > 0xff)) valid = false; break;
+        case "chid": if (isNaN(v = +v) || (v < 0) || (v > 15)) valid = false; break;
         case "time": if (isNaN(v = +v) || (v < 0)) valid = false;; break;
         case "a": if (isNaN(v = +v) || (v < 0) || (v > 0x7f)) valid = false; break;
         case "b": if (isNaN(v = +v) || (v < 0) || (v > 0x7f)) valid = false; break;
@@ -173,6 +180,11 @@ export class MidiEventModal {
       dst[k] = v;
     }
     return dst;
+  }
+  
+  onOpcodeChanged() {
+    this.event = this.readEventFromUi();
+    this.buildUi();
   }
   
   onDelete(partnerToo) {

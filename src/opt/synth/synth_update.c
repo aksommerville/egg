@@ -8,7 +8,7 @@ void synth_update_before(struct synth *synth,int framec) {
   while (i-->0) {
     struct synth_printer *printer=synth->printerv[i];
     if ((err=synth_printer_update(printer,framec))<=0) {
-      fprintf(stderr,"%s: Drop printer %p, status=%d\n",__func__,printer,err);
+      //fprintf(stderr,"%s: Drop printer %p, status=%d\n",__func__,printer,err);
       synth->printerc--;
       memmove(synth->printerv+i,synth->printerv+i+1,sizeof(void*)*(synth->printerc-i));
       synth_printer_del(printer);
@@ -26,7 +26,7 @@ void synth_update_after(struct synth *synth) {
   while (i-->0) {
     struct synth_node *bus=synth->busv[i];
     if (bus->finished) {
-      fprintf(stderr,"%s: Drop bus %p due to finished.\n",__func__,bus);
+      //fprintf(stderr,"%s: Drop bus %p due to finished.\n",__func__,bus);
       synth->busc--;
       memmove(synth->busv+i,synth->busv+i+1,sizeof(void*)*(synth->busc-i));
       synth_node_del(bus);
