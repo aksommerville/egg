@@ -414,6 +414,27 @@ static int eggdev_cb_post_api_sound(struct http_xfer *req,struct http_xfer *rsp)
   return http_xfer_set_status(rsp,200,"OK");
 }
 
+/* POST /api/compile
+ */
+ 
+static int eggdev_cb_post_api_compile(struct http_xfer *req,struct http_xfer *rsp) {
+  char dstfmt[32],srcfmt[32];
+  int dstfmtc=http_xfer_get_param(dstfmt,sizeof(dstfmt),req,"dstfmt",6);
+  int srcfmtc=http_xfer_get_param(srcfmt,sizeof(srcfmt),req,"srcfmt",6);
+  if ((dstfmtc<0)||(dstfmtc>sizeof(dstfmt))) dstfmtc=0;
+  if ((srcfmtc<0)||(srcfmtc>sizeof(srcfmt))) srcfmtc=0;
+  struct sr_encoder *src=http_xfer_get_body(req);
+  struct sr_encoder *dst=http_xfer_get_body(rsp);
+  if (!src||!dst) return -1;
+  int dstc0=dst->c;
+  int err=eggdev_cvta2a(dst,src->v,src->c,"(http)",dstfmt,dstfmtc,srcfmt,srcfmtc);
+  if (err<0) {
+    dst->c=dstc0;
+    return http_xfer_set_status(rsp,400,"Failed to convert");
+  }
+  return http_xfer_set_status(rsp,200,"OK");
+}
+
 /* Serve HTTP request.
  * Note that errors returned here do not fall through http_update; http handles and eats them.
  */
@@ -424,6 +445,7 @@ static int eggdev_cb_serve(struct http_xfer *req,struct http_xfer *rsp,void *use
     HTTP_METHOD_GET,"/api/make",eggdev_cb_get_api_make,
     HTTP_METHOD_GET,"/api/resources/**",eggdev_cb_get_api_resources,
     HTTP_METHOD_POST,"/api/sound",eggdev_cb_post_api_sound,
+    HTTP_METHOD_POST,"/api/compile",eggdev_cb_post_api_compile,
     HTTP_METHOD_PUT,"",eggdev_cb_put,
     HTTP_METHOD_DELETE,"",eggdev_cb_delete,
     HTTP_METHOD_GET,"",eggdev_cb_get

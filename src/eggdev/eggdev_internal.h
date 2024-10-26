@@ -109,7 +109,28 @@ int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom); // ''
 int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom);
 int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom);
 
+/* Generic anything-to-anything conversion for anything serializable that doesn't depend on external context.
+ */
+int eggdev_cvta2a(
+  struct sr_encoder *dst,
+  const void *src,int srcc,
+  const char *refname,
+  const char *dstfmt,int dstfmtc,
+  const char *srcfmt,int srcfmtc
+);
+
 int eggdev_metadata_get(void *dstpp,const void *src,int srcc,const char *k,int kc);
 int eggdev_strings_get(void *dstpp,const struct eggdev_rom *rom,int rid,int index);
+
+/* Conversion entry points exposed only for eggdev_cvta2a.
+ */
+int eggdev_metadata_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *refname);
+int eggdev_metadata_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
+int eggdev_strings_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *refname);
+int eggdev_strings_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
+int eggdev_song_egs_from_midi(struct sr_encoder *dst,const void *src,int srcc,const char *refname);
+int eggdev_song_midi_from_egs(struct sr_encoder *dst,const void *src,int srcc,const char *refname);
+int eggdev_song_pcm_from_wav(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
+int eggdev_song_wav_from_pcm(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
 
 #endif

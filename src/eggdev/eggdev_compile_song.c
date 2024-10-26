@@ -1,9 +1,6 @@
 #include "eggdev_internal.h"
 #include "opt/synth/synth_formats.h"
 
-static int eggdev_song_egs_from_midi(struct sr_encoder *dst,struct eggdev_res *res);
-static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *res);
-
 #define HOLD_LIMIT 32
 
 struct midi_hold {
@@ -38,8 +35,8 @@ static const uint8_t eggdev_song_default_channel_header[]={
  
 static int eggdev_recompile_drums_1(struct sr_encoder *dst,const uint8_t *src,int srcc) {
   struct eggdev_res res={.serial=(void*)src,.serialc=srcc,.path="(embedded)"};
-  if ((srcc>=4)&&!memcmp(src,"MThd",4)) return eggdev_song_egs_from_midi(dst,&res);
-  if ((srcc>=4)&&!memcmp(src,"RIFF",4)) return eggdev_song_pcm_from_wav(dst,&res);
+  if ((srcc>=4)&&!memcmp(src,"MThd",4)) return eggdev_song_egs_from_midi(dst,src,srcc,0);
+  if ((srcc>=4)&&!memcmp(src,"RIFF",4)) return eggdev_song_pcm_from_wav(dst,src,srcc,0);
   return sr_encode_raw(dst,src,srcc);
 }
  
@@ -116,7 +113,7 @@ static int eggdev_validate_partial_channel_header(const uint8_t *v,int c) {
  */
  
 // Returns tempo in ms/qnote
-static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_reader *reader,struct eggdev_res *res) {
+static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_reader *reader,const char *refname) {
   int tempo=500;
   struct synth_midi_event event;
 
@@ -138,7 +135,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
   }
   int now=0;
   #define WARN_NONZERO if (now) { \
-    fprintf(stderr,"%s:WARNING: Ignoring configuration event at time %d. This is only valid at time zero.\n",res->path,now); \
+    fprintf(stderr,"%s:WARNING: Ignoring configuration event at time %d. This is only valid at time zero.\n",refname,now); \
   }
   for (;;) {
     int delay=synth_midi_reader_next(&event,reader);
@@ -168,7 +165,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
       memset(chcfg,0,sizeof(struct chcfg));
     } else if (chcfg->notec) { // Notes present. Keep the channel even if unconfigured.
       if (!chcfg->binc) {
-        fprintf(stderr,"%s:WARNING: Using default channel config for channel %d. Please open this song in Egg's song editor to configure manually.\n",res->path,chid);
+        fprintf(stderr,"%s:WARNING: Using default channel config for channel %d. Please open this song in Egg's song editor to configure manually.\n",refname,chid);
         chcfg->bin=eggdev_song_default_channel_header;
         chcfg->binc=sizeof(eggdev_song_default_channel_header);
       }
@@ -176,7 +173,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
       int binc=0,own=0;
       if ((own=eggdev_compile_channel_header(&bin,&binc,chcfg->bin,chcfg->binc))<0) return own;
       if (eggdev_validate_partial_channel_header(chcfg->bin,chcfg->binc)<0) {
-        fprintf(stderr,"%s: Header for channel %d contains inconsistent lengths.\n",res->path,chid);
+        fprintf(stderr,"%s: Header for channel %d contains inconsistent lengths.\n",refname,chid);
         if (own&&bin) free(bin);
         return -2;
       }
@@ -268,7 +265,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
           if (holdc>=HOLD_LIMIT) {
             fprintf(stderr,
               "%s:WARNING: Note 0x%02x on channel %d around %d/%d ms, dropping duration to zero due to too many held notes.\n",
-              res->path,event.a,event.chid,now,songdur
+              refname,event.a,event.chid,now,songdur
             );
           } else {
             struct midi_hold *hold=holdv+holdc++;
@@ -299,7 +296,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
   
   // Finally, issue a warning if any notes were not released.
   if (holdc) {
-    fprintf(stderr,"%s:WARNING: %d notes were never released (emitted with duration zero):\n",res->path,holdc);
+    fprintf(stderr,"%s:WARNING: %d notes were never released (emitted with duration zero):\n",refname,holdc);
     int i=holdc;
     struct midi_hold *hold=holdv;
     for (;i-->0;hold++) {
@@ -310,13 +307,13 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
   return tempo;
 }
  
-static int eggdev_song_egs_from_midi(struct sr_encoder *dst,struct eggdev_res *res) {
+int eggdev_song_egs_from_midi(struct sr_encoder *dst,const void *src,int srcc,const char *refname) {
   if (sr_encode_raw(dst,"\0EGS",4)<0) return -1;
   int tempop=dst->c;
   if (sr_encode_raw(dst,"\x02\x00",2)<0) return -1;
-  struct synth_midi_reader *reader=synth_midi_reader_new(res->serial,res->serialc);
+  struct synth_midi_reader *reader=synth_midi_reader_new(src,srcc);
   if (!reader) return -1;
-  int tempo=eggdev_egs_from_midi_inner(dst,reader,res);
+  int tempo=eggdev_egs_from_midi_inner(dst,reader,refname);
   synth_midi_reader_del(reader);
   if (tempo<0) return tempo;
   ((uint8_t*)dst->v)[tempop]=tempo>>8;
@@ -327,10 +324,10 @@ static int eggdev_song_egs_from_midi(struct sr_encoder *dst,struct eggdev_res *r
 /* MIDI from EGS.
  */
  
-static int eggdev_song_midi_from_egs(struct sr_encoder *dst,struct eggdev_res *res) {
+int eggdev_song_midi_from_egs(struct sr_encoder *dst,const void *src,int srcc,const char *refname) {
   int err;
   struct synth_egs_reader reader;
-  if (synth_egs_reader_init(&reader,res->serial,res->serialc)<0) return -1;
+  if (synth_egs_reader_init(&reader,src,srcc)<0) return -1;
   
   int mspertick=10;
   int division=reader.tempo/mspertick;
@@ -428,7 +425,7 @@ static int eggdev_song_midi_from_egs(struct sr_encoder *dst,struct eggdev_res *r
           hold->noteid=event.noteid;
           hold->rlst=now+event.duration;
         } else if (event.duration) {
-          fprintf(stderr,"%s:WARNING: Note 0x%02x on channel %d, duration dropping from %d ms to 0 due to too many held notes.\n",res->path,event.noteid,event.chid,event.duration);
+          fprintf(stderr,"%s:WARNING: Note 0x%02x on channel %d, duration dropping from %d ms to 0 due to too many held notes.\n",refname,event.noteid,event.chid,event.duration);
         }
       } else {
         if (sr_encode_u8(dst,0xe0|event.chid)<0) return -1;
@@ -467,9 +464,7 @@ static int eggdev_song_midi_from_egs(struct sr_encoder *dst,struct eggdev_res *r
 /* PCM from WAV.
  */
  
-static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *res) {
-  const uint8_t *src=res->serial;
-  int srcc=res->serialc;
+int eggdev_song_pcm_from_wav(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname) {
   if ((srcc<12)||memcmp(src,"RIFF",4)||memcmp(src+8,"WAVE",4)) return -1;
   int srcp=12,fmtok=0,chanc,rate;
   while (srcp<srcc) {
@@ -490,31 +485,31 @@ static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *re
       rate=chunk[4]|(chunk[5]<<8)|(chunk[6]<<16)|(chunk[7]<<24);
       int samplesize=chunk[14]|(chunk[15]<<8);
       if (format!=1) {
-        fprintf(stderr,"%s: WAV format %d not supported. Must be 1 = LPCM\n",res->path,format);
+        fprintf(stderr,"%s: WAV format %d not supported. Must be 1 = LPCM\n",refname,format);
         return -2;
       }
       if (samplesize!=16) {
         // Wouldn't be too big a deal to support others, but others are rare.
-        fprintf(stderr,"%s: Only 16-bit samples are supported. Found %d\n",res->path,samplesize);
+        fprintf(stderr,"%s: Only 16-bit samples are supported. Found %d\n",refname,samplesize);
         return -2;
       }
       if ((rate<200)||(rate>200000)) {
-        fprintf(stderr,"%s: Unreasonable sample rate %d. Must be in 200..200000\n",res->path,rate);
+        fprintf(stderr,"%s: Unreasonable sample rate %d. Must be in 200..200000\n",refname,rate);
         return -2;
       }
       if ((chanc<1)||(chanc>16)) {
-        fprintf(stderr,"%s: Unreasonable channel count %d\n",res->path,chanc);
+        fprintf(stderr,"%s: Unreasonable channel count %d\n",refname,chanc);
         return -2;
       }
       if (chanc!=1) {
-        fprintf(stderr,"%s:WARNING: %d channels in WAV file. Keeping only the first.\n",res->path,chanc);
+        fprintf(stderr,"%s:WARNING: %d channels in WAV file. Keeping only the first.\n",refname,chanc);
       }
       if (sr_encode_raw(dst,"\0PCM",4)<0) return -1;
       if (sr_encode_intbe(dst,rate,4)<0) return -1;
       
     } else if (!memcmp(chunkid,"data",4)) {
       if (!fmtok) {
-        fprintf(stderr,"%s: 'data' before 'fmt '\n",res->path);
+        fprintf(stderr,"%s: 'data' before 'fmt '\n",refname);
         return -2;
       }
       int stride=chanc*2;
@@ -526,7 +521,7 @@ static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *re
     }
   }
   if (!fmtok) {
-    fprintf(stderr,"%s: No data\n",res->path);
+    fprintf(stderr,"%s: No data\n",refname);
     return -2;
   }
   return 0;
@@ -535,23 +530,22 @@ static int eggdev_song_pcm_from_wav(struct sr_encoder *dst,struct eggdev_res *re
 /* WAV from PCM.
  */
  
-static int eggdev_song_wav_from_pcm(struct sr_encoder *dst,struct eggdev_res *res) {
-  const uint8_t *src=res->serial;
-  if (res->serialc<8) return -1;
-  if (res->serialc&1) return -1;
-  if (memcmp(res->serial,"\0PCM",4)) return -1;
+int eggdev_song_wav_from_pcm(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname) {
+  if (srcc<8) return -1;
+  if (srcc&1) return -1;
+  if (memcmp(src,"\0PCM",4)) return -1;
   int rate=(src[4]<<24)|(src[5]<<16)|(src[6]<<8)|src[7];
   if ((rate<200)||(rate>200000)) return -1;
   if (sr_encode_raw(dst,"RIFF",4)<0) return -1;
-  if (sr_encode_intle(dst,4+8+16+8+res->serialc-8,4)<0) return -1;
+  if (sr_encode_intle(dst,4+8+16+8+srcc-8,4)<0) return -1;
   if (sr_encode_raw(dst,"WAVEfmt \x10\0\0\0",12)<0) return -1;
   if (sr_encode_raw(dst,"\1\0\1\0",4)<0) return -1; // format,chanc
   if (sr_encode_intle(dst,rate,4)<0) return -1;
   if (sr_encode_intle(dst,rate*2,4)<0) return -1;
   if (sr_encode_raw(dst,"\2\0\x10\0",4)<0) return -1; // framesize,samplesize
   if (sr_encode_raw(dst,"data",4)<0) return -1;
-  if (sr_encode_intle(dst,res->serialc-8,4)<0) return -1;
-  if (sr_encode_raw(dst,src+8,res->serialc-8)<0) return -1;
+  if (sr_encode_intle(dst,srcc-8,4)<0) return -1;
+  if (sr_encode_raw(dst,src+8,srcc-8)<0) return -1;
   return 0;
 }
 
@@ -569,7 +563,7 @@ int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
   
   // MIDI compiles to EGS.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"MThd",4)) {
-    err=eggdev_song_egs_from_midi(&dst,res);
+    err=eggdev_song_egs_from_midi(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"egs",3);
     
   // Nothing else is allowed.
@@ -596,7 +590,7 @@ int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
     
   // EGS uncompiles to MIDI.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"\0EGS",4)) {
-    err=eggdev_song_midi_from_egs(&dst,res);
+    err=eggdev_song_midi_from_egs(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"mid",3);
     
   // Nothing else is allowed, but we'll keep it verbatim.
@@ -626,12 +620,12 @@ int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom_DONT_USE)
   
   // MIDI compiles to EGS.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"MThd",4)) {
-    err=eggdev_song_egs_from_midi(&dst,res);
+    err=eggdev_song_egs_from_midi(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"egs",3);
     
   // WAV compiles to PCM.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"RIFF",4)) {
-    err=eggdev_song_pcm_from_wav(&dst,res);
+    err=eggdev_song_pcm_from_wav(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"pcm",3);
     
   // Nothing else is allowed.
@@ -662,12 +656,12 @@ int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom) {
     
   // EGS uncompiles to MIDI.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"\0EGS",4)) {
-    err=eggdev_song_midi_from_egs(&dst,res);
+    err=eggdev_song_midi_from_egs(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"mid",3);
     
   // PCM uncompiles to WAV.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"\0PCM",4)) {
-    err=eggdev_song_wav_from_pcm(&dst,res);
+    err=eggdev_song_wav_from_pcm(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"wav",3);
     
   // Nothing else is allowed, but we'll keep it verbatim.

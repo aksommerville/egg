@@ -64,7 +64,13 @@ export class AudioService {
     switch (this.outputMode) {
       case "none": return Promise.reject("Audio output not enabled.");
       case "server": return this.comm.http("POST", "/api/sound", { position, repeat }, null, serial);
-      case "client": return Promise.resolve();//TODO Start playback, WebAudio
+      case "client": return this.comm.httpBinary("POST", "/api/compile", null, null, serial).then(rsp => {
+          console.log(`Compile ok`, { serial, rsp });
+          //TODO Forward (rsp) to synthesizer.
+        }).catch(e => {
+          console.log(`Compile failed`, e);
+          throw e;
+        });
     }
     return Promise.reject(`Invalid output mode ${JSON.stringify(this.outputMode)}`);
   }

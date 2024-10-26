@@ -15,7 +15,7 @@ static int eggdev_string_contains_nong0(const char *src,int srcc,int allow_space
 /* Binary from text.
  */
  
-static int eggdev_metadata_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *refname) {
+int eggdev_metadata_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *refname) {
   if (sr_encode_raw(dst,"\0EM\xff",4)<0) return -1;
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
@@ -66,7 +66,7 @@ static int eggdev_metadata_bin_from_text(struct sr_encoder *dst,const char *src,
 /* Text from binary.
  */
  
-static int eggdev_metadata_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname) {
+int eggdev_metadata_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname) {
   if ((srcc<4)||memcmp(src,"\0EM\xff",4)) return -1;
   int srcp=4;
   while (srcp<srcc) {

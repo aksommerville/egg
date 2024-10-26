@@ -52,5 +52,8 @@ Returns `{ path, serial }[]`, no nesting. `serial` is encoded base64. `path` doe
 Request body is a MIDI or WAV file, or empty to silence playback.
 Fails 501 if the server launched without an audio driver. You can call with an empty body to test availability.
 Only one thing can play at a time.
-TODO Can we make drums work?
 TODO Can we get playhead feedback over a WebSocket?
+
+`POST /api/compile?srcfmt=NAME&dstfmt=NAME`
+
+Run one resource through the standard compiler or uncompiler.

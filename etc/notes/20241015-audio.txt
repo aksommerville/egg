@@ -15,6 +15,7 @@ Conversion plan:
 - [x] !!! After opening the nested EgsChannelEditor, the outer one stops getting dirty events.
 - [ ] Native synthesizer.
 - [ ] Web synthesizer.
+- [ ] HTTP endpoint to compile a sound. Or just a generic "compile" endpoint for any data?
 - [x] Native drums.
 - [ ] Native wheel.
 - [ ] Native subtractive voice and IIR filter -- Punted until WebAudio is done, so I can compare closely while working.

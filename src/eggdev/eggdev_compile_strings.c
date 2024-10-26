@@ -3,7 +3,7 @@
 /* Binary from text.
  */
  
-static int eggdev_strings_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *refname) {
+int eggdev_strings_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *refname) {
   if (sr_encode_raw(dst,"\0ES\xff",4)<0) return -1;
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
@@ -105,7 +105,7 @@ static int eggdev_string_requires_quotes(const char *src,int srcc) {
 /* Text from binary.
  */
  
-static int eggdev_strings_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname) {
+int eggdev_strings_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname) {
   if ((srcc<4)||memcmp(src,"\0ES\xff",4)) return -1;
   int srcp=4,index=0;
   while (srcp<srcc) {
