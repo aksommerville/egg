@@ -10,12 +10,12 @@ Conversion plan:
 - - [x] POST /api/sound
 - [x] New eggdev command to play a sound.
 - [x] Something's broken in the timing during MIDI=>EGS conversion. Listen close to Heart of Stone, you can hear faster and slower bits.
-- [ ] CHANGE DRUM CHANNEL FORMAT: Don't play sound resources; instead encode the sound locally somehow.
+- [x] CHANGE DRUM CHANNEL FORMAT: Don't play sound resources; instead encode the sound locally somehow.
 - - Having these external references is a difficulty. If we keep them internal, that's the last bit, then songs are completely self-contained.
 - [x] !!! After opening the nested EgsChannelEditor, the outer one stops getting dirty events.
 - [ ] Native synthesizer.
 - [ ] Web synthesizer.
-- [ ] HTTP endpoint to compile a sound. Or just a generic "compile" endpoint for any data?
+- [x] HTTP endpoint to compile a sound. Or just a generic "compile" endpoint for any data?
 - [x] Native drums.
 - [ ] Native wheel.
 - [ ] Native subtractive voice and IIR filter -- Punted until WebAudio is done, so I can compare closely while working.

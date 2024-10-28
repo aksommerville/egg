@@ -45,8 +45,15 @@ int synth_printer_update(struct synth_printer *printer,int c) {
   int updc=printer->pcm->c-printer->p;
   if (updc>c) updc=c;
   if (updc>0) {
-    printer->bus->update(printer->pcm->v+printer->p,updc,printer->bus);
-    printer->p+=updc;
+    while (updc>=SYNTH_UPDATE_LIMIT_FRAMES) {
+      printer->bus->update(printer->pcm->v+printer->p,SYNTH_UPDATE_LIMIT_FRAMES,printer->bus);
+      printer->p+=SYNTH_UPDATE_LIMIT_FRAMES;
+      updc-=SYNTH_UPDATE_LIMIT_FRAMES;
+    }
+    if (updc>0) {
+      printer->bus->update(printer->pcm->v+printer->p,updc,printer->bus);
+      printer->p+=updc;
+    }
   }
   return (printer->p<printer->pcm->c)?1:0;
 }

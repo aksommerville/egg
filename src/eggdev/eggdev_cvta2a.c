@@ -118,20 +118,61 @@ static int eggdev_cvta2a_image(struct sr_encoder *dst,const void *src,int srcc,i
  */
  
 static int eggdev_cvta2a_synthesize(struct sr_encoder *dst,const void *src,int srcc,int rate,int chanc,const char *refname) {
-  fprintf(stderr,"TODO: %s srcc=%d rate=%d chanc=%d refname=%s\n",__func__,srcc,rate,chanc,refname);
-  ...resume here
-  return -2;
+  struct synth *synth=synth_new(rate,chanc);
+  if (!synth) return -1;
+  if (synth_play_song_borrow(synth,src,srcc,0)<0) {
+    synth_del(synth);
+    return 0;
+  }
+  int frames_per_cycle=rate; // Can be anything, really. One second per cycle sounds reasonable.
+  int samples_per_cycle=frames_per_cycle*chanc;
+  int bytes_per_cycle=samples_per_cycle<<1;
+  while (synth_get_song(synth)) {
+    if (dst->c>=100<<20) { // 100 MB sanity limit
+      fprintf(stderr,"%s:ERROR: Exceeded output sanity limit.\n",__func__);
+      synth_del(synth);
+      return -2;
+    }
+    if (sr_encoder_require(dst,bytes_per_cycle)<0) {
+      synth_del(synth);
+      return -1;
+    }
+    synth_updatei((int16_t*)(dst->v+dst->c),samples_per_cycle,synth);
+    dst->c+=bytes_per_cycle;
+  }
+  synth_del(synth);
+  return 0;
 }
 
 /* Add PCM or WAV headers to a raw s16le pcm dump.
  */
  
 static int eggdev_cvta2a_prepend_pcm_header(struct sr_encoder *dst,int p,int rate) {
-  return -1;//TODO
+  uint8_t pre[8]={
+    0,'P','C','M',
+    rate>>24,rate>>16,rate>>8,rate,
+  };
+  if (sr_encoder_insert(dst,p,pre,sizeof(pre))<0) return -1;
+  return 0;
 }
 
 static int eggdev_cvta2a_prepend_wav_header(struct sr_encoder *dst,int p,int rate,int chanc) {
-  return -1;//TODO
+  int dlen=dst->c-p;
+  int flen=4+8+16+8+dlen;
+  int brate=(rate*chanc)<<1;
+  uint8_t pre[44]={ // 12 RIFF header: "RIFF" + (u32)filelen + "WAVE"; 8 fmt hdr; 16 fmt; 8 data hdr.
+    'R','I','F','F',flen,flen>>8,flen>>16,flen>>24,'W','A','V','E',
+    'f','m','t',' ',16,0,0,0,
+      1,0, // format: 1=LPCM
+      chanc,0,
+      rate,rate>>8,rate>>16,rate>>24,
+      brate,brate>>8,brate>>16,brate>>24,
+      chanc<<1,0, // frame size in bytes
+      16,0, // sample size in bits
+    'd','a','t','a',dlen,dlen>>8,dlen>>16,dlen>>24,
+  };
+  if (sr_encoder_insert(dst,p,pre,sizeof(pre))<0) return -1;
+  return 0;
 }
 
 /* Convert to a PCM format (PCM,WAV) from a logical song format (EGS,MIDI).
@@ -158,7 +199,7 @@ static int eggdev_cvta2a_print_song(struct sr_encoder *dst,const void *src,int s
   /* Call out for the interesting bit.
    */
   int rate=44100;
-  int chanc=(sfmt==EGGDEV_FMT_WAV)?2:1;
+  int chanc=(dfmt==EGGDEV_FMT_WAV)?2:1;
   int dstc0=dst->c;
   if ((err=eggdev_cvta2a_synthesize(dst,src,srcc,rate,chanc,refname))<0) {
     sr_encoder_cleanup(&srccvt);
@@ -173,13 +214,8 @@ static int eggdev_cvta2a_print_song(struct sr_encoder *dst,const void *src,int s
     case EGGDEV_FMT_WAV: err=eggdev_cvta2a_prepend_wav_header(dst,dstc0,rate,chanc); break;
     default: err=-1;
   }
-  if (err<0) {
-    sr_encoder_cleanup(&srccvt);
-    return err;
-  }
-  
   sr_encoder_cleanup(&srccvt);
-  return 0;
+  return err;
 }
 
 /* Convert anything-to-anything, main entry point.

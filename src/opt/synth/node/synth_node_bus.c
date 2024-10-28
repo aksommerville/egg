@@ -314,6 +314,7 @@ int synth_node_bus_configure(struct synth_node *node,const void *src,int srcc,in
   if (node->childc) return -1; // Already configured!
   if (!src||(srcc<6)||memcmp(src,"\0EGS",4)) return -1;
   NODE->repeat=repeat;
+  NODE->rid=rid;
   const uint8_t *SRC=src;
   NODE->tempo=(SRC[4]<<8)|SRC[5];
   int srcp=6;
