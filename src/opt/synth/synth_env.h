@@ -1,108 +1,72 @@
 /* synth_env.h
- * EGS has two envelope encodings:
- *  - ADSR with 8-bit values in 12 bytes with implicit zeroes fore and aft.
- *  - 16-bit values corresponding to the ADSR level envelope, for auxiliary values.
- * The second requires the first for timing.
- * All envelopes are sustainable, and we expect a release time at instantiation.
+ * Generic linear envelope.
+ * Cleanup is not necessary, for either config or runner.
  */
  
 #ifndef SYNTH_ENV_H
 #define SYNTH_ENV_H
 
-/* Configuration for either flavor of envelope.
- * Times are in milliseconds. (float because we'll be doing continuous math on them).
- * Values are in a range specified at decode.
- */
+#define SYNTH_ENV_POINT_LIMIT 16
+
+#define SYNTH_ENV_FLAG_INIT     0x01
+#define SYNTH_ENV_FLAG_VELOCITY 0x02
+#define SYNTH_ENV_FLAG_SUSTAIN  0x04
+#define SYNTH_ENV_FLAG_RESERVED 0xf8
+
 struct synth_env_config {
+  uint8_t flags;
   float inivlo,inivhi;
-  float atktlo,atkthi;
-  float atkvlo,atkvhi;
-  float dectlo,decthi;
-  float susvlo,susvhi;
-  float rlstlo,rlsthi;
-  float rlsvlo,rlsvhi;
-  int noop; // Decode set nonzero if every value is exactly the provided "noop" value.
+  int susp;
+  int pointc;
+  struct synth_env_config_point {
+    int tlo,thi; // frames
+    float vlo,vhi;
+  } pointv[SYNTH_ENV_POINT_LIMIT];
 };
 
 struct synth_env_runner {
-  float v;
-  float dv;
-  int c; // Frames remaining in leg.
-  int p; // Leg: (0,1,2,3,4)=(attack,decay,sustain,release,done)
-  float iniv,atkv,susv,rlsv;
-  int atkt,dect,sust,rlst; // All always nonzero if configured.
+  float v; // Current value.
+  float dv; // Step per frame.
+  int c; // Steps remaining in point.
+  int pointp;
+  int pointc;
+  int susp; // >=0 if a sustain is in play; <0 if already released. There's no special sustain handling during the run.
+  int finished;
+  struct synth_env_runner_point {
+    int c;
+    float v;
+  } pointv[SYNTH_ENV_POINT_LIMIT];
 };
 
-/* Returns consumed length (always 12), or <0 on errors.
+/* We overwrite (config) blindly, and return the amount consumed on success. Never zero.
  */
-int synth_env_decode_level(struct synth_env_config *dst,const void *src,int srcc);
+int synth_env_config_decode(struct synth_env_config *config,const void *src,int srcc,int rate);
 
-/* Returns consumed length (always 16), or <0 on errors.
- * (ref) env is required, for timing.
- * Values are normalized to 0..1.
- * If (noopv) in 0..0xffff, we check whether every value is equal to that, and set (dst->noop) if so.
+// Values are 0..1 unless you apply bias or scale.
+void synth_env_config_bias(struct synth_env_config *config,float d);
+void synth_env_config_scale(struct synth_env_config *config,float d);
+
+/* Initialize a runner from finished config and velocity.
+ * You provide the delay until release as (durframes).
+ * It's OK to provide something unreasonably long here, and manually release later.
  */
-int synth_env_decode_aux(
-  struct synth_env_config *dst,
-  const struct synth_env_config *ref,
-  const void *src,int srcc,
-  int noopv
-);
+void synth_env_init(struct synth_env_runner *runner,const struct synth_env_config *config,float velocity,int durframes);
 
-/* Same as decode_aux, but don't normalize.
- * For pitch envelopes, where the value is cents.
- */
-int synth_env_decode_aux_u16(
-  struct synth_env_config *dst,
-  const struct synth_env_config *ref,
-  const void *src,int srcc,
-  int noopv
-);
-
-/* Multiply or add a constant to each value.
- * All values are 0..1 immediately after decode.
- */
-void synth_env_config_scale(struct synth_env_config *dst,float scale);
-void synth_env_config_bias(struct synth_env_config *dst,float bias);
-
-static inline int synth_env_is_ready(const struct synth_env_runner *runner) {
-  if (!runner->atkt||!runner->dect||!runner->sust||!runner->rlst) return 0;
-  return 1;
-}
-
-/* Begin playback of an envelope, at a specified velocity and hold time.
- * (rate) is the main playback rate. We convert times from milliseconds to frames during this call.
- * The attack, decay, and release legs always play out as encoded.
- * The sustain leg grows such that its end occurs (durms) into playback.
- * If (durms) is short, sustain length clamps to zero.
- */
-void synth_env_run(struct synth_env_runner *runner,const struct synth_env_config *config,float velocity,int durms,int rate);
-
-/* If the sustain leg is in progress, terminate it now.
- * If it hasn't started yet, drop sustain time to zero.
- * You can fake live envelopes by supplying a long (durms) initially, then releasing when you like.
- */
+// Normally you provide the release time at init. But you can force it early at any time.
 void synth_env_release(struct synth_env_runner *runner);
 
-/* Begin the next leg. You shouldn't call this directly.
- */
+#define synth_env_next(env) ({ \
+  float _v=(env).v; \
+  if ((env).c>0) { \
+    (env).c--; \
+    (env).v+=(env).dv; \
+  } else { \
+    synth_env_advance(&(env)); \
+  } \
+  _v; \
+})
+
+// Don't call directly. synth_env_next() does it for you.
 void synth_env_advance(struct synth_env_runner *runner);
-
-/* Advance time by one frame and return the next value.
- */
-static inline float synth_env_update(struct synth_env_runner *runner) {
-  float v=runner->v;
-  if (runner->c>0) {
-    runner->c--;
-    runner->v+=runner->dv;
-  } else {
-    synth_env_advance(runner);
-  }
-  return v;
-}
-
-static inline int synth_env_is_finished(const struct synth_env_runner *runner) {
-  return (runner->p>=4);
-}
 
 #endif

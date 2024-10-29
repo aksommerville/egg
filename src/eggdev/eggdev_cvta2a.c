@@ -120,10 +120,7 @@ static int eggdev_cvta2a_image(struct sr_encoder *dst,const void *src,int srcc,i
 static int eggdev_cvta2a_synthesize(struct sr_encoder *dst,const void *src,int srcc,int rate,int chanc,const char *refname) {
   struct synth *synth=synth_new(rate,chanc);
   if (!synth) return -1;
-  if (synth_play_song_borrow(synth,src,srcc,0)<0) {
-    synth_del(synth);
-    return 0;
-  }
+  synth_play_song_borrow(synth,src,srcc,0);
   int frames_per_cycle=rate; // Can be anything, really. One second per cycle sounds reasonable.
   int samples_per_cycle=frames_per_cycle*chanc;
   int bytes_per_cycle=samples_per_cycle<<1;

@@ -1,0 +1,24 @@
+2024-10-29
+
+Reimplementation is underway but now that I'm implementing WebAudio, noticing some more difficulty.
+I want to make it stupid simple. So simple that we can't help getting it right.
+
+- Collect all voices directly against the global context.
+- - Flag voices as belonging to the song, so we can release them on song changes.
+- - This means no more post pipes or song overlap.
+- Mono only. The global context will still output at any channel count, but it will just duplicate the one channel.
+- No pitch wheel.
+- Go back to universal envelopes instead of the bespoke ADSR with shared timing we tried at 20241015.
+- Nix the PCM format. Use WAV, but a simplified form.
+- - Have cvta2a accept WAV=>WAV and MIDI=>MIDI conversion for sanitization.
+- MIDI: Put the entire EGS header in a single event. There's no value in separating per channel.
+- Have the editor accept EGS in addition to MIDI, and don't allow embedded MIDI in the EGS Header event.
+- Don't use Control 0x07 Channel Volume except maybe during initial defaulting. All channel config lives in the EGS event.
+
+TODO
+- [x] Core native synth.
+- [ ] native: sub
+- [ ] Revise compiler.
+- [ ] cvta2a sanitization
+- [ ] Editor.
+- [ ] Web synth.

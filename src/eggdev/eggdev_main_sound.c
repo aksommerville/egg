@@ -104,10 +104,7 @@ static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,co
   int repeat=0;
   if (eggdev.repeat&&eggdev.hostio&&!eggdev.dstpath) repeat=1;
   else if (eggdev.repeat) fprintf(stderr,"%s:WARNING: Ignoring '--repeat' due to output path or no driver.\n",eggdev.exename);
-  if (synth_play_song_borrow(eggdev.synth,src,srcc,repeat)<0) {
-    fprintf(stderr,"%s: Error starting playback.\n",path);
-    return -2;
-  }
+  synth_play_song_borrow(eggdev.synth,src,srcc,repeat);
   
   /* If we have a driver, start it up and sleep until all the busses (just 1) get dropped.
    */
@@ -116,7 +113,7 @@ static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,co
     if (hostio_audio_play(eggdev.hostio,1)<0) return -1;
     while (!eggdev.terminate) {
       if (hostio_update(eggdev.hostio)<0) return -1;
-      if (!synth_count_busses(eggdev.synth)) break;
+      if (!synth_get_song(eggdev.synth)) break;
       usleep(20000);
     }
     hostio_audio_play(eggdev.hostio,0);
@@ -125,7 +122,7 @@ static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,co
    */
   } else {
     int16_t tmp[1024];
-    while (!eggdev.terminate&&synth_count_busses(eggdev.synth)) {
+    while (!eggdev.terminate&&synth_get_song(eggdev.synth)) {
       eggdev_sound_cb_pcm_out(tmp,sizeof(tmp)>>1,0);
     }
   }

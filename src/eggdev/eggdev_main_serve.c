@@ -419,11 +419,7 @@ static int eggdev_cb_post_api_sound(struct http_xfer *req,struct http_xfer *rsp)
     eggdev_res_cleanup(&res);
     return http_xfer_set_status(rsp,500,"Failed to lock audio");
   }
-  if (synth_play_song_handoff(eggdev.synth,res.serial,res.serialc,repeat)<0) {
-    hostio_audio_unlock(eggdev.hostio);
-    eggdev_res_cleanup(&res);
-    return http_xfer_set_status(rsp,500,"Failed to play song");
-  }
+  synth_play_song_handoff(eggdev.synth,res.serial,res.serialc,repeat);
   res.serial=0; // HANDOFF
   if (positionms) synth_set_playhead(eggdev.synth,(double)positionms/1000.0);
   hostio_audio_unlock(eggdev.hostio);

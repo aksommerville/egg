@@ -1,6 +1,7 @@
 2024-10-15
 
 Audio review again... it's just too complicated.
+See 20241029-audio.txt.
 
 Conversion plan:
 - [ ] Native synthesizer.
