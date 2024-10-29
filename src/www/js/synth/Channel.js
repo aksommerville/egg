@@ -4,9 +4,9 @@
  */
  
 import { SynthFormats } from "./SynthFormats.js";
-import { Env } from "./Env.js";
+import { LevelEnv, AuxEnv } from "./Env.js";
 
-const SYNTH_GLOBAL_TRIM = 0.250;
+const SYNTH_GLOBAL_TRIM = 0.400;
  
 export class Channel {
   constructor(audio, ctx, hdr, dst, soundsConstraint) {
@@ -19,10 +19,6 @@ export class Channel {
     this.wheelRaw = 0; // -1..1, straight off the event stream. (which is normalized before it reaches us)
     this.wheelRange = 0; // cents, established at config
     this.wheel = 1; // Multiplier, updates on wheel events.
-    this.pitchLfoOsc = null;
-    this.pitchLfoTail = null; // Emits cents if not null.
-    this.fmLfoOsc = null;
-    this.fmLfoTail = null; // Emits 0..1 if not null.
     this.init(hdr);
   }
   
@@ -44,18 +40,6 @@ export class Channel {
     if (this.postTail) {
       this.postTail.disconnect();
       this.postTail = null;
-    }
-    if (this.pitchLfoOsc) {
-      this.pitchLfoOsc.stop();
-      this.pitchLfoTail.disconnect();
-      this.pitchLfoOsc = null;
-      this.pitchLfoTail = null;
-    }
-    if (this.fmLfoOsc) {
-      this.fmLfoOsc.stop();
-      this.fmLfoTail.disconnect();
-      this.fmLfoOsc = null;
-      this.fmLfoTail = null;
     }
   }
   
@@ -99,6 +83,8 @@ export class Channel {
    ************************************************************************/
    
   playNoteDrums(noteid, velocity, when) {
+    console.log(`TODO Channel.playNoteDrums ${noteid}`);
+    /*XXX This works completely different under the new regime
     const index = noteid + this.drumsBias;
     if (index < 1) return;
     const trim = this.drumsLo * (1 - velocity) + this.drumsHi * velocity;
@@ -107,6 +93,7 @@ export class Channel {
     if (!snd) return;
     if (snd instanceof Promise) snd.then(b => this.playSound(b, trim, when));
     else this.playSound(snd, trim, when);
+    /**/
   }
   
   playSound(buffer, trim, when) {
@@ -154,16 +141,11 @@ export class Channel {
     
     if (this.pitchenv) {
       const iter = this.pitchenv.apply(velocity, dur, when);
-      this.pitchenv.scaleIterator(iter, 65535.0, -32768.0);
-      osc.detune.setValueAtTime(iter[0].value, 0);
-      osc.detune.setValueAtTime(iter[0].value, iter[0].time);
+      osc.detune.setValueAtTime(iter[0].v, 0);
+      osc.detune.setValueAtTime(iter[0].v, iter[0].t);
       for (let i=1; i<iter.length; i++) {
-        osc.detune.linearRampToValueAtTime(iter[i].value, iter[i].time);
+        osc.detune.linearRampToValueAtTime(iter[i].v, iter[i].t);
       }
-    }
-    
-    if (this.pitchLfoTail) {
-      this.pitchLfoTail.connect(osc.detune);
     }
     
     osc.start();
@@ -191,41 +173,29 @@ export class Channel {
     let modtail = modulator;
     const modgain = new GainNode(this.ctx, { gain: frequency * this.fmRange });
     modgain.gain.setValueAtTime(frequency * this.fmRange, 0);
-    if (this.fmLfoTail) {
-      const lfoGain = new GainNode(this.ctx, { gain: frequency * this.fmRange });
-      this.fmLfoTail.connect(lfoGain);
-      lfoGain.connect(modgain.gain);
-      modgain.gain.setValueAtTime(0, 0);
-    }
     modtail.connect(modgain);
     modtail = modgain;
     
     if (this.fmenv) {
       const peak = frequency * this.fmRange;
       const iter = this.fmenv.apply(velocity, dur, when);
-      modgain.gain.setValueAtTime(iter[0].value * peak, 0);
-      modgain.gain.setValueAtTime(iter[0].value * peak, iter[0].time);
+      modgain.gain.setValueAtTime(iter[0].v * peak, 0);
+      modgain.gain.setValueAtTime(iter[0].v * peak, iter[0].t);
       for (let i=1; i<iter.length; i++) {
-        modgain.gain.linearRampToValueAtTime(iter[i].value * peak, iter[i].time);
+        modgain.gain.linearRampToValueAtTime(iter[i].v * peak, iter[i].t);
       }
     }
     
     if (this.pitchenv) {
       const iter = this.pitchenv.apply(velocity, dur, when);
-      this.pitchenv.scaleIterator(iter, 65535.0, -32768.0);
-      osc.detune.setValueAtTime(iter[0].value, 0);
-      osc.detune.setValueAtTime(iter[0].value, iter[0].time);
-      modulator.detune.setValueAtTime(iter[0].value, 0);
-      modulator.detune.setValueAtTime(iter[0].value, iter[0].time);
+      osc.detune.setValueAtTime(iter[0].v, 0);
+      osc.detune.setValueAtTime(iter[0].v, iter[0].t);
+      modulator.detune.setValueAtTime(iter[0].v, 0);
+      modulator.detune.setValueAtTime(iter[0].v, iter[0].t);
       for (let i=1; i<iter.length; i++) {
-        osc.detune.linearRampToValueAtTime(iter[i].value, iter[i].time);
-        modulator.detune.linearRampToValueAtTime(iter[i].value, iter[i].time);
+        osc.detune.linearRampToValueAtTime(iter[i].v, iter[i].t);
+        modulator.detune.linearRampToValueAtTime(iter[i].v, iter[i].t);
       }
-    }
-    
-    if (this.pitchLfoTail) {
-      this.pitchLfoTail.connect(osc.detune);
-      this.pitchLfoTail.connect(modulator.detune);
     }
     
     modtail.connect(osc.frequency);
@@ -240,14 +210,14 @@ export class Channel {
   applyLevel(osc, env, velocity, dur, when, stoppables) {
     const gainNode = new GainNode(this.ctx);
     const points = env.apply(velocity, dur, when);
-    gainNode.gain.setValueAtTime(points[0].value, 0);
-    gainNode.gain.setValueAtTime(points[0].value, points[0].time);
+    gainNode.gain.setValueAtTime(points[0].v, 0);
+    gainNode.gain.setValueAtTime(points[0].v, points[0].t);
     for (let i=1; i<points.length; i++) {
       const pt = points[i];
-      gainNode.gain.linearRampToValueAtTime(pt.value, pt.time);
+      gainNode.gain.linearRampToValueAtTime(pt.v, pt.t);
     }
     osc.connect(gainNode);
-    const endTime = points[points.length - 1].time;
+    const endTime = points[points.length - 1].t;
     const durationFromNow = endTime - this.ctx.currentTime;
     setTimeout(() => { //XXX This shouldn't be necessary -- we can specify the time at AudioNode.stop(), do it where we start().
       for (const node of stoppables) {
@@ -261,9 +231,181 @@ export class Channel {
   }
   
   /* Private: Configure.
+   ***************************************************************************/
+   
+  init(src) {
+    console.log(`Channel.init`, src);
+    this.chid = src.chid;
+    this.master = src.master / 255.0;
+    this.pan = (src.pan - 128) / 128.0;
+    this.mode = src.mode;
+    
+    switch (src.mode) {
+      case 0: { // NOOP
+          this.voiceMode = "silent";
+          this.master = 0;
+        } return;
+        
+      case 1: { // DRUM
+          this.voiceMode = "drums";
+          this.drums = []; // Indexed by noteid, sparse. { pan, trimlo, trimhi, serial: Uint8Array, buffer?: AudioBuffer }
+          for (let configp=0; configp<src.config.length; ) {
+            const noteid = src.config[configp++];
+            const pan = (src.config[configp++] - 0x80) / 128;
+            const trimlo = src.config[configp++] / 255;
+            const trimhi = src.config[configp++] / 255;
+            const len = (src.config[configp] << 8) | src.config[configp + 1];
+            configp += 2;
+            if (configp > src.config.length - len) {
+              this.voiceMode = "silent";
+              this.master = 0;
+              return;
+            }
+            const serial = src.config.slice(configp, configp + len);
+            this.drums.push({ pan, trimlo, trimhi, serial });
+            configp += len;
+          }
+        } break;
+        
+      case 2: { // WAVE
+          this.voiceMode = "wave";
+          this.wheelRange = (src.config[0] << 8) | src.config[1];
+          this.decodeLevelEnv(src.config.slice(2, 14));
+          this.decodePitchEnv(src.config.slice(14, 30));
+          const shape = src.config[30];
+          const coefc = src.config[31];
+          let harmonics = null;
+          if (coefc > 0) {
+            if (32 > src.config.length - coefc * 2) {
+              this.voiceMode = "silent";
+              this.master = 0;
+              return;
+            }
+            harmonics = coefc ? new Float32Array(coefc) : null;
+            for (let i=coefc, srcp=32, dstp=0; i-->0; srcp+=2, dstp+=1) {
+              harmonics[dstp] = ((src.config[srcp] << 8) | src.config[srcp + 2]) / 65535.0;
+            }
+          }
+          this.wave = this.generateWave(shape, harmonics);
+        } break;
+        
+      case 3: { // FM
+          this.voiceMode = "fm";
+          this.wheelRange = (src.config[0] << 8) | src.config[1];
+          this.decodeLevelEnv(src.config.slice(2, 14));
+          this.decodePitchEnv(src.config.slice(14, 30));
+          this.fmRate = src.config[30] + src.config[31] / 256.0;
+          this.fmRange = src.config[32] + src.config[33] / 256.0; // gets baked into env
+          this.decodeRangeEnv(src.config.slice(34, 50));
+        } break;
+        
+      case 4: { // SUB
+          this.voiceMode = "sub";
+          this.decodeLevelEnv(src.config.slice(0, 12));
+          this.subWidth = (src.config[12] << 8) | src.config[13];
+        } break;
+        
+      default: {
+          console.warn(`Channel ${this.chid}, unknown mode ${src.mode}`);
+          this.voiceMode = "silent";
+          this.master = 0;
+          return;
+        }
+    }
+    
+    for (let srcp=0; srcp<src.post.length; ) {
+      const opcode = src.post[srcp++];
+      const len = src.post[srcp++];
+      if (srcp > src.post.length - len) break;
+      const v = src.post.slice(srcp, srcp + len);
+      srcp += len;
+      switch (opcode) {
+        case 0x01: this.addWaveshaper(v); break;
+        case 0x02: this.addDelay(v); break;
+        case 0x03: this.addTremolo(v); break;
+        case 0x04: this.addLopass(v); break;
+        case 0x05: this.addHipass(v); break;
+        case 0x06: this.addBpass(v); break;
+        case 0x07: this.addNotch(v); break;
+        default: console.warn(`Channel ${this.chid}, unknown ${len}-byte post step ${opcode}`);
+      }
+    }
+    
+    this.addPostTail();
+  }
+  
+  decodeLevelEnv(src) {
+    this.levelenv = new LevelEnv(src);
+  }
+  
+  decodePitchEnv(src) {
+    this.pitchenv = new AuxEnv(src, this.levelenv);
+    this.pitchenv.bias(-0x8000);
+  }
+  
+  decodeRangeEnv(src) {
+    this.fmenv = new AuxEnv(src, this.levelenv);
+    this.fmenv.scale(1 / 0xffff);
+  }
+  
+  addWaveshaper(src) {
+    console.log(`TODO Channel.addWaveshaper`, src);
+    const srccoefc = src.length >> 1;
+    if (srccoefc < 1) return;
+    const dstcoefc = srccoefc << 1;
+    const coefv = new Float32Array(dstcoefc);
+    for (let sp=0, dp=srccoefc; dp<dstcoefc; sp+=2, dp++) {
+      coefv[dp] = ((src[sp] << 8) | src[sp+1]) / 65535.0;
+      coefv[dstcoefc-dp-1] = -coefv[dp];
+    }
+    console.log(`waveshaper curve`, coefv);
+    const ws = new WaveShaperNode(this.ctx, { curve: coefv });
+    if (this.postTail) this.postTail.connect(ws);
+    else this.postHead = ws;
+    this.postTail = ws;
+  }
+  
+  addDelay(src) {
+    console.log(`TODO Channel.addDelay`, src);
+  }
+  
+  addTremolo(src) {
+    console.log(`TODO Channel.addTremolo`, src);
+  }
+  
+  addHipass(src) {
+    console.log(`TODO Channel.addHipass`, src);
+  }
+  
+  addLopass(src) {
+    console.log(`TODO Channel.addLopass`, src);
+  }
+  
+  addBpass(src) {
+    console.log(`TODO Channel.addBpass`, src);
+  }
+  
+  addNotch(src) {
+    console.log(`TODO Channel.addNotch`, src);
+  }
+  
+  /* Apply master and pan, at the end of post.
+   */
+  addPostTail() {
+    const gain = new GainNode(this.ctx, { gain: this.master * SYNTH_GLOBAL_TRIM });
+    const pan = new StereoPannerNode(this.ctx, { pan: this.pan });
+    gain.connect(pan);
+    if (this.postTail) this.postTail.connect(gain);
+    else this.postHead = gain;
+    this.postTail = pan;
+    this.postTail.connect(this.dst);
+    this.dst = this.postHead;
+  }
+  
+  /* Private: Configure. XXX
    *********************************************************************/
    
-  init(hdr) {
+  init_OLD(hdr) {
     
     /* First, read the Channel Header.
      * Collect all the state fields in (config), and build up the final post pipe.
@@ -590,46 +732,24 @@ export class Channel {
     config.postTail = filter;
   }
   
-  /* Private: Generate LFO.
-   * Returns { osc, tail }, both AudioNodes, installed against the current context and running, but not outputting anywhere.
-   *******************************************************************/
-   
-  prepareLfo(period, lo, hi, phase) {
-    phase = 1 - phase;
-    const imix =  Math.cos(phase * 2 * Math.PI);
-    const rmix = -Math.sin(phase * 2 * Math.PI);
-    const real = new Float32Array([(lo + hi) / 2, rmix * (hi - lo) / 2]);
-    const imag = new Float32Array([(lo + hi) / 2, imix * (hi - lo) / 2]);
-    //console.log(`prepareLfo period=${period} range=${lo}..${hi} phase=${phase} real=[${real[0]},${real[1]}] imag=[${imag[0]},${imag[1]}]`);
-    const periodicWave = new PeriodicWave(this.ctx, { real, imag, disableNormalization: true });
-    const frequency = 1 / period;
-    const osc = new OscillatorNode(this.ctx, { frequency, type: "custom", periodicWave });
-    osc.start();
-    return { osc, tail: osc };
-  }
-  
   /* Private: Generate wave.
    ***************************************************************/
    
   generateWave(shape, harmonics) {
-    if (harmonics) {
-      let hc = harmonics.length;
-      while (hc && (harmonics[hc - 1] <= 0)) hc--;
-      if ((hc !== 1) || (harmonics[0] !== 1)) {
-        if (shape) {
-          console.warning(`Channel.generateWave: Harmonics with non-sine primitive not yet supported. Ignoring 'shape' ${shape}`);//TODO
-        }
-        const real = new Float32Array(1 + hc); // Params to PeriodWave include a DC term; inputs do not.
-        const imag = new Float32Array(1 + hc);
-        for (let i=0; i<hc; i++) real[1 + i] = harmonics[i];
-        return new PeriodicWave(this.ctx, { real, imag, disableNormalization: true });
-      }
-    }
     switch (shape) {
-      case 0: return "sine";
-      case 1: return "square";
-      case 2: return "sawtooth";
-      case 3: return "triangle";
+      case 0: {
+          if (!harmonics) break;
+          let hc = harmonics.length;
+          while (hc && (harmonics[hc - 1] <= 0)) hc--;
+          const real = new Float32Array(1 + hc); // Params to PeriodWave include a DC term; inputs do not.
+          const imag = new Float32Array(1 + hc);
+          for (let i=0; i<hc; i++) real[1 + i] = harmonics[i];
+          return new PeriodicWave(this.ctx, { real, imag, disableNormalization: true });
+        } break;
+      case 1: return "sine";
+      case 2: return "square";
+      case 3: return "sawtooth";
+      case 4: return "triangle";
     }
     return "sine";
   }

@@ -20,11 +20,9 @@ export class Audio {
     this.noise = null; // AudioBuffer containing one second of random noise, created on demand.
     
     /* (sounds) is populated lazy, as sound effects get asked for.
-     * Since the resources all contain multiple sounds, we install entire resources at once,
-     * but don't decode the individual members.
      * So an entry in (sounds) with (serial) present needs to be decoded first.
      */
-    this.sounds = []; // {rid,p,serial?:Uint8Array,snd?:AudioBuffer}
+    this.sounds = []; // {rid,serial?:Uint8Array,snd?:AudioBuffer}
   }
   
   /* API for Runtime.
@@ -64,12 +62,20 @@ export class Audio {
     }
   }
   
+  playSong(egsSerial) {
+    console.log(`[rt] Audio.playSong`, { egsSerial });
+    for (const song of this.songs) song.cancel(0);
+    const song = new Bus(this, egsSerial, 0x10000, false);
+    song.start(0);
+    this.songs.push(song);
+  }
+  
   /* Platform entry points.
    ****************************************************************************/
   
   egg_play_sound(rid) {
     if (!this.ctx) return;
-    const snd = this.acquireSound(rid, p);
+    const snd = this.acquireSound(rid);
     if (!snd) return;
     if (snd instanceof Promise) snd.then(buffer => this.playAudioBuffer(buffer, 0.5, 0.0, 0));
     else this.playAudioBuffer(snd, 0.5, 0.0, 0);
@@ -134,30 +140,28 @@ export class Audio {
    **************************************************************************/
    
   // AudioBuffer, null, or Promise<AudioBuffer>
-  acquireSound(rid, p) {
-    let soundsp = this.searchSounds(rid, p);
+  acquireSound(rid) {
+    let soundsp = this.searchSounds(rid);
     if (soundsp >= 0) return this.finishSoundEntry(this.sounds[soundsp]);
     soundsp = -soundsp - 1;
     const serial = this.rt.rom.getResource(Rom.TID_sounds, rid);
     if (serial) {
-      this.installSounds(serial, soundsp, rid);
+      this.installSound(serial, soundsp, rid);
       soundsp = this.searchSounds(rid, p);
       if (soundsp >= 0) return this.finishSoundEntry(this.sounds[soundsp]);
       soundsp = -soundsp - 1;
     }
-    this.sounds.splice(soundsp, 0, { rid, p, snd: null });
+    this.sounds.splice(soundsp, 0, { rid, snd: null });
     return null;
   }
   
-  searchSounds(rid, p) {
+  searchSounds(rid) {
     let lo=0, hi=this.sounds.length;
     while (lo < hi) {
       const ck = (lo + hi) >> 1;
       const q = this.sounds[ck];
            if (rid < q.rid) hi = ck;
       else if (rid > q.rid) lo = ck + 1;
-      else if (p < q.p) hi = ck;
-      else if (p > q.p) lo = ck + 1;
       else return ck;
     }
     return -lo - 1;
@@ -178,17 +182,14 @@ export class Audio {
     return entry.snd;
   }
   
-  installSounds(serial, soundsp, rid) {
-    SynthFormats.forEach(serial, (subid, subserial) => {
-      this.sounds.splice(soundsp++, 0, { rid, p: subid, serial: subserial });
-    });
+  installSound(serial, soundsp, rid) {
+    this.sounds.splice(soundsp, 0, { rid, serial });
   }
   
-  decodeSound(serial, p) {
+  decodeSound(serial) {
     switch (SynthFormats.detectFormat(serial)) {
       case "egs": return this.decodeEgs(serial);
-      case "msf": return null; // MSF embedded in MSF is illegal.
-      case "wav": return SynthFormats.decodeWav(serial);
+      case "pcm": return SynthFormats.decodePcm(serial);
       //default: console.log(`unknown sound format ${JSON.stringify(SynthFormats.detectFormat(serial))}`);
     }
     return null;

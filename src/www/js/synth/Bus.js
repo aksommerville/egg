@@ -19,7 +19,7 @@ export class Bus {
   init() {
     this.master = new GainNode(this.audio.ctx, { gain: 1.0 });
     const egs = SynthFormats.splitEgs(this.serial);
-    this.channels = egs.channels.map(chhdr => {
+    this.channels = egs.channels.filter(v => v).map(chhdr => {
       const channel = new Channel(this.audio, this.audio.ctx, chhdr, this.master);
       if (channel.isDummy()) return null;
       channel.install();

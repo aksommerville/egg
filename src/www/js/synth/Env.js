@@ -1,8 +1,97 @@
 /* Env.js
- * Generic linear envelope.
  */
  
+/* Don't instantiate me. Use LevelEnv or AuxEnv.
+ */
 export class Env {
+  /* Returns an array of {t,v}, with (t) in absolute seconds, always ascending.
+   * (dur,when) in seconds.
+   */
+  apply(velocity, dur, when) {
+    const pointv = [];
+    if (velocity < 0) velocity = 0;
+    else if (velocity > 1) velocity = 1;
+    const aweight = 1.0 - velocity;
+    pointv.push({ t: when, v: aweight * this.inivlo + velocity * this.inivhi });
+    pointv.push({ t: pointv[0].t + aweight * this.atktlo + velocity * this.atkthi, v: aweight * this.atkvlo + velocity * this.atkvhi });
+    pointv.push({ t: pointv[1].t + aweight * this.dectlo + velocity * this.decthi, v: aweight * this.susvlo + velocity * this.susvhi });
+    const sust = Math.max(0, when + dur - pointv[2].t);
+    pointv.push({ t: pointv[2].t + sust, v: pointv[2].v });
+    pointv.push({ t: pointv[3].t + aweight * this.rlstlo + velocity * this.rlsthi, v: aweight * this.rlsvlo + velocity * this.rlsvhi });
+    return pointv;
+  }
+  
+  bias(dv) {
+    this.inivlo += dv;
+    this.inivhi += dv;
+    this.atkvlo += dv;
+    this.atkvhi += dv;
+    this.susvlo += dv;
+    this.susvhi += dv;
+    this.rlsvlo += dv;
+    this.rlsvhi += dv;
+  }
+  
+  scale(sv) {
+    this.inivlo *= sv;
+    this.inivhi *= sv;
+    this.atkvlo *= sv;
+    this.atkvhi *= sv;
+    this.susvlo *= sv;
+    this.susvhi *= sv;
+    this.rlsvlo *= sv;
+    this.rlsvhi *= sv;
+  }
+}
+ 
+export class LevelEnv extends Env {
+  /* 12 bytes in. See etc/doc/audio-format.md
+   */
+  constructor(serial) {
+    super();
+    this.inivlo = 0;
+    this.inivhi = 0;
+    this.atktlo = (serial[0] || 0) / 1000.0;
+    this.atkthi = (serial[1] || 0) / 1000.0;
+    this.atkvlo = (serial[2] || 0) / 255.0;
+    this.atkvhi = (serial[3] || 0) / 255.0;
+    this.dectlo = (serial[4] || 0) / 1000.0;
+    this.decthi = (serial[5] || 0) / 1000.0;
+    this.susvlo = (serial[6] || 0) / 255.0;
+    this.susvhi = (serial[7] || 0) / 255.0;
+    this.rlstlo = ((serial[8] << 8) | serial[9]) / 1000.0;
+    this.rlsthi = ((serial[10] << 8) | serial[11]) / 1000.0;
+    this.rlsvlo = 0;
+    this.rlsvhi = 0;
+  }
+}
+
+export class AuxEnv extends Env {
+  /* 16 bytes in. See etc/doc/audio-format.md
+   * You must also provide a LevelEnv -- AuxEnv does not contain its own timing.
+   * Values are initially just as encoded: 0..0xffff.
+   */
+  constructor(serial, level) {
+    super();
+    this.inivlo = (serial[0] << 8) | serial[1];
+    this.inivhi = (serial[2] << 8) | serial[3];
+    this.atkvlo = (serial[4] << 8) | serial[5];
+    this.atkvhi = (serial[6] << 8) | serial[7];
+    this.susvlo = (serial[8] << 8) | serial[9];
+    this.susvhi = (serial[10] << 8) | serial[11];
+    this.rlsvlo = (serial[12] << 8) | serial[13];
+    this.rlsvhi = (serial[14] << 8) | serial[15];
+    this.atktlo = level.atktlo;
+    this.atkthi = level.atkthi;
+    this.dectlo = level.dectlo;
+    this.decthi = level.decthi;
+    this.rlstlo = level.rlstlo;
+    this.rlsthi = level.rlsthi;
+  }
+}
+
+//XXX old version
+export class EnvXXX {
 
   /* (serial) is a Uint8Array in the format described by etc/doc/audio-format.md.
    * It may be null for a default level envelope.

@@ -46,7 +46,7 @@ COMMA:=,
 EMPTY:=
 SPACE:=$(EMPTY) $(EMPTY)
 demo_EDIT_AUDIO_ARGS:=--audio=$(subst $(SPACE),$(COMMA),$(strip $(filter $(eggdev_OPT_ENABLE),pulse asound alsafd macaudio msaudio))) --audio-rate=44100 --audio-chanc=2
-demo-edit:$(eggdev_EXE);$(eggdev_EXE) serve --htdocs=src/editor --htdocs=src/demo --htdocs=src/demo/editor --write=src/demo $(demo_EDIT_AUDIO_ARGS)
+demo-edit:$(eggdev_EXE);$(eggdev_EXE) serve --htdocs=rt:src/www --htdocs=src/editor --htdocs=src/demo --htdocs=src/demo/editor --write=src/demo $(demo_EDIT_AUDIO_ARGS)
 
 #-------------------------------------------------------------------------------------
 # In addition to the ROM file, there are 4 other forms the final output can take.

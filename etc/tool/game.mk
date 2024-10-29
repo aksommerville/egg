@@ -60,7 +60,7 @@ else
   run:;echo "NATIVE_TARGET unset" ; exit 1
 endif
 
-edit:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=$(EGG_SDK)/src/editor --htdocs=src/editor --htdocs=src --write=src
+edit:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=rt:$(EGG_SDK)/src/www --htdocs=$(EGG_SDK)/src/editor --htdocs=src/editor --htdocs=src --write=src
 web-run:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=$(EGG_SDK)/src/www --htdocs=out --default-rom=/$(notdir $(ROM))
 
 endif

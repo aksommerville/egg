@@ -3,34 +3,19 @@
 Audio review again... it's just too complicated.
 
 Conversion plan:
-- [x] Define new formats. EGS and PCM, related to MIDI and WAV.
-- [x] Eliminate resource manifest in favor of "TID-NAME", I'd been meaning to do that anyway.
-- [x] Update eggdev compile/uncompile with new formats.
-- [x] Update editor. Get the data manipulation all done, but no playback yet.
-- - [x] POST /api/sound
-- [x] New eggdev command to play a sound.
-- [x] Something's broken in the timing during MIDI=>EGS conversion. Listen close to Heart of Stone, you can hear faster and slower bits.
-- [x] CHANGE DRUM CHANNEL FORMAT: Don't play sound resources; instead encode the sound locally somehow.
-- - Having these external references is a difficulty. If we keep them internal, that's the last bit, then songs are completely self-contained.
-- [x] !!! After opening the nested EgsChannelEditor, the outer one stops getting dirty events.
 - [ ] Native synthesizer.
 - [ ] Web synthesizer.
-- [x] HTTP endpoint to compile a sound. Or just a generic "compile" endpoint for any data?
-- [x] Native drums.
 - [ ] Native wheel.
 - [ ] Native subtractive voice and IIR filter -- Punted until WebAudio is done, so I can compare closely while working.
-- [x] New resource in editor.
 - [ ] Editor: Adding a drum, generate a default MIDI with a single Note On/Off pair, EOT, etc.
-- [x] Event times are reverting to zero sometimes after I edit from drums.
-- [x] Forbid drum channels in sound resources and embedded drums, MidiEditor.
-- [x] Add arbitrary events in MidiEditor.
 - [ ] MidiEventModal: More humane interface. What we have is a quick and dirty hack, barely usable.
 - [ ] EGS Channel Header as hex dump in editor, or something. Must be stupid easy to copy an existing header across resources.
-- [x] ^ And to help with that, maybe enable one of the Meta Text events like Channel Name?
 - [ ] Editor: Intuitive controls for post.
-- [x] Playback in editor. Must be able to use both WebAudio, and native via the server.
 - [ ] MIDI input to editor.
 - [ ] Editor: Auto-calculate length for drum.
+- [ ] MIDI file import wizard. If there's no EGS headers, propose a rich set of defaults and fix-ups.
+- [ ] waveshaper sounds completely different native vs web. I'm pretty confident we've implemented it per spec.
+- - It's because we're applying master and pan to voices in native, instead of after post.
 
 Current state:
 - BAD: Data source from MIDI, WAV, EGS, and MSF.
@@ -68,6 +53,7 @@ So when EGS Format is defined, there's nothing more to define for MIDI.
 Every WAV in the ROM must be 16-bit signed LPCM in a single channel, with only "fmt " and "data" chunks, 1 each.
 Compiler will accept a broader set of formats and rewrite accordingly.
 Any reasonable frame rate is ok, and compiler will never change rates.
+...update: Same idea, but we're calling it a different format "PCM", so as not to require a big 44-byte header on each.
 
 ## From MIDI
 

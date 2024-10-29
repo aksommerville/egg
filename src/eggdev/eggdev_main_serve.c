@@ -16,13 +16,24 @@ static void eggdev_http_rcvsig(int sigid) {
 
 /* Combine and validate paths.
  * Combining only succeeds if it fits with the terminator.
+ * If (pfx) at combine contains a match prefix, we take care of it.
  * Validating just confirms that it begins with (pfx) and doesn't contain any double-dot entries.
  * Validate returns (srcc) on success, as a convenience.
  */
  
 static int eggdev_serve_combine_path(char *dst,int dsta,const char *pfx,const char *src,int srcc) {
   if (!src||(srcc<0)) return -1;
-  int pfxc=0; while (pfx[pfxc]) pfxc++;
+  int pfxc=0,pfxsepp=-1; while (pfx[pfxc]) {
+    if ((pfx[pfxc]==':')&&(pfxsepp<0)) pfxsepp=pfxc;
+    pfxc++;
+  }
+  if (pfxsepp>=0) { // (pfx) has a matching prefix.
+    if ((pfxsepp>srcc)||memcmp(pfx,src,pfxsepp)) return -1;
+    pfx+=pfxsepp+1;
+    pfxc-=pfxsepp+1;
+    src+=pfxsepp;
+    srcc-=pfxsepp;
+  }
   while (pfxc&&(pfx[pfxc-1]=='/')) pfxc--;
   while (srcc&&(src[0]=='/')) { src++; srcc--; }
   int dstc=pfxc+1+srcc;
@@ -35,7 +46,14 @@ static int eggdev_serve_combine_path(char *dst,int dsta,const char *pfx,const ch
 }
 
 static int eggdev_serve_validate_path(const char *src,int srcc,const char *pfx) {
-  int pfxc=0; while (pfx[pfxc]) pfxc++;
+  int pfxc=0,pfxsepp=-1; while (pfx[pfxc]) {
+    if ((pfx[pfxc]==':')&&(pfxsepp<0)) pfxsepp=pfxc;
+    pfxc++;
+  }
+  if (pfxsepp>=0) {
+    pfx+=pfxsepp+1;
+    pfxc-=pfxsepp+1;
+  }
   if (pfxc>srcc) return -1;
   if (memcmp(src,pfx,pfxc)) return -1;
   if ((pfxc<srcc)&&(src[pfxc]!='/')) return -1;

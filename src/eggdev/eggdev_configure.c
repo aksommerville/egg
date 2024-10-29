@@ -79,12 +79,13 @@ static void eggdev_print_help_validate() {
  */
  
 static void eggdev_print_help_serve() {
-  fprintf(stderr,"\nUsage: %s serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n\n",eggdev.exename);
+  fprintf(stderr,"\nUsage: %s serve [--htdocs=[PFX:]PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n\n",eggdev.exename);
   fprintf(stderr,
     "Run the dev server, mostly a generic HTTP server.\n"
     "BEWARE: This server is not hardened for use on untrusted networks.\n"
     "--external to serve on all interfaces. Localhost only by default.\n"
     "--htdocs arguments override previous ones, we serve the first file we find, searching backward.\n"
+    "Optional 'PFX:' before --htdocs is stripped from the request path, for matching only. Do not include leading slash.\n"
     "--write should match one of your --htdocs. The only directory we PUT or DELETE in.\n"
     "--default-rom gets inserted in the runtime's bootstrap.js.\n"
     "See etc/doc/eggdev-http.md for REST API and more details.\n"
@@ -188,7 +189,7 @@ static void eggdev_print_help_default() {
     "    bundle -oEXE|HTML ROM [LIB|--recompile]\n"
     "      list ROM|EXE|HTML|DIRECTORY [-fFORMAT]\n"
     "  validate ROM|EXE|HTML|DIRECTORY\n"
-    "     serve [--htdocs=PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n"
+    "     serve [--htdocs=[PFX:]PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n"
     "    config [KEYS...]\n"
     "      dump ROM TYPE:ID\n"
     "   project\n"

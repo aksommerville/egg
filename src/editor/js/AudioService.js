@@ -4,6 +4,7 @@
  */
  
 import { Comm } from "./Comm.js";
+import { Audio } from "/rt/js/synth/Audio.js";
  
 export class AudioService {
   static getDependencies() {
@@ -16,6 +17,8 @@ export class AudioService {
     this.serverAvailable = null; // boolean after we've confirmed.
     this.nextListenerId = 1;
     this.listeners = [];
+    this.audio = null;
+    this.updateInterval = null;
     
     this.comm.httpStatusOnly("POST", "/api/sound").then(status => {
       this.serverAvailable = (status === 200);
@@ -40,10 +43,23 @@ export class AudioService {
   
   setOutputMode(mode) {
     if (mode === this.outputMode) return;
+    if (this.audio) {
+      this.audio.stop();
+      this.audio = null;
+    }
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
     switch (mode) {
       case "none": break;
       case "server": if (!this.serverAvailable) return; break;
-      case "client": break;
+      case "client": {
+          const rt = {};
+          this.audio = new Audio(rt);
+          this.audio.start();
+          this.updateInterval = setInterval(() => this.update(), 100);
+        } break;
       default: return;
     }
     this.stop();
@@ -52,8 +68,17 @@ export class AudioService {
   
   stop() {
     switch (this.outputMode) {
-      case "server": return this.comm.http("POST", "/api/sound").catch(e => {}); break;
-      case "client": break; //TODO Stop playback, WebAudio
+      case "server": return this.comm.http("POST", "/api/sound").catch(e => {});
+      case "client": {
+          if (this.audio) {
+            this.audio.stop();
+            this.audio = null;
+          }
+          if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+          }
+        } break;
     }
     return Promise.resolve();
   }
@@ -66,13 +91,24 @@ export class AudioService {
       case "server": return this.comm.http("POST", "/api/sound", { position, repeat }, null, serial);
       case "client": return this.comm.httpBinary("POST", "/api/compile", null, null, serial).then(rsp => {
           console.log(`Compile ok`, { serial, rsp });
-          //TODO Forward (rsp) to synthesizer.
+          if (!this.audio) {
+            this.audio = new Audio(rt);
+            this.audio.start();
+          }
+          if (!this.updateInterval) {
+            this.updateInterval = setInterval(() => this.update(), 100);
+          }
+          this.audio.playSong(new Uint8Array(rsp));
         }).catch(e => {
           console.log(`Compile failed`, e);
           throw e;
         });
     }
     return Promise.reject(`Invalid output mode ${JSON.stringify(this.outputMode)}`);
+  }
+  
+  update() {
+    if (this.audio) this.audio.update();
   }
 }
 

@@ -41,7 +41,7 @@ static void _waveshaper_update(float *v,int framec,struct synth_node *node) {
     if (p<=0.0f) *v=NODE->vv[0];
     else if (p>=vcf) *v=NODE->vv[NODE->vc-1];
     else {
-      int pi=(int)p;
+      int pi=(int)floorf(p);
       float bw=p-(float)pi;
       float aw=1.0f-bw;
       *v=NODE->vv[pi]*aw+NODE->vv[pi+1]*bw;
