@@ -8,7 +8,6 @@
 #define EGGDEV_FMT_MIDI 5
 #define EGGDEV_FMT_WAV 6
 #define EGGDEV_FMT_EGS 7
-#define EGGDEV_FMT_PCM 8
 #define EGGDEV_FMT_STRINGS_BIN 9
 #define EGGDEV_FMT_METADATA_BIN 10
 #define EGGDEV_FMT_ROM 11
@@ -29,7 +28,6 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
     if ((namec==4)&&!memcmp(name,"midi",4)) return EGGDEV_FMT_MIDI;
     if ((namec==3)&&!memcmp(name,"wav",3)) return EGGDEV_FMT_WAV;
     if ((namec==3)&&!memcmp(name,"egs",3)) return EGGDEV_FMT_EGS;
-    if ((namec==3)&&!memcmp(name,"pcm",3)) return EGGDEV_FMT_PCM;
     if ((namec==11)&&!memcmp(name,"strings_bin",11)) return EGGDEV_FMT_STRINGS_BIN;
     if ((namec==12)&&!memcmp(name,"metadata_bin",12)) return EGGDEV_FMT_METADATA_BIN;
     if ((namec==3)&&!memcmp(name,"rom",3)) return EGGDEV_FMT_ROM;
@@ -49,7 +47,6 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
     if ((srcc>=4)&&!memcmp(src,"MThd",4)) return EGGDEV_FMT_MIDI;
     if ((srcc>=4)&&!memcmp(src,"RIFF",4)) return EGGDEV_FMT_WAV;
     if ((srcc>=4)&&!memcmp(src,"\0EGS",4)) return EGGDEV_FMT_EGS;
-    if ((srcc>=4)&&!memcmp(src,"\0PCM",4)) return EGGDEV_FMT_PCM;
     // egg resources...
     if ((srcc>=4)&&!memcmp(src,"\0ES\xff",4)) return EGGDEV_FMT_STRINGS_BIN;
     if ((srcc>=4)&&!memcmp(src,"\0EM\xff",4)) return EGGDEV_FMT_METADATA_BIN;
@@ -79,11 +76,11 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
     case EGGDEV_FMT_QOI: return EGGDEV_FMT_PNG;
     case EGGDEV_FMT_RAWIMG: return EGGDEV_FMT_PNG;
     case EGGDEV_FMT_RLEAD: return EGGDEV_FMT_PNG;
-    // Audio formats are paired neatly.
+    // MIDI<~>EGS
     case EGGDEV_FMT_MIDI: return EGGDEV_FMT_EGS;
-    case EGGDEV_FMT_WAV: return EGGDEV_FMT_PCM;
     case EGGDEV_FMT_EGS: return EGGDEV_FMT_MIDI;
-    case EGGDEV_FMT_PCM: return EGGDEV_FMT_WAV;
+    // WAV "converts" to itself; it's a sanitization process.
+    case EGGDEV_FMT_WAV: return EGGDEV_FMT_WAV;
     // Egg resources go to text. From text, we really can't guess.
     case EGGDEV_FMT_STRINGS_BIN: return EGGDEV_FMT_TEXT;
     case EGGDEV_FMT_METADATA_BIN: return EGGDEV_FMT_TEXT;
@@ -141,17 +138,8 @@ static int eggdev_cvta2a_synthesize(struct sr_encoder *dst,const void *src,int s
   return 0;
 }
 
-/* Add PCM or WAV headers to a raw s16le pcm dump.
+/* Add WAV headers to a raw s16le pcm dump.
  */
- 
-static int eggdev_cvta2a_prepend_pcm_header(struct sr_encoder *dst,int p,int rate) {
-  uint8_t pre[8]={
-    0,'P','C','M',
-    rate>>24,rate>>16,rate>>8,rate,
-  };
-  if (sr_encoder_insert(dst,p,pre,sizeof(pre))<0) return -1;
-  return 0;
-}
 
 static int eggdev_cvta2a_prepend_wav_header(struct sr_encoder *dst,int p,int rate,int chanc) {
   int dlen=dst->c-p;
@@ -172,9 +160,10 @@ static int eggdev_cvta2a_prepend_wav_header(struct sr_encoder *dst,int p,int rat
   return 0;
 }
 
-/* Convert to a PCM format (PCM,WAV) from a logical song format (EGS,MIDI).
+/* Convert to WAV from a logical song format (EGS,MIDI).
  * This means creating a synthesizer and capturing its output.
- * We don't have the means of asking for rate or channel count, so we assume 44.1 kHz always, then mono if PCM or stereo if WAV.
+ * We don't have the means of asking for rate or channel count, so we assume 44.1 kHz mono always.
+ * (we're equipped to capture stereo, because an earlier version of Egg supported that).
  */
  
 static int eggdev_cvta2a_print_song(struct sr_encoder *dst,const void *src,int srcc,int dfmt,int sfmt,const char *refname) {
@@ -196,7 +185,7 @@ static int eggdev_cvta2a_print_song(struct sr_encoder *dst,const void *src,int s
   /* Call out for the interesting bit.
    */
   int rate=44100;
-  int chanc=(dfmt==EGGDEV_FMT_WAV)?2:1;
+  int chanc=1;
   int dstc0=dst->c;
   if ((err=eggdev_cvta2a_synthesize(dst,src,srcc,rate,chanc,refname))<0) {
     sr_encoder_cleanup(&srccvt);
@@ -207,7 +196,6 @@ static int eggdev_cvta2a_print_song(struct sr_encoder *dst,const void *src,int s
   /* Add the appropriate headers to (dst).
    */
   switch (dfmt) {
-    case EGGDEV_FMT_PCM: err=eggdev_cvta2a_prepend_pcm_header(dst,dstc0,rate); break;
     case EGGDEV_FMT_WAV: err=eggdev_cvta2a_prepend_wav_header(dst,dstc0,rate,chanc); break;
     default: err=-1;
   }
@@ -230,7 +218,16 @@ int eggdev_cvta2a(
   if (!srcfmt) srcfmtc=0; else if (srcfmtc<0) { srcfmtc=0; while (srcfmt[srcfmtc]) srcfmtc++; }
   int sfmt=eggdev_cvta2a_guess_format(srcfmt,srcfmtc,src,srcc,0);
   int dfmt=eggdev_cvta2a_guess_format(dstfmt,dstfmtc,0,0,sfmt);
-  if (sfmt==dfmt) return sr_encode_raw(dst,src,srcc); // Dummy conversion.
+  
+  /* Same to same, there may be a sanitization process we can run.
+   * But in most cases, just echo the input.
+   */
+  if (sfmt==dfmt) switch (sfmt) {
+    case EGGDEV_FMT_WAV: return eggdev_song_sanitize_wav(dst,src,srcc,refname);
+    //case EGGDEV_FMT_MIDI: return eggdev_song_sanitize_midi(dst,src,srcc,refname);//TODO Do we want this? It could add default EGS headers like compile, but stay in MIDI format.
+    default: return sr_encode_raw(dst,src,srcc);
+  }
+  
   switch (dfmt) {
     case EGGDEV_FMT_PNG: return eggdev_cvta2a_image(dst,src,srcc,IMAGE_FORMAT_png,refname);
     case EGGDEV_FMT_QOI: return eggdev_cvta2a_image(dst,src,srcc,IMAGE_FORMAT_qoi,refname);
@@ -242,15 +239,9 @@ int eggdev_cvta2a(
     case EGGDEV_FMT_WAV: switch (sfmt) {
         case EGGDEV_FMT_MIDI: return eggdev_cvta2a_print_song(dst,src,srcc,dfmt,sfmt,refname);
         case EGGDEV_FMT_EGS: return eggdev_cvta2a_print_song(dst,src,srcc,dfmt,sfmt,refname);
-        case EGGDEV_FMT_PCM: return eggdev_song_wav_from_pcm(dst,src,srcc,refname);
       } break;
     case EGGDEV_FMT_EGS: switch (sfmt) {
         case EGGDEV_FMT_MIDI: return eggdev_song_egs_from_midi(dst,src,srcc,refname);
-      } break;
-    case EGGDEV_FMT_PCM: switch (sfmt) {
-        case EGGDEV_FMT_MIDI: return eggdev_cvta2a_print_song(dst,src,srcc,dfmt,sfmt,refname);
-        case EGGDEV_FMT_EGS: return eggdev_cvta2a_print_song(dst,src,srcc,dfmt,sfmt,refname);
-        case EGGDEV_FMT_WAV: return eggdev_song_wav_from_pcm(dst,src,srcc,refname);
       } break;
     case EGGDEV_FMT_STRINGS_BIN: switch (sfmt) {
         case EGGDEV_FMT_TEXT: return eggdev_strings_bin_from_text(dst,src,srcc,refname);

@@ -17,8 +17,11 @@ I want to make it stupid simple. So simple that we can't help getting it right.
 
 TODO
 - [x] Core native synth.
+- [x] synth_formats
 - [ ] native: sub
-- [ ] Revise compiler.
-- [ ] cvta2a sanitization
+- [x] Revise compiler.
+- [x] cvta2a sanitization
 - [ ] Editor.
 - [ ] Web synth.
+- [ ] Confirm we're ignoring ignorable things, for future-proofing.
+- [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.

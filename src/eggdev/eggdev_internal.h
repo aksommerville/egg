@@ -130,7 +130,13 @@ int eggdev_strings_bin_from_text(struct sr_encoder *dst,const char *src,int srcc
 int eggdev_strings_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
 int eggdev_song_egs_from_midi(struct sr_encoder *dst,const void *src,int srcc,const char *refname);
 int eggdev_song_midi_from_egs(struct sr_encoder *dst,const void *src,int srcc,const char *refname);
-int eggdev_song_pcm_from_wav(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
-int eggdev_song_wav_from_pcm(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
+int eggdev_song_sanitize_wav(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *refname);
+
+/* Canned instruments used by eggdev_compile_song.
+ * These emit a partial EGS Channel Header, beginning with `mode`.
+ * Caller should emit `chid` and `master` first.
+ */
+int eggdev_encode_gm_instrument(struct sr_encoder *dst,int pid);
+int eggdev_encode_gm_drums(struct sr_encoder *dst,const uint8_t *notebits/*16*/);
 
 #endif

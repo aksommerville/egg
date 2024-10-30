@@ -24,32 +24,28 @@ struct synth_pcm;
 struct synth_egs_reader {
   const uint8_t *v;
   int c,p;
-  int tempo; // ms/qnote. Populated at init.
   char stage; // 0,'!','c','e'
 };
 
 struct synth_egs_channel {
-  uint8_t chid;
+  uint8_t chid; // 0..254; only 0..15 are currently meaningful.
   uint8_t master; // 0..255
-  uint8_t pan; // 0..128..255
   uint8_t mode; // EGS_MODE_*, but we don't validate.
-  const uint8_t *config;
-  int configc;
-  const uint8_t *post;
-  int postc;
+  const uint8_t *v;
+  int c;
 };
 
 struct synth_egs_event {
   int delay; // If nonzero, it's a Delay event. ms
-  int chid; // Valid for Note and Wheel events.
+  int chid; // Valid for Note events.
   int noteid; // If <0x80, it's a Note event.
   int velocity; // Note events only. 1..127 (regardless of encoded resolution)
   int duration; // ms, Note events only.
-  int wheel; // Wheel events only. 0..128..255
+  const uint8_t *v; // Full encoded event, if delay==0 and noteid==0xff
+  int c;
 };
 
 /* Succeeds if there's a valid header.
- * (reader->tempo) is populated on success.
  * Follow this by synth_egs_reader_next_channel().
  */
 int synth_egs_reader_init(struct synth_egs_reader *reader,const void *src,int srcc);
@@ -57,9 +53,16 @@ int synth_egs_reader_init(struct synth_egs_reader *reader,const void *src,int sr
 /* Both return 0 if we're done with that section, 1 if something is returned, or <0 for real errors.
  * You must read channels to completion before starting events; events will report "done" if you haven't got there yet.
  * All errors are sticky.
+ * There are events not yet defined which we nevertheless can measure.
+ * Those will return as {delay:0,noteid:255} with (v,c) containing the full encoded event.
  */
 int synth_egs_reader_next_channel(struct synth_egs_channel *dst,struct synth_egs_reader *reader);
 int synth_egs_reader_next_event(struct synth_egs_event *dst,struct synth_egs_reader *reader);
+
+/* Alternative to multiple synth_egs_reader_next_channel() calls; read all remaining channel headers as a single block.
+ * That's the chunk we pack into a MIDI Meta event.
+ */
+int synth_egs_reader_all_channels(void *dstpp,struct synth_egs_reader *reader);
 
 /* Read MIDI.
  ******************************************************************/

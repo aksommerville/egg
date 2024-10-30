@@ -17,7 +17,7 @@ Our compiler will accept a broader variety of WAV and apply those constraints.
 File type must be 1, ie concurrent tracks.
 Division must be in 1..0x7fff, ie ticks/qnote, not SMPTE timecodes.
 A special Meta event 0xf0 at time zero contains the full EGS header.
-That is exactly an EGS file, signature and all, but events will be ignored and should be omitted.
+This is everything between the "\0EGS" signature and the 0xff events introducer, exclusive.
 Our compiler will generate an EGS header based on standard MIDI events,
 but if one is already present it overrides all standard MIDI configuration.
 
@@ -34,6 +34,8 @@ Channel Header:
 
 Channels not named by a header are implicitly `noop` and any events on that channel will be ignored.
 That is mostly a cudgel for the editor, so there's a simple nondestructive way to mute any channel.
+`chid` 16..254 are reserved for future use and must be ignored.
+Channels with unrecognized mode must be ignored.
 
 Events Introducer:
 - u8 0xff
@@ -46,8 +48,11 @@ Events are distinguishable by high bits of the first byte:
 1000cccc nnnnnnnv vvvvvvtt : Short Note. (t*16) ms.
 1001cccc nnnnnnnv vvvttttt : Medium Note. (t+1)*64 ms.
 1010cccc nnnnnnnv vvvttttt : Long Note. (t+1)*512 ms.
-1011xxxx                   : Reserved, illegal.
-11xxxxxx                   : Reserved, illegal.
+1011xxxx                   : Reserved, ignore.
+1100xxxx xxxxxxxx          : Reserved, ignore.
+1101xxxx xxxxxxxx xxxxxxxx : Reserved, ignore.
+1110xxxx xxxxxxxx xxxxxxxx : Reserved, ignore.
+1111xxxx xxxxxxxx llllllll : Reserved, ignore. Followed by (l) bytes of payload.
 ```
 
 Channel Mode:
@@ -58,7 +63,7 @@ Channel Mode:
 - 4: `sub`
 
 Channel Mode 1 `drum`. Zero or more of:
-- u8 noteid 0..127. Must be unique.
+- u8 noteid 0..127. Must be unique. Stop reading at anything >=0x80 -- it's reserved, not an error.
 - u8 trimlo
 - u8 trimhi
 - u16 len
