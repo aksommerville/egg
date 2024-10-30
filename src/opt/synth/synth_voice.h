@@ -59,7 +59,7 @@ struct synth_voice *synth_voice_fm_new(
 struct synth_voice *synth_voice_sub_new(
   struct synth *synth,
   float mid_norm,
-  float width_norm,//XXX have caller provide coefficients; they can be precalculated
+  float width_norm,
   float velocity,
   int durframes,
   const struct synth_env_config *levelenv

@@ -161,8 +161,6 @@ static int synth_channel_decode_SUB(struct synth_channel *channel,struct synth *
     channel->subwidth=(float)((src[srcp]<<8)|src[srcp+1]);
     srcp+=2;
   }
-  
-  //TODO Precalculate IIR coefficients.
 
   return 0;
 }

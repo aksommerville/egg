@@ -18,7 +18,7 @@ I want to make it stupid simple. So simple that we can't help getting it right.
 TODO
 - [x] Core native synth.
 - [x] synth_formats
-- [ ] native: sub
+- [x] native: sub
 - [x] Revise compiler.
 - [x] cvta2a sanitization
 - [ ] Editor.
