@@ -1,4 +1,4 @@
-/* MidiEventModal.js
+/* MidiEventModal.js XXX
  * For events from the verbatim event list in MidiEditor.
  * We are set up with an event from MidiFile.
  * We don't touch the owning MidiFile (don't even get a peek at it).
@@ -7,7 +7,7 @@
 import { Dom } from "./Dom.js";
 import { MidiFile } from "./MidiFile.js";
 
-export class MidiEventModal {
+export class MidiEventModalXXX {
   static getDependencies() {
     return [HTMLDialogElement, Dom];
   }

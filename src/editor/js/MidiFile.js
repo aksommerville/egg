@@ -1,11 +1,11 @@
-/* MidiFile.js
+/* MidiFile.js XXX
  * Live representation of a MIDI file, for MidiEditor.
  */
  
 const MIDI_CHUNK_MThd = 0x4d546864;
 const MIDI_CHUNK_MTrk = 0x4d54726b;
  
-export class MidiFile {
+export class MidiFileXXX {
   constructor(src) {
     this.nextEventId = 1;
     if (!src) this._init();

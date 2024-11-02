@@ -7,7 +7,7 @@ import { Dom } from "./Dom.js";
 import { Data } from "./Data.js";
 import { ResOptionsModal } from "./ResOptionsModal.js";
 import { Actions } from "./Actions.js";
-import { AudioService } from "./AudioService.js";
+import { AudioService } from "./audio/AudioService.js";
 
 export class SidebarUi {
   static getDependencies() {

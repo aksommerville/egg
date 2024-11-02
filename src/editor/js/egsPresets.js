@@ -1,10 +1,10 @@
-/* Presets for the EGS Channel Header editor.
+/* Presets for the EGS Channel Header editor. XXX
  * There's no concept of "violin", "guitar", "boing", "laser cannon", etc, anywhere else in Egg.
  * These presets let the user initialize a channel from a sensible starting point.
  * TODO Everything here is very temporary.
  */
 
-export const EGS_CHANNEL_PRESETS = [
+export const EGS_CHANNEL_PRESETSXXX = [
   { name: "Piano", serial: new Uint8Array([
     3, // fm
     0,50, // config length

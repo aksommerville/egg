@@ -1,11 +1,11 @@
-/* EnvUi.js
+/* EnvUi.js XXX
  * Used by EgsChannelEditor to edit multiple envelopes graphically.
  * TODO Probably needs a tattle, and maybe extra support for aligning pitch env at 0x8000.
  */
  
 import { Dom } from "./Dom.js";
 
-export class EnvUi {
+export class EnvUiXXX {
   static getDependencies() {
     return [HTMLElement, Dom, Window, "nonce"];
   }

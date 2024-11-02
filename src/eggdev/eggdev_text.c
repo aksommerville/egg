@@ -127,3 +127,21 @@ int eggdev_strings_get(void *dstpp,const struct eggdev_rom *rom,int rid,int inde
   }
   return 0;
 }
+
+/* Hex dump to stderr.
+ */
+ 
+void eggdev_hexdump(const void *src,int srcc) {
+  if ((srcc<0)||(srcc&&!src)) srcc=0;
+  int srcp=0,rowlen=16;
+  for (;srcp<srcc;srcp+=rowlen) {
+    fprintf(stderr,"%08x |",srcp);
+    int i=0; for (;i<rowlen;i++) {
+      int p=srcp+i;
+      if (p>=srcc) break;
+      fprintf(stderr," %02x",((uint8_t*)src)[p]);
+    }
+    fprintf(stderr,"\n");
+  }
+  fprintf(stderr,"%08x\n",srcc);
+}

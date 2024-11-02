@@ -1,4 +1,4 @@
-/* MidiEditor.js
+/* MidiEditor.js XXX
  * No need for a full sequencer, users should find third party tooling for that.
  * But we do need to expose all the Egg-specific config.
  */
@@ -12,7 +12,7 @@ import { EditorModal } from "./EditorModal.js";
 import { EgsChannelEditor } from "./EgsChannelEditor.js";
 import { AudioService } from "./AudioService.js";
  
-export class MidiEditor {
+export class MidiEditorXXX {
   static getDependencies() {
     return [HTMLElement, Dom, Data, AudioService];
   }

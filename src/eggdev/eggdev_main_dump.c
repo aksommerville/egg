@@ -3,7 +3,7 @@
 /* Generic hex dump.
  */
  
-static void eggdev_hexdump(const uint8_t *src,int srcc) {
+static void eggdev_hexdump_stdout(const uint8_t *src,int srcc) {
   int srcp=0,i;
   for (;srcp<srcc;srcp+=16) {
     fprintf(stdout,"%08x |",srcp);
@@ -46,7 +46,7 @@ int eggdev_main_dump() {
     eggdev_rom_cleanup(&rom);
     return -2;
   }
-  eggdev_hexdump(res->serial,res->serialc);
+  eggdev_hexdump_stdout(res->serial,res->serialc);
   eggdev_rom_cleanup(&rom);
   return 0;
 }

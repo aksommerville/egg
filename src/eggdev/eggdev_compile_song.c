@@ -54,6 +54,34 @@ static int eggdev_egs_headers_from_midi(struct sr_encoder *dst,const struct chcf
   return 0;
 }
 
+/* Emit explicit EGS headers, but if a channel is missing, maybe generate a default config for it.
+ * Our editor has a fake channel mode "GM" which causes it to omit channels from the EGS header, and let Program Change and Control Change take over.
+ * If the user actually wants a channel dropped, they must define it with mode "NOOP".
+ */
+ 
+static int eggdev_egs_headers_merge(struct sr_encoder *dst,const uint8_t *src,int srcc,const struct chcfg *chcfg/*16*/,const char *refname) {
+  /* Luckily EGS doesn't require us to emit channel headers in order.
+   * Emit the verbatim ones one at a time, noting which channels we've seen.
+   * Then anything unseen, where (chcfg) has something, emit the default.
+  .*/
+  struct chcfg altcfg[16];
+  memcpy(altcfg,chcfg,sizeof(altcfg));
+  int srcp=0;
+  while (srcp<srcc) {
+    if (srcp>srcc-6) return -1;
+    uint8_t chid=src[srcp];
+    if (chid<0x10) altcfg[chid].notec=0; // forces skip
+    if (sr_encode_raw(dst,src+srcp,6)<0) return -1;
+    int paylen=(src[srcp+3]<<16)|(src[srcp+2]<<8)|src[srcp+3];
+    srcp+=6;
+    if (srcp>srcc-paylen) return -1;
+    if (sr_encode_raw(dst,src+srcp,paylen)<0) return -1;
+    srcp+=paylen;
+  }
+  // Now (altcfg) is the members of (chcfg) which were not configured by (src). Encode them like we do in full-default cases.
+  return eggdev_egs_headers_from_midi(dst,altcfg,refname);
+}
+
 /* EGS from MIDI.
  */
  
@@ -80,7 +108,7 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
     if (delay>0) { now+=delay; continue; }
     if (delay==SYNTH_MIDI_EOF) break;
     if (delay<0) return delay;
-    if ((event.opcode==0xff)&&(event.a==0xf0)) {
+    if ((event.opcode==0xff)&&(event.a==0x7f)) {
       WARN_NONZERO
       else if (egshdr) {
         fprintf(stderr,"%s:WARNING: Multiple EGS headers. Using the first.\n",refname);
@@ -106,10 +134,10 @@ static int eggdev_egs_from_midi_inner(struct sr_encoder *dst,struct synth_midi_r
   int songdur=now;
   #undef WARN_NONZERO
   
-  /* If an explicit EGS header is present, emit it verbatim and that's it.
+  /* If an explicit EGS header is present, use it but also insert default programs for unlisted channels.
    */
   if (egshdr) {
-    if (sr_encode_raw(dst,egshdr,egshdrc)<0) return -1;
+    if ((err=eggdev_egs_headers_merge(dst,egshdr,egshdrc,chcfgv,refname))<0) return err;
     
   /* No EGS header, log a warning and make something up based on the config events we just gathered.
    */
@@ -257,7 +285,7 @@ int eggdev_song_midi_from_egs(struct sr_encoder *dst,const void *src,int srcc,co
   const void *headers=0;
   int headersc=synth_egs_reader_all_channels(&headers,&reader);
   if (headersc<0) return -1;
-  if (sr_encode_raw(dst,"\0\xff\xf0",3)<0) return -1;
+  if (sr_encode_raw(dst,"\0\xff\x7f",3)<0) return -1;
   if (sr_encode_vlq(dst,headersc)<0) return -1;
   if (sr_encode_raw(dst,headers,headersc)<0) return -1;
   

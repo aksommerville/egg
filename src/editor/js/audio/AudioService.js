@@ -1,12 +1,12 @@
-/* AudioService.js XXX
+/* AudioService.js
  * Interface to either the server's native synthesizer, or a WebAudio one that we run client-side.
  * Clients asking to play a sound don't need to care which.
  */
  
-import { Comm } from "./Comm.js";
+import { Comm } from "../Comm.js";
 import { Audio } from "/rt/js/synth/Audio.js";
  
-export class AudioServiceXXX {
+export class AudioService {
   static getDependencies() {
     return [Comm];
   }
@@ -23,7 +23,10 @@ export class AudioServiceXXX {
     this.comm.httpStatusOnly("POST", "/api/sound").then(status => {
       this.serverAvailable = (status === 200);
       this.broadcast({ id: "availability" });
-    }).catch(e => this.serverAvailable = false);
+    }).catch(e => {
+      this.serverAvailable = false;
+      this.broadcast({ id: "availability" });
+    });
   }
   
   listen(cb) {
@@ -64,6 +67,7 @@ export class AudioServiceXXX {
     }
     this.stop();
     this.outputMode = mode;
+    this.broadcast({ id: "outputMode" });
   }
   
   stop() {
@@ -90,7 +94,6 @@ export class AudioServiceXXX {
       case "none": return Promise.reject("Audio output not enabled.");
       case "server": return this.comm.http("POST", "/api/sound", { position, repeat }, null, serial);
       case "client": return this.comm.httpBinary("POST", "/api/compile", null, null, serial).then(rsp => {
-          console.log(`Compile ok`, { serial, rsp });
           if (!this.audio) {
             this.audio = new Audio(rt);
             this.audio.start();
@@ -99,9 +102,6 @@ export class AudioServiceXXX {
             this.updateInterval = setInterval(() => this.update(), 100);
           }
           this.audio.playSong(new Uint8Array(rsp));
-        }).catch(e => {
-          console.log(`Compile failed`, e);
-          throw e;
         });
     }
     return Promise.reject(`Invalid output mode ${JSON.stringify(this.outputMode)}`);

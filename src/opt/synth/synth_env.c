@@ -93,8 +93,8 @@ void synth_env_config_scale(struct synth_env_config *config,float d) {
   struct synth_env_config_point *point=config->pointv;
   int i=config->pointc;
   for (;i-->0;point++) {
-    point->vlo+=d;
-    point->vhi+=d;
+    point->vlo*=d;
+    point->vhi*=d;
   }
 }
 
@@ -145,6 +145,7 @@ void synth_env_init(struct synth_env_runner *runner,const struct synth_env_confi
       memmove(dst+1,dst,sizeof(struct synth_env_runner_point)*(runner->pointc-config->susp));
       runner->pointc++;
       dst[1].c=addc;
+      runner->susp=config->susp+1;
     }
   }
   

@@ -1,14 +1,14 @@
-/* WavEditor.js XXX
+/* WavEditor.js
  * We're not going deep on this one, but do show the levels and allow simple adjustments like dropping channels and truncating silence.
  * (actually, dropping channels will happen implicitly)
  */
  
 //TODO playback
  
-import { Dom } from "./Dom.js";
-import { Data } from "./Data.js";
+import { Dom } from "../Dom.js";
+import { Data } from "../Data.js";
  
-export class WavEditorXXX {
+export class WavEditor {
   static getDependencies() {
     return [HTMLElement, Dom, Data];
   }

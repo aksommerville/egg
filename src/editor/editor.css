@@ -247,6 +247,119 @@ body {
   background-color: #555;
 }
 
+.SongEditor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background-color: #444;
+  color: #fff;
+}
+.SongEditor > .globals {
+  border-bottom: 1px solid #222;
+  display: flex;
+  flex-direction: row;
+}
+.SongEditor > .globals > .player {
+  margin-left: 10px;
+}
+.SongEditor > .globals > .visibility {
+  margin-left: 10px;
+}
+.SongEditor > .channels {
+  border-bottom: 1px solid #222;
+  display: flex;
+  flex-direction: row;
+  width: calc(100vw - 300px); /* Manually account for SidebarUi */
+  overflow-x: scroll;
+}
+.SongEditor > .channels > .channel {
+  min-width: 200px;
+  min-height: 120px;
+  margin: 5px;
+  padding: 5px;
+  border: 1px solid #222;
+  background-color: #666;
+}
+.SongEditor .channel .controls {
+  display: flex;
+  flex-direction: row;
+}
+.SongEditor .channel .controls .spacer {
+  flex: 1;
+}
+.SongEditor input.pushButton {
+  display: none;
+}
+.SongEditor input.pushButton + label {
+  display: inline-block;
+  text-align: center;
+  border: 1px solid #000;
+  background-color: #ccc;
+  color: #000;
+  width: 16px;
+  height: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+}
+.SongEditor input.pushButton:checked + label {
+  background-color: #ff0;
+  color: #225;
+}
+.SongEditor .channel .title {
+  font-weight: bold;
+  font-size: 1.25em;
+  cursor: pointer;
+  user-select: none;
+}
+.SongEditor .channel .trimRow {
+  display: flex;
+  flex-direction: row;
+}
+.SongEditor .channel .trimRow input {
+  flex: 1;
+}
+.SongEditor .channel .trimRow .trimTattle {
+  min-width: 40px;
+  text-align: right;
+}
+.SongEditor .channel .pidRow {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+}
+.SongEditor .channel input[name='pid'] {
+  width: 3em;
+}
+.SongEditor .channel .pidTattle {
+  font-size: 9pt;
+  flex: 1;
+  margin-left: 5px;
+}
+.SongEditor .channel .modeRow {
+  display: flex;
+  flex-direction: row;
+}
+.SnogEditor .channel .modeRow select {
+  flex: 1;
+}
+.SongEditor > .events {
+  flex: 1;
+  overflow-y: scroll;
+}
+.SongEditor > .events > table {
+  width: 100%;
+}
+.SongEditor > .events tr:hover {
+  color: #ff0;
+}
+.SongEditor > .events .desc {
+  font-family: monospace;
+  white-space: pre;
+  cursor: pointer;
+}
+
+/*
 .MidiEditor {
   display: flex;
   flex-direction: column;
@@ -265,7 +378,7 @@ body {
   width: 80px;
 }
 .MidiEditor .channelsSizer {
-  width: calc(100vw - 300px); /* Manually account for SidebarUi */
+  width: calc(100vw - 300px); /* Manually account for SidebarUi *
 }
 .MidiEditor .channelsScroller {
   overflow-x: scroll;
@@ -404,6 +517,7 @@ body {
 .EgsOpCard .spacer {
   flex: 1;
 }
+*/
 
 .WavEditor {
   display: flex;

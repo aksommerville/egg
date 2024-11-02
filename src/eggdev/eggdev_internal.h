@@ -139,4 +139,6 @@ int eggdev_song_sanitize_wav(struct sr_encoder *dst,const uint8_t *src,int srcc,
 int eggdev_encode_gm_instrument(struct sr_encoder *dst,int pid);
 int eggdev_encode_gm_drums(struct sr_encoder *dst,const uint8_t *notebits/*16*/);
 
+void eggdev_hexdump(const void *src,int srcc);
+
 #endif

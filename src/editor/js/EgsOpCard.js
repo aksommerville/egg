@@ -1,10 +1,10 @@
-/* EgsOpCard.js
+/* EgsOpCard.js XXX
  * Single operation for the EGS post pipe.
  */
  
 import { Dom } from "./Dom.js";
 
-export class EgsOpCard {
+export class EgsOpCardXXX {
   static getDependencies() {
     return [HTMLElement, Dom, "nonce"];
   }

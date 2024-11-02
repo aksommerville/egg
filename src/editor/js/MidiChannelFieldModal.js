@@ -1,4 +1,4 @@
-/* MidiChannelFieldModal.js
+/* MidiChannelFieldModal.js XXX
  * Edits one line of a channel header, eg volume or pan.
  * We modify the song directly but do not talk to Data.
  */
@@ -6,7 +6,7 @@
 import { Dom } from "./Dom.js";
 import { MidiFile } from "./MidiFile.js";
 
-export class MidiChannelFieldModal {
+export class MidiChannelFieldModalXXX {
   static getDependencies() {
     return [HTMLDialogElement, Dom];
   }

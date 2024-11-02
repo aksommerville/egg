@@ -9,8 +9,8 @@ import { HexEditor } from "./HexEditor.js";
 import { ImageEditor } from "./ImageEditor.js";
 import { MetadataEditor } from "./MetadataEditor.js";
 import { StringsEditor } from "./StringsEditor.js";
-import { WavEditor } from "./WavEditor.js";
-import { MidiEditor } from "./MidiEditor.js";
+import { WavEditor } from "./audio/WavEditor.js";
+import { SongEditor } from "./audio/SongEditor.js";
  
 export class Actions {
   static getDependencies() {
@@ -26,10 +26,10 @@ export class Actions {
       MetadataEditor,
       StringsEditor,
       ImageEditor,
+      WavEditor,
+      SongEditor,
       TextEditor,
       HexEditor,
-      WavEditor,
-      MidiEditor,
     ];
   }
   

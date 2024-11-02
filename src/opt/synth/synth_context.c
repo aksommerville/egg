@@ -259,7 +259,7 @@ static void synth_quantize(int16_t *dst,const float *src,int c) {
   for (;c-->0;dst++,src++) {
     if (*src<=-1.0f) *dst=-32768;
     else if (*src>=1.0f) *dst=32767;
-    else *dst=(int16_t)(*src);
+    else *dst=(int16_t)((*src)*32767.0f);
   }
 }
 

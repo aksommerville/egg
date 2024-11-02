@@ -1,4 +1,4 @@
-/* EgsChannelEditor.js
+/* EgsChannelEditor.js XXX
  * For a single EGS Channel Header, excluding chid, master, and pan.
  */
  
@@ -11,7 +11,7 @@ import { MidiFile } from "./MidiFile.js";
 import { MidiEditor } from "./MidiEditor.js";
 import { EditorModal } from "./EditorModal.js";
 
-export class EgsChannelEditor {
+export class EgsChannelEditorXXX {
   static getDependencies() {
     return [HTMLElement, Dom, Data, "nonce"];
   }
