@@ -75,7 +75,7 @@ int synth_wave_decode(struct synth_wave *dst,struct synth *synth,const void *src
         int step=1;
         for (;step<=coefc;step++,srcp+=2) {
           if (!SRC[srcp]&&!SRC[srcp+1]) continue;
-          float level=((SRC[srcp]<<8)|SRC[srcp=1])/65535.0f;
+          float level=((SRC[srcp]<<8)|SRC[srcp+1])/65535.0f;
           synth_wave_add_harmonic(dst->v,synth->sine->v,step,level);
         }
         return srcp;
@@ -133,7 +133,7 @@ struct synth_pcm *synth_pcm_new(int c) {
   struct synth_pcm *pcm=calloc(1,sizeof(struct synth_pcm)+sizeof(float)*c);
   if (!pcm) return 0;
   pcm->refc=1;
-  pcm->c=1;
+  pcm->c=c;
   return pcm;
 }
 

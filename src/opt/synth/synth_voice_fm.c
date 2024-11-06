@@ -37,7 +37,8 @@ static void _fm_update_flat(float *v,int c,struct synth_voice *voice) {
     VOICE->modp+=rate*VOICE->modrate;
     while (VOICE->modp>=M_PI) VOICE->modp-=M_PI*2.0f;
     
-    VOICE->carp+=rate+rate*mod*synth_env_next(VOICE->rangeenv);
+    float range=synth_env_next(VOICE->rangeenv);
+    VOICE->carp+=rate+rate*mod*range;
     while (VOICE->carp>=M_PI) VOICE->carp-=M_PI*2.0f;
   }
   if (VOICE->levelenv.finished) voice->finished=1;
@@ -90,6 +91,7 @@ struct synth_voice *synth_voice_fm_new(
   voice->release=_fm_release;
   synth_env_init(&VOICE->levelenv,levelenv,velocity,durframes);
   synth_env_init(&VOICE->rangeenv,rangeenv,velocity,durframes);
+  VOICE->modrate=modrate;
   if (pitchenv->pointc>0) {
     synth_env_init(&VOICE->pitchenv,pitchenv,velocity,durframes);
     voice->update=_fm_update_pitchenv;

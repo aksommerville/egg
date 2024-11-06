@@ -101,7 +101,7 @@ Envelope:
 - (u8) sustain index, if (sustain). Initial point is not sustainable; this is an index in the counted points below.
 - u8 pointc 0..16. Zero is legal, for a constant. If (sustain), the limit is 15.
 - ... points:
-- - vlq2 delay ms. Sequences longer than 2 bytes are forbidden. ie range is 0..16383 ms.
+- - vlq2 delay ms. Sequences longer than 2 bytes are forbidden. ie range is 0..16383 ms. Low or only.
 - - u16 v
 - - (vlq2) delay ms hi, if (velocity).
 - - (u16) v hi, if (velocity).

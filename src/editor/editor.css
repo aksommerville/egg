@@ -340,7 +340,7 @@ body {
   display: flex;
   flex-direction: row;
 }
-.SnogEditor .channel .modeRow select {
+.SongEditor .channel .modeRow select {
   flex: 1;
 }
 .SongEditor > .events {
@@ -359,165 +359,67 @@ body {
   cursor: pointer;
 }
 
-/*
-.MidiEditor {
-  display: flex;
-  flex-direction: column;
-}
-.EditorModal .MidiEditor .channels {
-  color: #fff;
-}
-.EditorModal .MidiEditor .events {
-  color: #fff;
-}
-.MidiEditor .globals {
-  display: flex;
-  flex-direction: row;
-}
-.MidiEditor input[name='tempo'] {
-  width: 80px;
-}
-.MidiEditor .channelsSizer {
-  width: calc(100vw - 300px); /* Manually account for SidebarUi *
-}
-.MidiEditor .channelsScroller {
-  overflow-x: scroll;
-}
-.MidiEditor .channels {
-  display: flex;
-  flex-direction: row;
-}
-.MidiEditor .channels .channel {
-  background-color: #666;
-  border: 1px solid #222;
-  margin: 0.5em;
-  padding: 0.125em;
-  min-width: 200px;
-}
-.MidiEditor .channels .channel.present {
-  background-color: #040;
-}
-.MidiEditor .channel .nonZeroTimeWarning {
-  background-color: #f00;
-  color: #fff;
-  font-weight: bold;
-}
-.MidiEditor .channel .field {
-  cursor: pointer;
-  user-select: none;
-}
-.MidiEditor .channel .key {
-  font-weight: bold;
-  margin-right: 5px;
-}
-.MidiEditor .eventsScroller {
-  overflow-y: scroll;
-}
-.MidiEditor .events {
+.SongEventModal textarea {
   width: 100%;
+  height: 5em;
 }
-.MidiEditor .events tr {
-  cursor: pointer;
-}
-
-.MidiEventModal table {
-  min-width: 400px;
-}
-.MidiEventModal td.key {
-  min-width: 80px;
-}
-.MidiEventModal td.value {
-  min-width: 120px;
-}
-.MidiEventModal td.advice {
+.SongEventModal td.tip {
   min-width: 200px;
 }
-.MidiEventModal .invalid {
-  border-color: #f00;
-}
-.MidiEventModal .submitRow {
-  display: flex;
-  flex-direction: row;
-  justify-content: stretch;
-  align-items: center;
-}
-.MidiEventModal .submitRow .spacer {
-  flex: 1;
-}
 
-.EgsChannelEditor {
-  display: flex;
-  flex-direction: row;
-}
-.EditorModal .EgsChannelEditor {
-  min-width: 70vw;
-}
-.EgsChannelEditor > .voice {
-  flex: 1;
+.DrumChannelModal {
   display: flex;
   flex-direction: column;
 }
-.EgsChannelEditor > .voice .modeContainer {
-  min-height: 70vh;
+.DrumChannelModal .title {
+  font-weight: bold;
+  font-size: 24pt;
+}
+.DrumChannelModal .scroller {
+  height: 50vh;
+  min-width: 50vw;
   overflow-y: scroll;
 }
-.EditorModal .EgsChannelEditor > .voice .modeContainer {
-  max-height: 70vh;
-}
-.EgsChannelEditor .modeContainer .drum {
-  margin: 10px;
-  min-height: 40px;
-  border: 1px solid #000;
-}
-.EgsChannelEditor .modeContainer .drum .invalid {
-  background-color: #f88;
-}
-.EgsChannelEditor > .post {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
 
-.EnvUi {
-  min-width: 400px;
-  min-height: 250px;
-  display: flex;
-  flex-direction: column;
-}
-.EnvUi canvas {
+.EnvUi > canvas {
+  width: 480px;
+  height: 240px;
+  background-color: #000;
   user-select: none;
 }
 .EnvUi .controls {
   display: flex;
   flex-direction: row;
 }
+.EnvUi .zoom {
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 1em;
+  background-color: #f80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: bold;
+  user-select: none;
+}
 
-.EgsOpCard {
-  border: 1px solid #000;
-  border-radius: 5px;
-  margin: 5px;
-  padding: 5px;
+.WaveShapeUi {
   display: flex;
   flex-direction: row;
 }
-.EgsOpCard input[value='mute'] {
-  display: none;
+.WaveShapeUi > .left {
+  display: flex;
+  flex-direction: column;
 }
-.EgsOpCard input[value='mute'] + label {
-  border: 1px solid #000;
-  background-color: #ccc;
-  user-select: none;
+.WaveShapeUi .harmonics {
+  min-width: 200px;
+  min-height: 100px;
 }
-.EgsOpCard input[value='mute']:checked + label {
-  background-color: #ff0;
+.WaveShapeUi .preview {
+  min-width: 200px;
+  min-height: 100px;
 }
-.EgsOpCard .title {
-  margin-left: 5px;
-}
-.EgsOpCard .spacer {
-  flex: 1;
-}
-*/
 
 .WavEditor {
   display: flex;

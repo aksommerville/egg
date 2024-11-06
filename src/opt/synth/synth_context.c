@@ -370,6 +370,7 @@ static struct synth_printer *synth_begin_print(struct synth *synth,const void *s
   struct synth_printer *printer=synth_printer_new(src,srcc,synth->rate);
   if (!printer) return 0;
   if (synth->preprintc>0) synth_printer_update(printer,synth->preprintc);
+  synth->printerv[synth->printerc++]=printer;
   return printer;
 }
 

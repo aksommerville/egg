@@ -70,6 +70,55 @@ export class Song {
     return false;
   }
   
+  /* Update (channel.mode) and (channel.v).
+   * Returns true if anything changed.
+   * We'll do some secret bookkeeping behind the scenes with these goals:
+   *  - Preserve configuration of modes if you toggle back and forth.
+   *  - Forbid changing into an unknown mode.
+   *  - Supply a sensible default configuration on a fresh change.
+   * Mode -1 is perfectly legal, that's the GM Fallback mode.
+   * All the rest are defined by EGS: (0,1,2,3,4)=(noop,drum,wave,fm,sub)
+   */
+  changeChannelMode(channel, mode) {
+    if (!channel) return false;
+    if (channel.mode === mode) return false;
+    switch (mode) {
+      case -1: case 0: case 1: case 2: case 3: case 4: break;
+      default: return false;
+    }
+    if (!channel._modeConfigBackup) channel._modeConfigBackup = {};
+    channel._modeConfigBackup[channel.mode] = channel.v;
+    channel.mode = mode;
+    if (channel._modeConfigBackup[mode]) {
+      channel.v = channel._modeConfigBackup[mode];
+    } else switch (mode) {
+      case -1: channel.v = new Uint8Array(0); break;
+      case 0: channel.v = new Uint8Array(0); break;
+      case 1: channel.v = new Uint8Array(Song.DEFAULT_DRUM_CONFIG); break;
+      case 2: channel.v = new Uint8Array(Song.DEFAULT_WAVE_CONFIG); break;
+      case 3: channel.v = new Uint8Array(Song.DEFAULT_FM_CONFIG); break;
+      case 4: channel.v = new Uint8Array(Song.DEFAULT_SUB_CONFIG); break;
+      default: channel.v = new Uint8Array(0); break;
+    }
+    return true;
+  }
+  
+  defineChannel(chid) {
+    if ((chid < 0) || (chid >= 0x10)) return null;
+    if (this.channels[chid]) return null;
+    const channel = {
+      chid,
+      trim: 0x80,
+      mode: -1,
+      pid: 0,
+    };
+    this.channels[chid] = channel;
+    return channel;
+  }
+  
+  /* Setup, private.
+   *******************************************************************************/
+  
   _init() {
     this.channels = []; // Indexed by chid. null | { chid,trim,mode?,pid?,name?... }
     this.events = []; // { id,time,chid,mopcode?,eopcode?,noteid?,velocity?,dur?,k?,v?,pid?,wheel?,trackid? }
@@ -117,6 +166,7 @@ export class Song {
         dst.u24be(0);
       }
     }
+    dst.u8(0xff);
     
     let time = 0;
     for (const event of this.egsEvents()) {
@@ -133,6 +183,9 @@ export class Song {
       if (delay > 0) {
         dst.u8(delay);
       }
+      
+      // There can and should be an End of Track event whose only purpose is to mark the delay.
+      if (!event.eopcode) continue;
       
       switch (event.eopcode) {
         case 0x80: {
@@ -200,6 +253,9 @@ export class Song {
             dst.push(nevent);
             held.push(nevent);
           } break;
+        case 0xff: switch (event.k) {
+            case 0x2f: dst.push(event); break;
+          } break;
       }
     }
     dst.sort((a, b) => a.time - b.time);
@@ -228,7 +284,7 @@ export class Song {
     
     // Events...
     let time = 0;
-    while (srcp < srcc) {
+    while (srcp < src.length) {
       const lead = src[srcp++];
       if (!lead) break;
       
@@ -276,7 +332,7 @@ export class Song {
     /* It's very likely that the last event was a delay, but our model only captures delays as part of the subsequent event.
      * So emit a dummy End of Track event to mark the end, like MIDI files do.
      */
-    this.events.push({ id: this.nextEventId++, time, opcode: 0xff, k: 0x2f, v: [] });
+    this.events.push({ id: this.nextEventId++, time, mopcode: 0xff, k: 0x2f, v: [] });
   }
   
   // Provide just the headers: No EGS Signature or Events Introducer.
@@ -292,6 +348,7 @@ export class Song {
       const v = new Uint8Array(src.buffer, src.byteOffset + srcp, paylen);
       while (this.channels.length <= chid) this.channels.push(null);
       this.channels[chid] = { chid, trim, mode, v };
+      srcp += paylen;
     }
   }
   
@@ -408,6 +465,9 @@ export class Song {
         if ((event.mopcode === 0xff) && (event.k === 0x7f)) continue;
         if ((event.mopcode === 0xb0) && (event.k === 0x07)) continue;
         if (event.mopcode === 0xc0) continue;
+        // A bit controversial perhaps, but also drop Channel Prefix and Instrument Name. (A fair concern, Prefix might have been there for other purposes...)
+        if ((event.mopcode === 0xff) && (event.k === 0x04)) continue;
+        if ((event.mopcode === 0xff) && (event.k === 0x20)) continue;
         // Capture tempo. It's only allowed at time zero. If there's a tempo event anywhere else we go weird.
         if ((event.mopcode === 0xff) && (event.k === 0x51) && (event.v?.length === 3)) {
           usperqnote = (event.v[0] << 16) | (event.v[1] << 8) | event.v[2];
@@ -440,9 +500,28 @@ export class Song {
     
     /* If there are nondefault volume or pid values, add them at time zero.
      * These usually are ignored by our compiler, but they are used with the fake "GM" voice mode, and third-party tools will use them.
+     * Ditto for Instrument Name.
      */
     for (const channel of this.channels) {
       if (!channel) continue;
+      if (channel.name) {
+        tracks[0].push({
+          time: 0,
+          trackid: 0,
+          chid: channel.chid,
+          mopcode: 0xff,
+          k: 0x20,
+          v: new Uint8Array([channel.chid]),
+        });
+        tracks[0].push({
+          time: 0,
+          trackid: 0,
+          chid: channel.chid,
+          mopcode: 0xff,
+          k: 0x04,
+          v: new TextEncoder("utf-8").encode(channel.name),
+        });
+      }
       if (channel.pid) {
         tracks[0].push({
           time: 0,
@@ -709,6 +788,30 @@ export class Song {
       }
     }
   }
+  
+  /* General odds and ends.
+   **********************************************************************************************/
+   
+  static reprNote(noteid) {
+    if (typeof(noteid) !== "number") return "";
+    if ((noteid < 0) || (noteid >= 0x80)) return noteid.toString();
+    const octave = Math.floor(noteid / 12) - 1;
+    switch (noteid % 12) { // Notes within each octave run 'c'..'b'. Not 'a'..'g'. Bloody musicians.
+      case 0: return "c" + octave;
+      case 1: return "cs" + octave;
+      case 2: return "d" + octave;
+      case 3: return "ds" + octave;
+      case 4: return "e" + octave;
+      case 5: return "f" + octave;
+      case 6: return "fs" + octave;
+      case 7: return "g" + octave;
+      case 8: return "gs" + octave;
+      case 9: return "a" + octave;
+      case 10: return "as" + octave;
+      case 11: return "b" + octave;
+    }
+    return noteid.toString();
+  }
 }
 
 Song.GM_PROGRAM_NAMES = [
@@ -780,4 +883,43 @@ Song.META_TYPES = [
   /* 68 */ "", "", "", "", "", "", "", "",
   /* 70 */ "", "", "", "", "", "", "", "",
   /* 78 */ "", "", "", "", "", "", "", "Egg Channel Header",
+];
+
+Song.DEFAULT_DRUM_CONFIG = [
+  // Zero or more of: u8 noteid, u8 trimlo, u8 trimhi, u16 len, ... file.
+  // There will be other more interesting helpers to compose defaults. I think the default-default should be empty.
+];
+
+Song.DEFAULT_WAVE_CONFIG = [
+  // ... levelenv, u8 shape, u8 harmonics count, u16... harmonics, ... pitchenv; and ok to terminate between fields.
+  0x06, // levelenv flags: Velocity, Sustain
+    0x01, // Sustain index.
+    0x03, // Point count.
+      0x18,0x60,0x00, 0x10,0xff,0xff,
+      0x28,0x30,0x00, 0x20,0x40,0x00,
+      0x81,0x00,0x00,0x00, 0x82,0x00,0x00,0x00,
+  0x01, // Shape = sine
+];
+
+Song.DEFAULT_FM_CONFIG = [
+  // ... levelenv, u8.8 rate, u8.8 range, ... pitchenv, ... rangeenv; and ok to terminate between fields.
+  0x06, // levelenv flags: Velocity, Sustain
+    0x01, // Sustain index.
+    0x03, // Point count.
+      0x18,0x60,0x00, 0x10,0xff,0xff,
+      0x28,0x30,0x00, 0x20,0x40,0x00,
+      0x81,0x00,0x00,0x00, 0x82,0x00,0x00,0x00,
+  0x01,0x00, // rate
+  0x01,0x00, // range
+];
+
+Song.DEFAULT_SUB_CONFIG = [
+  // ... levelenv, u16 width
+  0x06, // levelenv flags: Velocity, Sustain
+    0x01, // Sustain index.
+    0x03, // Point count.
+      0x18,0x60,0x00, 0x10,0xff,0xff,
+      0x28,0x30,0x00, 0x20,0x40,0x00,
+      0x81,0x00,0x00,0x00, 0x82,0x00,0x00,0x00,
+  0x00,0x80, // width, hz
 ];

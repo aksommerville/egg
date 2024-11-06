@@ -21,18 +21,22 @@ export class WavEditor {
     this.file = null;
   }
   
+  static isWavSignature(s) {
+    return (s &&
+      (s.length >= 12) &&
+      (s[0] === 0x52) && // "RIFF"
+      (s[1] === 0x49) &&
+      (s[2] === 0x46) &&
+      (s[3] === 0x46) &&
+      (s[8] === 0x57) && // "WAVE"
+      (s[9] === 0x41) &&
+      (s[10] === 0x56) &&
+      (s[11] === 0x45)
+    );
+  }
+  
   static checkResource(res) {
-    if (
-      (res.serial.length >= 12) &&
-      (res.serial[0] === 0x52) && // "RIFF"
-      (res.serial[1] === 0x49) &&
-      (res.serial[2] === 0x46) &&
-      (res.serial[3] === 0x46) &&
-      (res.serial[8] === 0x57) && // "WAVE"
-      (res.serial[9] === 0x41) &&
-      (res.serial[10] === 0x56) &&
-      (res.serial[11] === 0x45)
-    ) return 2;
+    if (WavEditor.isWavSignature(res.serial)) return 2;
     return 0;
   }
   

@@ -21,7 +21,10 @@ TODO
 - [x] native: sub
 - [x] Revise compiler.
 - [x] cvta2a sanitization
-- [ ] Editor.
+- [x] Editor.
+- [x] EnvUi: Pitch initial keeps reverting to -32768.
 - [ ] Web synth.
 - [ ] Confirm we're ignoring ignorable things, for future-proofing.
 - [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.
+- [ ] DrumChannelModal.js: Similar canned drums.
+- [ ] Doors Without Walls, the drum channel didn't play. Had GM and volume=128. Was it mistakenly flagged as ignore? Changing volume fixed it.

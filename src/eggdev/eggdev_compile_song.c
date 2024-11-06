@@ -72,7 +72,7 @@ static int eggdev_egs_headers_merge(struct sr_encoder *dst,const uint8_t *src,in
     uint8_t chid=src[srcp];
     if (chid<0x10) altcfg[chid].notec=0; // forces skip
     if (sr_encode_raw(dst,src+srcp,6)<0) return -1;
-    int paylen=(src[srcp+3]<<16)|(src[srcp+2]<<8)|src[srcp+3];
+    int paylen=(src[srcp+3]<<16)|(src[srcp+4]<<8)|src[srcp+5];
     srcp+=6;
     if (srcp>srcc-paylen) return -1;
     if (sr_encode_raw(dst,src+srcp,paylen)<0) return -1;

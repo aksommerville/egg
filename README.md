@@ -42,10 +42,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 - [ ] Dev tool.
 - - [ ] Synth helper. Maybe as part of 'serve'.
-- - [ ] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
+- - [x] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - [ ] Editor.
-- - [ ] Eliminate SongEditor and SoundsEditor. Replace with editors specific to each source format.
-- - [ ] Song: Playback.
+- - [x] Eliminate SongEditor and SoundsEditor. Replace with editors specific to each source format.
+- - [x] Song: Playback.
 - - [ ] Song: Live MIDI input.
 - - [ ] Sound effects.
 - - - [ ] The need for real tooling here is desperate.
@@ -83,6 +83,9 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
 - [ ] native: Neuter synth when dummy output.
 - [ ] Standard map and sprite support. Prove it out further in Spelling Bee, then migrate here.
+- [ ] Editor: Live feedback of synth playhead, via WebSocket.
+- [ ] Editor: Adjust synth config real time.
+- [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
 
 ## Third-Party Code
 

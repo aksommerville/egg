@@ -6,6 +6,9 @@ import { Dom } from "../Dom.js";
 import { AudioService } from "./AudioService.js";
 import { Song } from "./Song.js";
 import { Data } from "../Data.js";
+import { SongEventModal } from "./SongEventModal.js";
+import { DrumChannelModal } from "./DrumChannelModal.js";
+import { VoiceChannelModal } from "./VoiceChannelModal.js";
 
 export class SongEditor {
   static getDependencies() {
@@ -41,6 +44,13 @@ export class SongEditor {
   setup(res) {
     this.res = res;
     this.song = new Song(res.serial);
+    
+    // "sound" with no rid is probably an embedded drum.
+    // Force the song to encode to EGS in that case, even if it's sourced from MIDI.
+    if ((res.type === "sound") && !res.rid) {
+      this.song.format = "egs";
+    }
+    
     this.buildUi();
   }
   
@@ -54,7 +64,7 @@ export class SongEditor {
     const globals = this.dom.spawn(this.element, "DIV", ["globals"]);
     this.dom.spawn(globals, "SELECT", ["operations"], { "on-change": () => this.onOperation() },
       this.dom.spawn(null, "OPTION", { value: "", disabled: "disabled", selected: "selected" }, "Operations..."),
-      ...this.listOperations().map(op => this.dom.spawn(null, "OPTION", { value: op }, op))
+      ...this.listOperations().map(({ op, name }) => this.dom.spawn(null, "OPTION", { value: op }, name))
     );
     
     const player = this.dom.spawn(globals, "DIV", ["player"]);
@@ -77,6 +87,9 @@ export class SongEditor {
       this.dom.spawn(null, "OPTION", { value: "adjust" }, "Adjustment"),
     );
     
+    this.dom.spawn(globals, "INPUT", { type: "button", value: "+Channel", "on-click": () => this.onAddChannel() });
+    this.dom.spawn(globals, "INPUT", { type: "button", value: "+Event", "on-click": () => this.onAddEvent() });
+    
     const channels = this.dom.spawn(this.element, "DIV", ["channels"]);
     for (const channel of this.song.channels) {
       if (!channel) continue;
@@ -86,7 +99,17 @@ export class SongEditor {
     
     const events = this.dom.spawn(this.element, "DIV", ["events"]);
     this.dom.spawn(events, "TABLE");
-    this.rebuildEventsTable(false);
+    this.rebuildEventsTable(null);
+  }
+  
+  rebuildChannelCards() {
+    const channels = this.element.querySelector(".channels");
+    channels.innerHTML = "";
+    for (const channel of this.song.channels) {
+      if (!channel) continue;
+      const card = this.dom.spawn(channels, "DIV", ["channel"], { "data-chid": channel.chid });
+      this.populateChannelCard(card, channel);
+    }
   }
   
   populateChannelCard(card, channel) {
@@ -133,10 +156,20 @@ export class SongEditor {
   }
   
   rebuildEventsTable(evenIfHuge) {
+    const table = this.element.querySelector(".events > table");
+  
+    // (evenIfHuge) can be null to preserve the existing selection.
+    if (evenIfHuge === null) {
+      if (table.querySelector(".hugeTableWarning")) {
+        evenIfHuge = false;
+      } else if (table.querySelector("tr.event")) {
+        evenIfHuge = true;
+      }
+    }
+    
     const trackVisibility = +this.element.querySelector("select.trackVisibility")?.value;
     const channelVisibility = +this.element.querySelector("select.channelVisibility")?.value;
     const eventVisibility = this.element.querySelector("select.eventVisibility")?.value;
-    const table = this.element.querySelector(".events > table");
     table.innerHTML = "";
     
     const events = this.song.events.filter(event => {
@@ -153,7 +186,7 @@ export class SongEditor {
     
     if (evenIfHuge || (events.length < 1000)) {
       for (const event of events) {
-        const tr = this.dom.spawn(table, "TR", ["event"]);
+        const tr = this.dom.spawn(table, "TR", ["event"], { "data-event-id": event.id });
         if ((event.chid >= 0) && (event.chid < 0x10)) tr.style.backgroundColor = this.CHANNEL_COLORS[event.chid];
         this.populateEventRow(tr, event);
       }
@@ -257,6 +290,101 @@ export class SongEditor {
     return oldChannels;
   }
   
+  // Returns array of { desc, events }. (events) never empty.
+  gatherUselessEvents() {
+    const control = [];
+    const noteAdjust = [];
+    const channelPressure = [];
+    const wheel = [];
+    const sysex = [];
+    const meta = [];
+    const egsFuture = [];
+    const other = []
+    if (this.song) for (const event of this.song.events) {
+      switch (event.eopcode) {
+        case 0x80: case 0x90: case 0xa0: continue;
+        case 0xb0: case 0xc0: case 0xd0: case 0xe0: case 0xf0: {
+            egsFuture.push(event);
+            continue;
+          }
+      }
+      switch (event.mopcode) {
+        case 0x80: continue;
+        case 0x90: continue;
+        case 0xa0: noteAdjust.push(event); continue;
+        case 0xb0: switch (event.k) {
+            case 0x07: continue; // Volume.
+            default: control.push(event); continue;
+          }
+        case 0xc0: continue;
+        case 0xd0: channelPressure.push(event); continue;
+        case 0xe0: wheel.push(event); continue;
+        case 0xf0: case 0xf7: sysex.push(event); continue;
+        case 0xff: switch (event.k) {
+            case 0x04: continue; // Instrument Name.
+            case 0x20: continue; // Channel Prefix.
+            case 0x2f: continue; // End of Track.
+            case 0x51: continue; // Set Tempo.
+            case 0x7f: continue; // EGS Header.
+            default: meta.push(event); continue;
+          }
+      }
+      other.push(event);
+    }
+    const useless = [];
+    if (control.length) useless.push({ desc: "Unknown Control Change", events: control });
+    if (noteAdjust.length) useless.push({ desc: "Note Adjust", events: noteAdjust });
+    if (channelPressure.length) useless.push({ desc: "Channel Pressure", events: channelPressure });
+    if (wheel.length) useless.push({ desc: "Wheel", events: wheel });
+    if (sysex.length) useless.push({ desc: "Sysex", events: sysex });
+    if (meta.length) useless.push({ desc: "Unknown Meta", events: meta });
+    if (egsFuture.length) useless.push({ desc: "EGS Future Events", events: egsFuture });
+    if (other.length) useless.push({ desc: "Unknown", events: other });
+    return useless;
+  }
+  
+  calculateIdealEndTime() {
+    if (!this.song?.events.length) return 0;
+    //TODO For sound effects it's different, and important: Track the envelope of each note, and our ideal end time is just after they all finish.
+    // EGS does not record tempo information, so there's nothing we can do with those.
+    // I'll generalize that a little: If there's no Set Tempo event, we won't attempt any changes.
+    // (of course we know that the default tempo is 500 ms/qnote, but a missing Set Tempo might mean we're EGS).
+    let lastEvent = this.song.events[this.song.events.length - 1];
+    const setTempo = this.song.events.find(e => ((e.mopcode === 0xff) && (e.k === 0x51) && (e.v?.length === 3)));
+    if (!setTempo) return lastEvent.time;
+    let lastNoteOnTime = 0;
+    for (let i=this.song.events.length; i-->0; ) {
+      const event = this.song.events[i];
+      if (
+        (event.eopcode === 0x80) ||
+        (event.eopcode === 0x90) ||
+        (event.eopcode === 0xa0) ||
+        (event.mopcode === 0x90)
+      ) {
+        lastNoteOnTime = event.time;
+        break;
+      }
+    }
+    const usperqnote = (setTempo.v[0] << 16) | (setTempo.v[1] << 8) | setTempo.v[2];
+    // If there's more than 16 qnotes between the last Note On and the last event, assume the EOT is broken and way too far out.
+    // This addresses a specific bug in Logic Pro X (Apple says it's not a bug, and I say they have their heads up their asses).
+    const finalSilenceQnotes = ((lastEvent.time - lastNoteOnTime) * 1000) / usperqnote;
+    if (finalSilenceQnotes > 16) {
+      lastEvent = { time: lastNoteOnTime + usperqnote / 1000 };
+    }
+    // We're not going to bother with Meta Time Signature events. There is such a thing, but I don't use them and don't know how they're formatted.
+    // Assume 4 qnotes per measure, and that the ideal end time is on a measure boundary.
+    // So there are two candidates for end time.
+    // Take the lower if we are within 1 qnote of it, and there's no Note On after it.
+    const mspermeasure = Math.round((usperqnote * 4) / 1000);
+    const overage = lastEvent.time % mspermeasure;
+    if (!overage) return lastEvent.time;
+    const lo = lastEvent.time - overage;
+    const hi = lo + mspermeasure;
+    if ((overage <= usperqnote / 1000) && (lastNoteOnTime < lo)) return lo;
+    return hi;
+  }
+  
   /* UI events.
    ****************************************************************************/
    
@@ -281,12 +409,51 @@ export class SongEditor {
     this.rebuildEventsTable(false);
   }
   
+  onAddChannel() {
+    if (!this.song) return;
+    let chid = -1;
+    for (let ckchid=0; ckchid<16; ckchid++) {
+      if (!this.song.channels[ckchid]) {
+        chid = ckchid;
+        break;
+      }
+    }
+    if (chid < 0) {
+      this.dom.modalMessage(`All 16 channels already defined.`);
+      return;
+    }
+    const channel = this.song.defineChannel(chid);
+    if (!channel) return;
+    this.rebuildChannelCards();
+    this.dirty();
+  }
+  
+  onAddEvent() {
+    this.onEditEvent("new");
+  }
+  
   onDeleteChannel(chid) {
-    console.log(`SongEditor.onDeleteChannel ${chid}`);
+    if (!this.song) return;
+    const eventc = this.song.events.reduce((a, e) => a + ((e.chid === chid) ? 1 : 0), 0);
+    this.dom.modalPickOne(["Cancel", "Delete"], `Delete channel ${chid} and ${eventc} events?`).then(choice => {
+      if (choice !== "Delete") return;
+      this.song.channels[chid] = null;
+      this.song.events = this.song.events.filter(e => e.chid !== chid);
+      this.buildUi();
+      this.dirty();
+    }).catch(e => this.dom.modalError(e));
   }
   
   onEditChannelTitle(chid) {
-    console.log(`SongEditor.onEditChannelTitle ${chid}`);
+    const channel = this.song?.channels[chid];
+    if (!channel) return;
+    this.dom.modalInput(`Name for channel ${chid}:`, channel.name || "").then(name => {
+      if (name === null) return; // Exactly null means cancelled. Empty string should be taken literally.
+      channel.name = name;
+      const card = this.element.querySelector(`.channels .channel[data-chid='${chid}']`);
+      if (card) this.populateChannelCard(card, channel);
+      this.dirty();
+    }).catch(e => this.dom.modalError(e));
   }
   
   onTrimChanged(chid) {
@@ -326,34 +493,128 @@ export class SongEditor {
     if (isNaN(mode)) return;
     const channel = this.song?.channels[chid];
     if (!channel) return;
-    if (channel.mode === mode) return;
-    channel.mode = mode;
-    channel.v = new Uint8Array(0);//TODO Don't just chuck it
-    this.dirty();
+    if (this.song.changeChannelMode(channel, mode)) {
+      this.dirty();
+    }
   }
   
   onEditChannelModeConfig(chid) {
-    console.log(`SongEditor.onEditChannelModeConfig ${chid}`);
+    const channel = this.song?.channels[chid];
+    if (!channel) return;
+    let modal = null;
+    switch (channel.mode) {
+      case -1: // GM and NOOP, there's nothing else to configure.
+      case 0: break;
+      case 1: { // DRUM is separate from the rest.
+          modal = this.dom.spawnModal(DrumChannelModal);
+          modal.setup(channel, this.song);
+        } break;
+      case 2: case 3: case 4: { // WAVE, FM, and SUB share a modal.
+          modal = this.dom.spawnModal(VoiceChannelModal);
+          modal.setup(channel, this.song);
+        } break;
+    }
+    if (!modal) return;
+    modal.result.then(newChannel => {
+      if (!newChannel) return;
+      this.song.channels[chid] = newChannel;
+      this.rebuildChannelCards();
+      this.dirty();
+    }).catch(e => this.dom.modalError(e));
   }
   
   onDeleteEvent(id) {
-    console.log(`SongEditor.onDeleteEvent ${id}`);
+    if (!this.song) return;
+    const p = this.song.events.findIndex(e => e.id === id);
+    if (p < 0) return;
+    this.song.events.splice(p, 1);
+    // this.rebuildEventsTable(null) would be the right thing, but that's overkill for a removal.
+    const tr = this.element.querySelector(`tr.event[data-event-id='${id}']`);
+    if (tr) tr.remove();
+    this.dirty();
   }
   
   onMoveEvent(id, d) {
-    console.log(`SongEditor.onMoveEvent ${id} ${d}`);
+    if (!this.song) return;
+    if ((d !== 1) && (d !== -1)) return;
+    const p = this.song.events.findIndex(e => e.id === id);
+    if (p < 0) return;
+    const event = this.song.events[p];
+    const neighbor = this.song.events[p + d];
+    if (!neighbor) return; // First or last event, moving in the outward direction.
+    if (event.time !== neighbor.time) {
+      this.dom.modalMessage(`Can't swap event ${event.id} at time ${event.time} with neighbor ${neighbor.id} at different time ${neighbor.time}`);
+      return;
+    }
+    this.song.events[p] = neighbor;
+    this.song.events[p + d] = event;
+    // this.rebuildEventsTable(null), overkill
+    const table = this.element.querySelector(".events > table");
+    const eventElement = this.element.querySelector(`tr.event[data-event-id='${event.id}']`);
+    const neighborElement = this.element.querySelector(`tr.event[data-event-id='${neighbor.id}']`);
+    if (table && eventElement && neighborElement) {
+      if (d < 0) {
+        table.insertBefore(eventElement, neighborElement);
+      } else {
+        table.insertBefore(neighborElement, eventElement);
+      }
+    }
+    this.dirty();
   }
   
   onEditEvent(id) {
-    console.log(`SongEditor.onEditEvent ${id}`);
+    let event;
+    if (id === "new") {
+      if (!this.song) return;
+      event = { id: this.song.nextEventId++ };
+    } else {
+      event = this.song?.events.find(e => e.id === id);
+      if (!event) return;
+    }
+    const modal = this.dom.spawnModal(SongEventModal);
+    modal.setup(event);
+    modal.result.then(newEvent => {
+      if (!newEvent) return;
+      let p;
+      if (id === "new") {
+        p = -1;
+      } else {
+        p = this.song.events.indexOf(event);
+        if (p < 0) return;
+      }
+      
+      // Different approaches to update, depending on whether time changed.
+      if (event.time === newEvent.time) {
+        if (p >= 0) this.song.events[p] = newEvent;
+        const tr = this.element.querySelector(`tr.event[data-event-id='${id}']`);
+        if (tr) {
+          if ((newEvent.chid >= 0) && (newEvent.chid < 0x10)) tr.style.backgroundColor = this.CHANNEL_COLORS[newEvent.chid];
+          else delete tr.style.backgroundColor;
+          tr.innerHTML = "";
+          this.populateEventRow(tr, newEvent);
+        }
+      } else {
+        if (p >= 0) this.song.events.splice(p, 1);
+        this.song.events.push(newEvent);
+        this.song.events.sort((a, b) => a.time - b.time);
+        this.rebuildEventsTable(true);
+      }
+      
+      this.dirty();
+    }).catch(e => this.dom.modalError(e));
   }
   
   /* Global operations.
    * Any method on this class whose name starts "op_" will appear in the Operations menu automatically.
+   * If the first argument to that method is "name", return the operation's display name.
    *****************************************************************************/
-   
+  
+  // => {op,name}[]
   listOperations() {
-    return Object.getOwnPropertyNames(this.__proto__).filter(v => v.startsWith("op_")).map(v => v.substring(3));
+    return Object.getOwnPropertyNames(this.__proto__).filter(v => v.startsWith("op_")).map(v => ({
+      op: v.substring(3),
+      name: this[v]("name"),
+    }));
   }
   
   onOperation() {
@@ -361,24 +622,139 @@ export class SongEditor {
     if (!select) return;
     const op = select.value;
     select.value = "";
-    const fn = this["op_" + op];
-    if (!fn) return;
-    fn();
+    this["op_" + op]?.();
   }
   
-  op_trimLeadingSilence() {
-    console.log(`SongEditor.op_trimLeadingSilence`);
+  op_trimLeadingSilence(q) {
+    if (q === "name") return "Trim leading silence";
+    if (!this.song) return;
+    let firstTime = 0;
+    for (const event of this.song.events) {
+      if (this.song.isNoteEvent(event)) {
+        firstTime = event.time;
+        break;
+      }
+    }
+    if (!firstTime) {
+      this.dom.modalMessage("Already trimmed.");
+      return;
+    }
+    for (const event of this.song.events) {
+      event.time = Math.max(0, event.time - firstTime);
+    }
+    this.dom.modalMessage(`Trimmed ${firstTime} ms from start.`);
+    this.rebuildEventsTable(null);
+    this.dirty();
   }
   
-  op_autoEndTime() {
-    console.log(`SongEditor.op_autoEndTime`);
+  op_autoEndTime(q) {
+    if (q === "name") return "Auto end time";
+    if (!this.song) return;
+    if (this.song.events.length < 1) return;
+    const endTime = this.calculateIdealEndTime();
+    const lastEvent = this.song.events[this.song.events.length - 1];
+    if (lastEvent.time === endTime) {
+      this.dom.modalMessage(`Already at the ideal end time, ${endTime} ms`);
+      return;
+    }
+    const diff = endTime - lastEvent.time;
+    // The last event should always be End of Track.
+    // But if it's not EOT, add an artificial EOT event and trust the encoder to figure out what to do with it.
+    // (fwiw this is exactly what Song.decodeEgs() does).
+    if ((lastEvent.mopcode === 0xff) && (lastEvent.k === 0x2f)) {
+      lastEvent.time = endTime;
+    } else {
+      this.song.events.push({ time: endTime, id: this.song.nextEventId++, mopcode: 0xff, k: 0x2f, v: new Uint8Array(0), chid: 0xff });
+    }
+    // Additionally, force all events to be strictly <=endTime. calculateIdealEndTime is allowed to clip eg Note Off events.
+    for (const event of this.song.events) {
+      if (event.time > endTime) event.time = endTime;
+    }
+    if (diff > 0) {
+      this.dom.modalMessage(`Padded end time by ${diff} ms.`);
+    } else {
+      this.dom.modalMessage(`Trimmed end time by ${-diff} ms.`);
+    }
+    this.rebuildEventsTable(null);
+    this.dirty();
   }
   
-  op_reassignChannels() {
-    console.log(`SongEditor.op_reassignChannels`);
+  op_reassignChannels(q) {
+    if (q === "name") return "Reassign channels...";
+    if (!this.song) return;
+    const inUse = []; // sparse, indexed by chid
+    for (const event of this.song.events) {
+      if (!event.hasOwnProperty("chid")) continue;
+      if (event.chid >= 0x10) continue;
+      inUse[event.chid] = true;
+    }
+    const plan = []; // toChid, indexed by fromChid, sparse
+    for (let toChid=0, fromChid=0; fromChid<16; fromChid++) {
+      if (!inUse[fromChid]) continue;
+      if (toChid !== fromChid) {
+        plan[fromChid] = toChid;
+      }
+      toChid++;
+    }
+    if (plan.length < 1) {
+      this.dom.modalMessage("Channel assignments already packed.");
+      return;
+    }
+    let message = `Will reassign ${plan.length} channels...\n`;
+    for (let fromChid=0; fromChid<16; fromChid++) {
+      const toChid = plan[fromChid];
+      if (typeof(toChid) === "number") {
+        message += `${fromChid} => ${toChid}\n`;
+      } else {
+        plan[fromChid] = fromChid;
+      }
+    }
+    this.dom.modalPickOne(["Cancel", "Reassign"], message).then(choice => {
+      if (choice !== "Reassign") return;
+      const nchannels = this.song.channels.map(c => null);
+      for (let fromChid=0; fromChid<16; fromChid++) {
+        const channel = this.song.channels[fromChid];
+        if (!channel) continue;
+        channel.chid = plan[fromChid];
+        nchannels[channel.chid] = channel;
+      }
+      this.song.channels = nchannels;
+      for (const event of this.song.events) {
+        if ((event.chid >= 0) && (event.chid < 0x10)) {
+          event.chid = plan[event.chid];
+        }
+        if ((event.mopcode === 0xff) && (event.k === 0x20) && (event.v?.length === 1)) { // Channel Prefix.
+          event.v[0] = plan[event.v[0]];
+        }
+        // Luckily, no need for a messy rewrite of the EGS Header event. That will be rewritten from (song.channels).
+      }
+      this.buildUi(); // Importantly, must rebuild channel cards, not just events.
+      this.dirty();
+    }).catch(e => this.dom.modalError(e));
   }
   
-  op_removeUselessEvents() {
-    console.log(`SongEditor.op_removeUselessEvents`);
+  op_removeUselessEvents(q) {
+    if (q === "name") return "Remove useless events...";
+    if (!this.song) return;
+    const useless = this.gatherUselessEvents();
+    if (useless.length < 1) {
+      this.dom.modalMessage("No useless events.");
+      return;
+    }
+    let summary = `${useless.reduce((a, v) => a + v.events.length, 0)} events can be eliminated:\n`;
+    for (const { desc, events } of useless) {
+      summary += `- ${events.length} ${desc}\n`;
+    }
+    this.dom.modalPickOne(["Cancel", "Delete All"], summary).then(choice => {
+      if (choice !== "Delete All") return;
+      for (const bucket of useless) {
+        for (const event of bucket.events) {
+          const p = this.song.events.indexOf(event);
+          if (p >= 0) this.song.events.splice(p, 1);
+        }
+      }
+      this.rebuildEventsTable(null);
+      this.dirty();
+    }).catch(e => this.dom.modalError(e));
   }
 }
