@@ -23,8 +23,13 @@ TODO
 - [x] cvta2a sanitization
 - [x] Editor.
 - [x] EnvUi: Pitch initial keeps reverting to -32768.
-- [ ] Web synth.
+- [x] Web synth.
 - [ ] Confirm we're ignoring ignorable things, for future-proofing.
 - [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.
 - [ ] DrumChannelModal.js: Similar canned drums.
 - [ ] Doors Without Walls, the drum channel didn't play. Had GM and volume=128. Was it mistakenly flagged as ignore? Changing volume fixed it.
+- [ ] native: playhead for WAV songs
+- [ ] web: playhead for both types
+- [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
+- [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
+- [ ] AudioService.play: Detect formats playable directly and don't call /api/compile for them.

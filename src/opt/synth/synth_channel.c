@@ -84,7 +84,7 @@ static int synth_channel_decode_WAVE(struct synth_channel *channel,struct synth 
     if ((err=synth_env_config_decode(&channel->pitchenv,src+srcp,srcc-srcp,synth->rate))<0) return err;
     srcp+=err;
     synth_env_config_bias(&channel->pitchenv,-0.5f);
-    synth_env_config_scale(&channel->pitchenv,2400.0f);
+    synth_env_config_scale(&channel->pitchenv,32768.0f);
   }
   
   return 0;
@@ -125,6 +125,8 @@ static int synth_channel_decode_FM(struct synth_channel *channel,struct synth *s
   if (srcp<srcc) {
     if ((err=synth_env_config_decode(&channel->pitchenv,src+srcp,srcc-srcp,synth->rate))<0) return err;
     srcp+=err;
+    synth_env_config_bias(&channel->pitchenv,-0.5f);
+    synth_env_config_scale(&channel->pitchenv,32768.0f);
   }
   
   if (srcp<srcc) {
@@ -155,12 +157,13 @@ static int synth_channel_decode_SUB(struct synth_channel *channel,struct synth *
   
   if (srcp>=srcc) {
     channel->subwidth=100.0f;
-  } else if (srcp<srcc) {
+  } else if (srcp>srcc-2) {
     return -1;
   } else {
     channel->subwidth=(float)((src[srcp]<<8)|src[srcp+1]);
     srcp+=2;
   }
+  channel->subwidth/=(float)synth->rate;
 
   return 0;
 }

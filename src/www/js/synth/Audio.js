@@ -1,23 +1,24 @@
 /* Audio.js
  * Top level of our synthesizer.
- * Most of the magic happens in Channel.js.
  */
  
 import { Rom } from "../Rom.js";
 import { SynthFormats } from "./SynthFormats.js";
-import { Channel } from "./Channel.js";
-import { Bus } from "./Bus.js";
+import { Song } from "./Song.js";
+
+const AUDIO_FUTURE_INTERVAL = 2.000;
  
 export class Audio {
   constructor(rt) {
+    if (!Audio.discriminator) Audio.discriminator = 1;
+    this.discriminator = Audio.discriminator++;
     this.rt = rt;
     this.autoplayPolicy = navigator?.getAutoplayPolicy?.("audiocontext");
     this.ctx = null;
-    this.songs = []; // Bus. There can be multiple; one song can fade out while the next one begins.
-    this.newSongDelay = 0.500;
-    this.fadeTimeNormal = 1.000;
-    this.fadeTimeQuick = 0.250;
     this.noise = null; // AudioBuffer containing one second of random noise, created on demand.
+    this.pcmLimit = 0; // Maximum length of sound effect, gets populated during start().
+    this.songid = 0;
+    this.song = null;
     
     /* (sounds) is populated lazy, as sound effects get asked for.
      * So an entry in (sounds) with (serial) present needs to be decoded first.
@@ -29,11 +30,15 @@ export class Audio {
    ***************************************************************************/
   
   start() {
-    this.ctx = null;
-    if (!window.AudioContext) return;
-    this.ctx = new AudioContext({
-      latencyHint: "interactive",
-    });
+    if (!window.AudioContext) {
+      this.ctx = null;
+      return;
+    }
+    if (!this.ctx) {
+      this.ctx = new AudioContext({
+        latencyHint: "interactive",
+      });
+    }
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
@@ -53,21 +58,45 @@ export class Audio {
    * Once per video frame is overkill but no problem (and that's what we do).
    */
   update() {
-    for (let i=this.songs.length; i-->0; ) {
-      const song = this.songs[i];
-      if (!song.update()) {
-        this.songs.splice(i, 1);
-        song.stop();
-      }
+    if (!this.ctx) return;
+    if (this.song) {
+      this.song.update(this.ctx, this.ctx.currentTime + AUDIO_FUTURE_INTERVAL);
     }
   }
   
-  playSong(egsSerial) {
-    console.log(`[rt] Audio.playSong`, { egsSerial });
-    for (const song of this.songs) song.cancel(0);
-    const song = new Bus(this, egsSerial, 0x10000, false);
-    song.start(0);
-    this.songs.push(song);
+  playSong(serial, repeat) {
+    this.endSong();
+    if (!serial?.length) return;
+    this.songid = 0x10000; // Assume it's an external song. Caller can replace this after.
+    const format = SynthFormats.detectFormat(serial);
+    switch (format) {
+      case "egs": {
+          this.song = new Song(serial, repeat, this.ctx);
+        } break;
+      case "wav": {
+          const decoded = this.decodeSound(serial);
+          if (!decoded) {
+            this.songid = 0;
+          } else if (decoded instanceof Promise) {
+            decoded.then(buffer => this.playAudioBuffer(buffer, 0.5, 0, this.songid));
+          } else if (decoded instanceof AudioBuffer) {
+            this.playAudioBuffer(decoded, 0.5, 0, this.songid);
+          } else {
+            this.songid = 0;
+          }
+        } break;
+      default: {
+          console.log(`Audio.playSong: Unknown format ${JSON.stringify(format)}`);
+        }
+    }
+  }
+  
+  endSong() {
+    if (this.song) {
+      this.song.cancel(this.ctx);
+      this.song = null;
+    }
+    this.songid = 0;
   }
   
   /* Platform entry points.
@@ -77,8 +106,8 @@ export class Audio {
     if (!this.ctx) return;
     const snd = this.acquireSound(rid);
     if (!snd) return;
-    if (snd instanceof Promise) snd.then(buffer => this.playAudioBuffer(buffer, 0.5, 0.0, 0));
-    else this.playAudioBuffer(snd, 0.5, 0.0, 0);
+    if (snd instanceof Promise) snd.then(buffer => this.playAudioBuffer(buffer, 0.5, 0));
+    else this.playAudioBuffer(snd, 0.5, 0);
   }
   
   egg_play_song(rid, force, repeat) {
@@ -89,35 +118,14 @@ export class Audio {
     if (!serial?.length) serial = null;
     if (!serial) rid = 0;
     
-    /* If we're not using the force, check for already-playing songs.
-     * If it's already playing in the foreground, great, we're done.
-     * If it's playing but cancelled, uncancel it and cancel whatever's in the foreground.
+    /* If we're not using the force and this one is already playing, get out and let it ride.
      */
     if (!force) {
-      for (const song of this.songs) {
-        if (song.rid !== rid) continue;
-        if (song.isCancelled()) {
-          for (let cancel of this.songs) cancel.cancel(this.fadeTimeQuick);
-          song.uncancel();
-          return;
-        } else {
-          return;
-        }
-      }
+      if (rid === this.songid) return;
     }
     
-    /* Cancel everything currently playing.
-     * And if the incoming song is silence, we're done.
-     */
-    for (const song of this.songs) song.cancel(this.fadeTimeNormal);
-    if (!serial) return;
-    
-    /* Create, install, and start a new Bus for this song.
-     * If any other songs are still running, defer startup by a tasteful interval.
-     */
-    const song = new Bus(this, serial, rid, repeat);
-    song.start(this.songs.length ? this.newSongDelay : 0);
-    this.songs.push(song);
+    this.playSong(serial, repeat);
+    this.songid = rid;
   }
   
   egg_audio_event(chid, opcode, a, b, durms) {
@@ -186,30 +194,35 @@ export class Audio {
     this.sounds.splice(soundsp, 0, { rid, serial });
   }
   
+  // => null | AudioBuffer | Promise<AudioBuffer>
   decodeSound(serial) {
     switch (SynthFormats.detectFormat(serial)) {
       case "egs": return this.decodeEgs(serial);
-      case "pcm": return SynthFormats.decodePcm(serial);
-      //default: console.log(`unknown sound format ${JSON.stringify(SynthFormats.detectFormat(serial))}`);
+      case "wav": return SynthFormats.decodeWav(serial);
+      default: console.log(`unknown sound format ${JSON.stringify(SynthFormats.detectFormat(serial))}`);
     }
     return null;
   }
   
+  /* Return a Promise that resolves to an AudioBuffer containing
+   * a print of the given encoded EGS song.
+   */
   decodeEgs(serial) {
     const egs = SynthFormats.splitEgs(serial);
-    let samplec = 0;
+    let durs = 0;
     for (let iter=SynthFormats.iterateEgsEvents(egs.events), event; event=iter.next(); ) {
-      if (event.type === "delay") samplec += event.delay;
+      if (event.type === "delay") durs += event.delay;
     }
-    samplec = Math.max(1, Math.min(this.pcmLimit, Math.ceil(samplec * this.ctx.sampleRate)));
+    const samplec = Math.max(1, Math.min(this.pcmLimit, Math.ceil(durs * this.ctx.sampleRate)));
     const subctx = new OfflineAudioContext(1, samplec, this.ctx.sampleRate);
-    this.playEgs(subctx, egs);
+    const song = new Song(egs, false, subctx);
+    song.update(subctx, subctx.currentTime + durs + 1.0);
     return subctx.startRendering();
   }
   
   /* Start playing this AudioBuffer on the main context.
    */
-  playAudioBuffer(buffer, trim, pan, when) {
+  playAudioBuffer(buffer, trim, when, songid) {
     const sourceNode = new AudioBufferSourceNode(this.ctx, {
       buffer,
       channelCount: 1,
@@ -220,33 +233,14 @@ export class Audio {
       endNode.connect(gainNode);
       endNode = gainNode;
     }
-    if (pan !== 0.0) {
-      const panNode = new StereoPannerNode(this.ctx, { pan });
-      endNode.connect(panNode);
-      endNode = panNode;
-    }
     endNode.connect(this.ctx.destination);
     sourceNode.start(when);
-  }
-  
-  /* Given a split EGS resource (see SynthFormats.splitEgs), start playing it in the provided context.
-   * This can be the main context, or an OfflineAudioContext for recording.
-   * Bus is not involved, because it pays out playback over time and we want to commit every event immediately.
-   */
-  playEgs(ctx, egs) {
-    const channels = egs.channels.map(chhdr => {
-      const channel = new Channel(this, ctx, chhdr, ctx.destination, true);
-      if (channel.isDummy()) return;
-      channel.install();
-      return channel;
-    });
-    let when = 0;
-    for (let iter=SynthFormats.iterateEgsEvents(egs.events), event; event=iter.next(); ) {
-      switch (event.type) {
-        case "delay": when += event.delay; break;
-        case "wheel": channels[event.chid].setWheel(event.wheel, when); break;
-        case "note": channels[event.chid].playNote(event.noteid, event.velocity, event.dur, when); break;
-      }
+    if (songid) {
+      sourceNode.addEventListener("ended", () => {
+        if (this.songid === songid) {
+          this.songid = 0;
+        }
+      });
     }
   }
   

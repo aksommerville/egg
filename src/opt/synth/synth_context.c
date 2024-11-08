@@ -86,6 +86,7 @@ static void synth_end_song(struct synth *synth) {
     free(synth->songown);
     synth->songown=0;
   }
+  synth->songvoice=0;
 }
 
 /* Report error and end song.
@@ -211,6 +212,9 @@ static void synth_update_signal(float *v,int c,struct synth *synth) {
       synth->voicec--;
       memmove(synth->voicev+i,synth->voicev+i+1,sizeof(void*)*(synth->voicec-i));
       synth_voice_del(voice);
+      if (voice==synth->songvoice) {
+        synth_end_song(synth);
+      }
     }
   }
 }
@@ -461,6 +465,26 @@ static void synth_play_song_internal(struct synth *synth,const void *src,int src
     if (!synth->songc) return;
     
     synth->songid=rid;
+    
+  } else if ((srcc>=12)&&!memcmp(src,"RIFF",4)) {
+    if (synth->voicec>=SYNTH_VOICE_LIMIT) {
+      synth->voicec--;
+      synth_voice_del(synth->voicev[synth->voicec]);
+    }
+    struct synth_pcm *pcm=synth_pcm_decode(src,srcc,synth->rate);
+    if (!pcm) {
+      fprintf(stderr,"song:%d: Failed to decode WAV\n",rid);
+      return;
+    }
+    struct synth_voice *voice=synth_voice_pcm_new(synth,pcm,1.0f);
+    synth_pcm_del(pcm);
+    if (!voice) return;
+    synth->voicev[synth->voicec++]=voice;
+    synth->songvoice=voice;
+    synth->songid=rid;
+    
+  } else {
+    fprintf(stderr,"%s: Unknown format for %d-byte song id %d\n",__func__,srcc,rid);
   }
 }
 

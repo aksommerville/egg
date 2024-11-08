@@ -59,6 +59,7 @@ struct synth {
   int songdelay; // frames
   int playhead; // frames
   void *songown; // free on song change
+  struct synth_voice *songvoice; // WEAK; owned by (voicev)
 };
 
 /* Decode PCM synchronously, or install a printer to do it.

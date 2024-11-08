@@ -515,6 +515,11 @@ int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
     err=eggdev_song_egs_from_midi(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"egs",3);
     
+  // Grudgingly allow WAV. This is important for editor playback, where the difference between "sound" and "song" is ambiguous.
+  } else if ((res->serialc>=4)&&!memcmp(res->serial,"RIFF",4)) {
+    err=eggdev_song_sanitize_wav(&dst,res->serial,res->serialc,res->path);
+    eggdev_res_set_format(res,"wav",3);
+    
   // Nothing else is allowed.
   } else {
     fprintf(stderr,"%s: Unknown format for song. Expected MIDI.\n",res->path);

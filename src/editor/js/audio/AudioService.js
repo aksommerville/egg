@@ -48,24 +48,26 @@ export class AudioService {
     if (mode === this.outputMode) return;
     if (this.audio) {
       this.audio.stop();
-      this.audio = null;
+      //this.audio = null;
     }
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = null;
     }
+    this.stop();
     switch (mode) {
       case "none": break;
       case "server": if (!this.serverAvailable) return; break;
       case "client": {
-          const rt = {};
-          this.audio = new Audio(rt);
+          if (!this.audio) {
+            const rt = {};
+            this.audio = new Audio(rt);
+          }
           this.audio.start();
           this.updateInterval = setInterval(() => this.update(), 100);
         } break;
       default: return;
     }
-    this.stop();
     this.outputMode = mode;
     this.broadcast({ id: "outputMode" });
   }
@@ -76,7 +78,7 @@ export class AudioService {
       case "client": {
           if (this.audio) {
             this.audio.stop();
-            this.audio = null;
+            //this.audio = null;
           }
           if (this.updateInterval) {
             clearInterval(this.updateInterval);
@@ -93,11 +95,13 @@ export class AudioService {
     switch (this.outputMode) {
       case "none": return Promise.reject("Audio output not enabled.");
       case "server": return this.comm.http("POST", "/api/sound", { position, repeat }, null, serial);
+      //TODO We don't have to call /api/compile every time (and it's expensive!). EGS and well-formed WAV can pass right thru.
       case "client": return this.comm.httpBinary("POST", "/api/compile", null, null, serial).then(rsp => {
           if (!this.audio) {
+            const rt = {};
             this.audio = new Audio(rt);
-            this.audio.start();
           }
+          this.audio.start();
           if (!this.updateInterval) {
             this.updateInterval = setInterval(() => this.update(), 100);
           }

@@ -43,7 +43,7 @@ static void _fm_update_flat(float *v,int c,struct synth_voice *voice) {
   }
   if (VOICE->levelenv.finished) voice->finished=1;
 }
- 
+
 static void _fm_update_pitchenv(float *v,int c,struct synth_voice *voice) {
   for (;c-->0;v++) {
     float level=synth_env_next(VOICE->levelenv);
@@ -60,7 +60,9 @@ static void _fm_update_pitchenv(float *v,int c,struct synth_voice *voice) {
     VOICE->carp+=rate+rate*mod*synth_env_next(VOICE->rangeenv);
     while (VOICE->carp>=M_PI) VOICE->carp-=M_PI*2.0f;
   }
-  if (VOICE->levelenv.finished) voice->finished=1;
+  if (VOICE->levelenv.finished) {
+    voice->finished=1;
+  }
 }
 
 /* Release.

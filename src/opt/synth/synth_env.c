@@ -39,6 +39,8 @@ int synth_env_config_decode(struct synth_env_config *config,const void *src,int 
     RDV(config->inivlo)
     if (config->flags&SYNTH_ENV_FLAG_VELOCITY) {
       RDV(config->inivhi)
+    } else {
+      config->inivhi=config->inivlo;
     }
   }
   
@@ -63,6 +65,9 @@ int synth_env_config_decode(struct synth_env_config *config,const void *src,int 
     if (config->flags&SYNTH_ENV_FLAG_VELOCITY) {
       RDT(point->thi)
       RDV(point->vhi)
+    } else {
+      point->thi=point->tlo;
+      point->vhi=point->vlo;
     }
   }
   
@@ -83,6 +88,8 @@ int synth_env_config_decode(struct synth_env_config *config,const void *src,int 
 void synth_env_config_bias(struct synth_env_config *config,float d) {
   struct synth_env_config_point *point=config->pointv;
   int i=config->pointc;
+  config->inivlo+=d;
+  config->inivhi+=d;
   for (;i-->0;point++) {
     point->vlo+=d;
     point->vhi+=d;
@@ -92,6 +99,8 @@ void synth_env_config_bias(struct synth_env_config *config,float d) {
 void synth_env_config_scale(struct synth_env_config *config,float d) {
   struct synth_env_config_point *point=config->pointv;
   int i=config->pointc;
+  config->inivlo*=d;
+  config->inivhi*=d;
   for (;i-->0;point++) {
     point->vlo*=d;
     point->vhi*=d;

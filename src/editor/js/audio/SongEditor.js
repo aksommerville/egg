@@ -38,6 +38,10 @@ export class SongEditor {
       if ((b[0] === 0x00) && (b[1] === 0x45) && (b[2] === 0x47) && (b[3] === 0x53)) return 2;
       if ((b[0] === 0x4d) && (b[1] === 0x54) && (b[2] === 0x68) && (b[3] === 0x64)) return 2;
     }
+    if (!b.length) {
+      if (res.type === "song") return 2;
+      if (res.type === "sound") return 2;
+    }
     return 0;
   }
   

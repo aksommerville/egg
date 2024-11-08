@@ -111,7 +111,7 @@ struct synth_voice *synth_voice_sub_new(
   VOICE->cv[3]=2.0f*r*cosfreq;
   VOICE->cv[4]=-r*r;
   
-  VOICE->gain=1.0f;//TODO How to calculate ideal gain for a narrow bandpass?
+  VOICE->gain=10.0f;//TODO How to calculate ideal gain for a narrow bandpass?
   
   return voice;
 }

@@ -6,46 +6,43 @@ export class SynthFormats {
 
   /* Check signatures.
    * Input must be Uint8Array.
-   * Returns one of: "", "egs", "msf", "wav"
+   * Returns one of: "", "egs", "wav", "mid".
+   * We don't support MIDI, but one can imagine errors where a MIDI file slips thru the pipeline,
+   * so we detect them in case you want to log those specially.
    */
   static detectFormat(s) {
     const ck4 = (p, a, b, c, d) => ((s[p] === a) && (s[p+1] === b) && (s[p+2] === c) && (s[p+3] === d));
     if (s.length >= 4) {
       if (ck4(0, 0x00, 0x45, 0x47, 0x53)) return "egs";
-      if (ck4(0, 0x00, 0x50, 0x43, 0x4d)) return "pcm";
+      if (ck4(0, 0x52, 0x49, 0x46, 0x46)) return "wav";
+      if (ck4(0, 0x4d, 0x54, 0x68, 0x64)) return "mid";
     }
     return "";
   }
   
   /* Split the parts of an EGS resource.
-   * Returns null or { tempo: ms, channels: { chid, master, pan, mode, config: Uint8Array, post: Uint8Array }[], events: Uint8Array }.
-   * Channels are indexed by chid, may be sparse, and may contain chid >= 0x10.
-   * Leading noop events are trimmed from Channel Headers.
+   * Returns null or { channels: { chid, trim, mode, v: Uint8Array }[], events: Uint8Array }.
+   * Channels are indexed by chid, may be null, and may contain chid >= 0x10.
+   * We don't validate events or detect the explicit EOF event.
    */
   static splitEgs(s) {
     if (!s || (s[0] !== 0x00) || (s[1] !== 0x45) || (s[2] !== 0x47) || (s[3] !== 0x53)) return null;
     const egs = {
-      tempo: (s[4] << 8) | s[5],
       channels: [],
     };
-    let sp = 6;
+    let sp = 4;
     while (sp < s.length) {
       const chid = s[sp++];
       if (chid === 0xff) break; // Events introducer.
-      const master = s[sp++];
-      const pan = s[sp++];
+      const trim = s[sp++];
       const mode = s[sp++];
-      const configlen = (s[sp] << 8) | s[sp+1];
-      sp += 2;
+      const configlen = (s[sp] << 16) | (s[sp+1] << 8) | s[sp+2];
+      sp += 3;
       if (sp > s.length - configlen) throw new Error(`Invalid EGS, channel ${chid} config overflows.`);
-      const config = s.slice(sp, sp + configlen);
+      const v = s.slice(sp, sp + configlen);
       sp += configlen;
-      const postlen = (s[sp] << 8) | s[sp+1];
-      sp += 2;
-      if (sp > s.length - postlen) throw new Error(`Invalid EGS, channel ${chid} post overflows.`);
-      const post = s.slice(sp, sp + postlen);
-      sp += postlen;
-      egs.channels[chid] = { chid, master, pan, mode, config, post };
+      while (chid >= egs.channels.length) egs.channels.push(null);
+      egs.channels[chid] = { chid, trim, mode, v };
     }
     egs.events = s.slice(sp);
     return egs;
@@ -56,8 +53,8 @@ export class SynthFormats {
    *   for (let iter=SynthFormats.iterateEgsEvents(egs.events), event; event=iter.next(); ) {
    *     switch (event.type) {
    *       case "delay": // event.delay s
-   *       case "wheel": // event.chid 0..15, event.wheel -1..1f
-   *       case "note": // event.chid 0..15, event.noteid 0..127, event.velocity 0..1f, event.dur s
+   *       case "note": // event.chid 0..15, event.noteid 0..127, event.velocity 0..127, event.dur s
+   *       case "future": // event.v Uint8Array full encoded event
    *     }
    *   }
    * Adjacent delays are combined.
@@ -94,7 +91,7 @@ export class SynthFormats {
         return { type: "delay", delay: ms / 1000 };
       }
       
-      // Other events distinguished by top four bits, and not exhaustive.
+      // Other events distinguished by top four bits.
       switch (lead & 0xf0) {
       
         case 0x80: // Short Note
@@ -119,12 +116,32 @@ export class SynthFormats {
             velocity /= 127.0;
             return { type: "note", chid, noteid, velocity, dur: dur / 1000 };
           }
-        
-        case 0xc0: { // Wheel.
-            const chid = lead & 0x0f;
-            let wheel = iter.evv[iter.evp++] ?? 0x80;
-            wheel = (wheel - 0x80) / 128.0;
-            return { type: "wheel", chid, wheel };
+          
+        // Opcodes 0xb0, 0xc0, 0xd0, 0xe0, 0xf0 are not yet defined, but their shapes are, and we can skip them.
+        case 0xb0: {
+            const v = new Uint8Array([lead]);
+            return { type: "future", v };
+          }
+        case 0xc0: {
+            const v = new Uint8Array(iter.evv.buffer, iter.evv.byteOffset + iter.evp - 1, 2);
+            iter.evp += 1;
+            return { type: "future", v };
+          }
+        case 0xd0: {
+            const v = new Uint8Array(iter.evv.buffer, iter.evv.byteOffset + iter.evp - 1, 3);
+            iter.evp += 2;
+            return { type: "future", v };
+          }
+        case 0xe0: {
+            const v = new Uint8Array(iter.evv.buffer, iter.evv.byteOffset + iter.evp - 1, 3);
+            iter.evp += 2;
+            return { type: "future", v };
+          }
+        case 0xf0: {
+            const len = iter.evv[iter.evp+1] || 0;
+            const v = new Uint8Array(iter.evv.buffer, iter.evv.byteOffset + iter.evp - 1, 3 + len);
+            iter.evp += 2 + len;
+            return { type: "future", v };
           }
           
         default: {
@@ -136,15 +153,25 @@ export class SynthFormats {
     return iter;
   }
   
-  /* Uint8Array in, AudioBuffer out. Or null on errors.
+  /* Uint8Array in, AudioBuffer out, null for errors.
+   * We only accept a very specific subset of WAV, as produced by eggdev's resource compiler.
+   * (to wit: 16-bit LPCM mono, any rate, with a single "data" chunk and no extra chunks).
    */
-  static decodePcm(s) {
-    if (!s || (s[0] !== 0x00) || (s[1] !== 0x50) || (s[2] !== 0x43) || (s[3] !== 0x4d)) return null;
-    const rate = (s[4] << 24) | (s[5] << 16) | (s[6] << 8) | s[7];
-    const samplec = (s.length - 8) >> 1;
+  static decodeWav(s) {
+    // Check "RIFF" signature and "data" header, and take the rest on faith.
+    // "data" length must reach EOF exactly.
+    if (!s || (s[0] !== 0x52) || (s[1] !== 0x49) || (s[2] !== 0x46) || (s[3] !== 0x46)) return null;
+    if (s.length < 44) return null;
+    if ((s[36] !== 0x64) || (s[37] !== 0x61) || (s[38] !== 0x74) || (s[39] !== 0x61)) return null;
+    const datalen = s[40] | (s[41] << 8) | (s[42] << 16) | (s[43] << 24);
+    if ((datalen < 0) || (44 + datalen !== s.length)) return null;
+    const rate = s[24] | (s[25] << 8) | (s[26] << 16) | (s[27] << 24);
+    if ((rate < 200) || (rate > 200000)) return null; // Arbitrary sanity limits.
+    // Looks kosher. Decode and normalize into a Float32Array, then wrap that in an AudioBuffer.
+    const samplec = datalen >> 1;
     const samplev = new Float32Array(samplec);
-    for (let dstp=0, sp=8; dstp<samplec; dstp++, sp+=2) {
-      let sample = s[sp] | s[sp+1];
+    for (let dstp=0, sp=44; dstp<samplec; dstp++, sp+=2) {
+      let sample = s[sp] | (s[sp+1] << 8);
       if (sample & 0x8000) sample |= ~0xffff;
       samplev[dstp] = sample / 32768.0;
     }

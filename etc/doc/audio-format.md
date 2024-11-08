@@ -77,13 +77,13 @@ Channel Mode 2 `wave`. May terminate between fields:
 - u8 Shape: (0,1,2,3,4)=(custom,sine,square,saw,triangle)
 - (u8) Harmonics count, if shape==0
 - (...) Harmonics, u16 each.
-- ... Pitch env. Value 0x0000..0x8000..0xffff = -2400..0..2400 cents.
+- ... Pitch env. Value 0x0000..0x8000..0xffff = -32768..0..32768 cents.
 
 Channel Mode 3 `fm`. May terminate between fields:
 - ... Level env.
 - u8.8 Rate, relative to note.
 - u8.8 Range peak.
-- ... Pitch env. Value 0x0000..0x8000..0xffff = -2400..0..2400 cents.
+- ... Pitch env. Value 0x0000..0x8000..0xffff = -32768..0..32768 cents.
 - ... Range env.
 
 Channel Mode 4 `sub`:

@@ -200,12 +200,14 @@ export class EnvUi {
     for (let now=0, i=1; i<this.loline.length; i++) {
       const pt = this.loline[i];
       let t = pt.t - now;
+      now = pt.t;
       if (t >= 16384) throw new Error(`Envelope leg too long. ${t}, limit 16383.`);
       loline.push({ t, v: pt.v });
     }
     if (this.flags & 0x02) for (let now=0, i=1; i<this.hiline.length; i++) {
       const pt = this.hiline[i];
       let t = pt.t - now;
+      now = pt.t;
       if (t >= 16384) throw new Error(`Envelope leg too long. ${t}, limit 16383.`);
       hiline.push({ t, v: pt.v });
     }
@@ -249,11 +251,12 @@ export class EnvUi {
       this.dom.spawn(null, "OPTION", { value: "visible" }, "Lo Visible"),
       this.dom.spawn(null, "OPTION", { value: "hidden" }, "Lo Hidden")
     );
-    this.dom.spawn(controls, "SELECT", { name: "hiVisibility", "on-change": () => this.onHiVisibilityChanged() },
+    const hivis = this.dom.spawn(controls, "SELECT", { name: "hiVisibility", "on-change": () => this.onHiVisibilityChanged() },
       this.dom.spawn(null, "OPTION", { value: "visible" }, "Hi Visible"),
       this.dom.spawn(null, "OPTION", { value: "hidden" }, "Hi Hidden"),
       this.dom.spawn(null, "OPTION", { value: "disabled" }, "Hi Disabled")
     );
+    if (!(this.flags & 0x02)) hivis.value = "disabled";
     this.dom.spawn(controls, "INPUT", { type: "number", name: "susp", min: -1, max: 255, value: this.susp, "on-input": () => this.onSuspChanged() });
     this.dom.spawn(controls, "DIV", ["zoom"], { "on-mousedown": e => this.onZoomMouseDown(e) }, this.dom.spawn(null, "DIV", "Z"));
     this.dom.spawn(controls, "DIV", ["tattle"]);

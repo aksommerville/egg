@@ -3,19 +3,19 @@
  * (actually, dropping channels will happen implicitly)
  */
  
-//TODO playback
- 
 import { Dom } from "../Dom.js";
 import { Data } from "../Data.js";
+import { AudioService } from "./AudioService.js";
  
 export class WavEditor {
   static getDependencies() {
-    return [HTMLElement, Dom, Data];
+    return [HTMLElement, Dom, Data, AudioService];
   }
-  constructor(element, dom, data) {
+  constructor(element, dom, data, audioService) {
     this.element = element;
     this.dom = dom;
     this.data = data;
+    this.audioService = audioService;
     
     this.res = null;
     this.file = null;
@@ -54,6 +54,8 @@ export class WavEditor {
     this.dom.spawn(ribbon, "INPUT", { type: "button", value: `Trim lead (${this.countLeadingZeroes()})`, "on-click": () => this.onTrimLead() });
     this.dom.spawn(ribbon, "INPUT", { type: "button", value: `Trim tail (${this.countTrailingZeroes()})`, "on-click": () => this.onTrimTail() });
     this.dom.spawn(ribbon, "INPUT", { type: "button", value: `Level... (${this.reprLevel()})`, "on-click": () => this.onEditLevel() });
+    this.dom.spawn(ribbon, "INPUT", { type: "button", value: ">", "on-click": () => this.onPlay() });
+    this.dom.spawn(ribbon, "INPUT", { type: "button", value: "!!", "on-click": () => this.onStop() });
     
     this.dom.spawn(this.element, "CANVAS");
     this.render();
@@ -198,6 +200,18 @@ export class WavEditor {
       }
       this.changed();
     }).catch(() => {});
+  }
+  
+  onPlay() {
+    if (this.audioService.outputMode === "none") {
+      if (this.audioService.serverAvailable) this.audioService.setOutputMode("server");
+      else this.audioService.setOutputMode("client");
+    }
+    this.audioService.play(this.file.encode());
+  }
+  
+  onStop() {
+    this.audioService.stop();
   }
 }
 

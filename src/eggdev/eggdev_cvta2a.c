@@ -76,9 +76,9 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
     case EGGDEV_FMT_QOI: return EGGDEV_FMT_PNG;
     case EGGDEV_FMT_RAWIMG: return EGGDEV_FMT_PNG;
     case EGGDEV_FMT_RLEAD: return EGGDEV_FMT_PNG;
-    // MIDI<~>EGS
+    // MIDI=>EGS and EGS=>WAV. It is possible to make MIDI from EGS but you have to ask for it specifically.
     case EGGDEV_FMT_MIDI: return EGGDEV_FMT_EGS;
-    case EGGDEV_FMT_EGS: return EGGDEV_FMT_MIDI;
+    case EGGDEV_FMT_EGS: return EGGDEV_FMT_WAV;
     // WAV "converts" to itself; it's a sanitization process.
     case EGGDEV_FMT_WAV: return EGGDEV_FMT_WAV;
     // Egg resources go to text. From text, we really can't guess.
@@ -218,6 +218,7 @@ int eggdev_cvta2a(
   if (!srcfmt) srcfmtc=0; else if (srcfmtc<0) { srcfmtc=0; while (srcfmt[srcfmtc]) srcfmtc++; }
   int sfmt=eggdev_cvta2a_guess_format(srcfmt,srcfmtc,src,srcc,0);
   int dfmt=eggdev_cvta2a_guess_format(dstfmt,dstfmtc,0,0,sfmt);
+  //fprintf(stderr,"%s srcc=%d refname=%s dstfmt='%.*s'(%d) srcfmt='%.*s'(%d)\n",__func__,srcc,refname,dstfmtc,dstfmt,dfmt,srcfmtc,srcfmt,sfmt);
   
   /* Same to same, there may be a sanitization process we can run.
    * But in most cases, just echo the input.
