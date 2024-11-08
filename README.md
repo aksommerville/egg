@@ -41,7 +41,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 ## TODO
 
 - [ ] Editor.
-- - [ ] Song: Live MIDI input.
 - - [ ] Launch game.
 - [ ] Native runner.
 - - [ ] --configure-input for true native (and presumably other cases, when a game is present): Must apply the new config live, in addition to saving it.
@@ -75,6 +74,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] AudioService.play: Detect formats playable directly and don't call /api/compile for them.
+- - [ ] Ensure parity between web and native.
+- - [ ] editor: MIDI in
 
 ## Third-Party Code
 
