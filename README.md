@@ -40,24 +40,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
-- [ ] Dev tool.
-- - [ ] Synth helper. Maybe as part of 'serve'.
-- - [x] Server is going to need some adjustment to enable editor and runtime to run together. Get a working runtime first.
 - [ ] Editor.
-- - [x] Eliminate SongEditor and SoundsEditor. Replace with editors specific to each source format.
-- - [x] Song: Playback.
 - - [ ] Song: Live MIDI input.
-- - [ ] Sound effects.
-- - - [ ] The need for real tooling here is desperate.
-- - [ ] Sound effects end up with wildly disparate levels web vs native
 - - [ ] Launch game.
 - [ ] Native runner.
-- - [ ] Synthesizer
-- - - [ ] IIR filters, we probably need more than 2 poles. The lopass and hipass barely have any effect at all.
-- - - [ ] Consider DFT resampling for sounds acquired from raw PCM.
-- - - [ ] User events
-- - - [ ] Get/set playhead
-- - - [ ] Export songs to WAV for examination.
 - - [ ] --configure-input for true native (and presumably other cases, when a game is present): Must apply the new config live, in addition to saving it.
 - - [ ] Default input config path.
 - - [ ] Config files
@@ -65,13 +51,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] MacOS drivers
 - - [ ] Windows drivers
 - [ ] Web runner.
-- - [ ] Synth. -- Get this up and running before 27 Sept, then we can use Egg for the GDEX Game Jam!
-- - - [ ] I swear FM LFO is running fast. Gave up, but do return here.
-- - - [ ] Channel.generateWave: harmonics with non-sine primitives.
-- - - [ ] Wheel, update running voices.
-- - - [ ] Export songs to WAV for examination.
-- - - [ ] Channel.js: Don't use a timeout to end notes; you can provide a stop time where you start them.
-- - - [ ] Bandpass, Notch: Calculate Q sanely, I just made a wild guess here.
 - - [ ] Input config.
 - [ ] Rich set of client-side helper libraries.
 - - [ ] Maps?
@@ -86,6 +65,16 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Editor: Live feedback of synth playhead, via WebSocket.
 - [ ] Editor: Adjust synth config real time.
 - [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
+- [ ] Audio overhaul, merged 2024-11-08
+- - [ ] Confirm we're ignoring ignorable things, for future-proofing.
+- - [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.
+- - [ ] DrumChannelModal.js: Similar canned drums.
+- - [ ] Doors Without Walls, the drum channel didn't play. Had GM and volume=128. Was it mistakenly flagged as ignore? Changing volume fixed it.
+- - [ ] native: playhead for WAV songs
+- - [ ] web: playhead for both types
+- - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
+- - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
+- - [ ] AudioService.play: Detect formats playable directly and don't call /api/compile for them.
 
 ## Third-Party Code
 
