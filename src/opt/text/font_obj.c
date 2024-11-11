@@ -32,6 +32,10 @@ void font_set_replacement(struct font *font,int codepoint) {
   font->replacement=codepoint;
 }
 
+int font_get_line_height(struct font *font) {
+  return font->h;
+}
+
 /* Search pages.
  */
  

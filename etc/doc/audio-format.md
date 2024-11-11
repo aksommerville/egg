@@ -19,7 +19,7 @@ Division must be in 1..0x7fff, ie ticks/qnote, not SMPTE timecodes.
 A special Meta event 0x7f at time zero contains the full EGS header.
 This is everything between the "\0EGS" signature and the 0xff events introducer, exclusive.
 Our compiler will generate an EGS header based on standard MIDI events,
-but if one is already present it overrides all standard MIDI configuration.
+only for channels which are not named by the EGS header.
 
 MIDI files must have a Set Tempo event at time zero, or accept 500 ms/qnote.
 They are not allowed to change tempo mid-song.

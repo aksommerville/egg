@@ -60,7 +60,14 @@ else
   run:;echo "NATIVE_TARGET unset" ; exit 1
 endif
 
-edit:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=rt:$(EGG_SDK)/src/www --htdocs=$(EGG_SDK)/src/editor --htdocs=src/editor --htdocs=src --write=src
+COMMA:=,
+EMPTY:=
+SPACE:=$(EMPTY) $(EMPTY)
+EDIT_AUDIO_ARGS:=--audio=$(subst $(SPACE),$(COMMA),$(strip $(filter $(eggdev_OPT_ENABLE),pulse asound alsafd macaudio msaudio))) --audio-rate=44100 --audio-chanc=2
+# If you prefer web audio only, enable this:
+EDIT_AUDIO_ARGS:=
+edit:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=rt:$(EGG_SDK)/src/www --htdocs=$(EGG_SDK)/src/editor --htdocs=src/editor --htdocs=src --write=src $(EDIT_AUDIO_ARGS)
+
 web-run:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=$(EGG_SDK)/src/www --htdocs=out --default-rom=/$(notdir $(ROM))
 
 endif

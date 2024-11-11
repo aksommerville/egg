@@ -140,7 +140,7 @@ static int render_texture_measure(int w,int h,int stride,int fmt) {
   if (w>(INT_MAX-7)/pixelsize) return -1;
   int bitsperrow=w*pixelsize;
   int minstride=(bitsperrow+7)>>3;
-  if (stride!=minstride) return -1; // incoming strides must be exact (TODO should we work around it?)
+  if (stride<minstride) return -1;
   if (stride>INT_MAX/h) return -1;
   return stride*h;
 }
@@ -271,10 +271,27 @@ int render_texture_load(struct render *render,int texid,int w,int h,int stride,i
   
   /* Validate length, then upload.
    */
-  if (stride<1) stride=render_minimum_stride(w,fmt);
+  int minstride=render_minimum_stride(w,fmt);
+  if (stride<1) stride=minstride;
   int expectsrcc=render_texture_measure(w,h,stride,fmt);
   if ((expectsrcc<1)||(src&&(srcc<expectsrcc))) return -1;
-  if (render_texture_upload(render,texture,w,h,stride,fmt,src)<0) return -1;
+  
+  /* render_texture_upload wants minimal strides.
+   * So if there is excess here, copy to a separate buffer first.
+   */
+  if (stride>minstride) {
+    char *nv=malloc(minstride*h);
+    if (!nv) return -1;
+    char *dstrow=nv;
+    const char *srcrow=src;
+    int yi=h; for (;yi-->0;dstrow+=minstride,srcrow+=stride) memcpy(dstrow,srcrow,minstride);
+    int err=render_texture_upload(render,texture,w,h,minstride,fmt,nv);
+    free(nv);
+    if (err<0) return -1;
+  } else {
+    if (render_texture_upload(render,texture,w,h,stride,fmt,src)<0) return -1;
+  }
+  
   return 0;
 }
 

@@ -174,7 +174,7 @@ export class Channel {
   }
   
   decodeWave(src, ctx) {
-    this.shape = "sine"
+    this.shape = "sine";
     this.pitchenv = null;
     this.levelenv = new Env();
     let srcp = this.levelenv.decode(src, 0);

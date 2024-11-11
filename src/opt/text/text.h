@@ -105,6 +105,8 @@ int font_add_image(
  */
 int font_add_image_resource(struct font *font,int codepoint,int imageid);
 
+int font_get_line_height(struct font *font);
+
 /* Width in pixels if we rendered (src) in one line.
  * If it contains newlines, we treat them like any other glyph.
  */
