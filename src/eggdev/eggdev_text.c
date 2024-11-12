@@ -72,11 +72,11 @@ const char *eggdev_guess_mime_type(const char *path,const void *src,int srcc) {
   const uint8_t *SRC=src;
   int ckc=(srcc>256)?256:srcc;
   int srcp=0;
-  while (srcp<srcc) {
+  while (srcp<ckc) {
     if (!SRC[srcp]) return "application/octet-stream";
-    if (SRC[srcp]<0x80) continue; // Don't call out to UTF-8 decoder in this extremely common case.
+    if (SRC[srcp]<0x80) { srcp++; continue; } // Don't call out to UTF-8 decoder in this extremely common case.
     int seqlen,codepoint;
-    if ((seqlen=sr_utf8_decode(&codepoint,SRC+srcp,srcc-srcp))<1) {
+    if ((seqlen=sr_utf8_decode(&codepoint,SRC+srcp,ckc-srcp))<1) {
       if (srcp>252) break; // Might have failed due to our length limit, let it slide.
       return "application/octet-stream";
     }

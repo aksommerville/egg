@@ -252,6 +252,7 @@ export class Data {
   }
   
   getImageAsync(name) {
+    if (!name) return Promise.reject();
     const image = this.getImage(name);
     if (!image) return Promise.reject();
     if (image.complete) return Promise.resolve(image);
