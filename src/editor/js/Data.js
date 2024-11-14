@@ -92,6 +92,7 @@ export class Data {
    *  - "dirty": Waiting for debounce timer.
    *  - "saving": Calls in flight.
    * There isn't an "error" state; instead we report errors directly thru Dom.
+   * If you need it, at the "dirty" event, you can read Data.dirties, its keys are paths.
    */
   listenDirty(cb) {
     const id = this.nextDirtyListener++;
@@ -213,6 +214,11 @@ export class Data {
   }
   
   resByString(src, type) {
+    const typeAndName = (typeof(src) === "string")?src.split(":"):[];
+    if (typeAndName.length === 2) {
+      type = typeAndName[0];
+      src = typeAndName[1];
+    }
     const rid = +src;
     for (const res of this.resv) {
       if (res.type !== type) continue;

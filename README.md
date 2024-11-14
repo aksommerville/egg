@@ -50,6 +50,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] MacOS drivers
 - - [ ] Windows drivers
 - - [ ] Input assignments to player appear to be willy-nilly. Must assign player 1 as the first device touched.
+- - - Also, keyboard is supposed to always be player 1, and that didn't happen.
 - [ ] Web runner.
 - - [ ] Input config.
 - [ ] Rich set of client-side helper libraries.
