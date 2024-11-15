@@ -27,17 +27,79 @@ void eggdev_rom_cleanup(struct eggdev_rom *rom) {
   memset(rom,0,sizeof(struct eggdev_rom));
 }
 
+/* Sort custom tids in place.
+ */
+ 
+static int eggdev_rom_rescmp(const void *_a,const void *_b) {
+  const struct rom_res *a=_a,*b=_b;
+  if (a->tid<b->tid) return -1;
+  if (a->tid>b->tid) return 1;
+  if (a->rid<b->rid) return -1;
+  if (a->rid>b->rid) return 1;
+  return 0;
+}
+
+static int eggdev_strcmpp(const void *_a,const void *_b) {
+  const char *a=*(const char**)_a,*b=*(const char**)_b;
+  return strcmp(a,b);
+}
+ 
+void eggdev_rom_finalize_tids(struct eggdev_rom *rom) {
+
+  /* First, how many custom types are there, really?
+   * Only tids 16..127 can participate.
+   * Zero is normal, and we're noop then.
+   */
+  int tidp=16,tidc=rom->tnamec-16;
+  while ((tidc>0)&&!rom->tnamev[tidp]) { tidp++; tidc--; }
+  while ((tidc>0)&&!rom->tnamev[tidp+tidc-1]) tidc--;
+  if (tidc<1) return;
+  
+  /* Make a copy of (tnamev) up to 128, with the same strings, and sort it.
+   */
+  const char *scratch[128];
+  memcpy(scratch,rom->tnamev,sizeof(void*)*(tidp+tidc));
+  qsort(scratch+tidp,tidc,sizeof(void*),eggdev_strcmpp);
+  
+  /* Make a translation table indexed by old tid, value is new tid.
+   * After this point we can detect no change and abort.
+   */
+  int trv[128]={0};
+  int oldtid=tidp,oi=tidc,changed=0;
+  for (;oi-->0;oldtid++) {
+    int newtid=tidp,ni=tidc;
+    for (;ni-->0;newtid++) {
+      if (scratch[newtid]==rom->tnamev[oldtid]) break;
+    }
+    if (newtid==oldtid) continue;
+    trv[oldtid]=newtid;
+    if (newtid!=oldtid) changed=1;
+  }
+  if (!changed) return;
+  
+  /* Copy scratch into tnamev -- it's all the same original strings.
+   */
+  memcpy(rom->tnamev,scratch,sizeof(void*)*(tidp+tidc));
+  
+  /* Visit each resource and if we have something in (trv), replace its tid.
+   */
+  struct eggdev_res *res=rom->resv;
+  int i=rom->resc;
+  for (;i-->0;res++) {
+    if ((res->tid<0)||(res->tid>=128)) continue;
+    if (!trv[res->tid]) continue;
+    res->tid=trv[res->tid];
+  }
+  
+  /* And finally, resort (resv) in light of the new tids.
+   */
+  qsort(rom->resv,rom->resc,sizeof(struct eggdev_res),eggdev_rom_rescmp);
+}
+
 /* Add path.
  */
-
-int eggdev_rom_add_path(struct eggdev_rom *rom,const char *path) {
-  if (!rom||!path) return -1;
-  rom->seq++;
-  char ftype=file_get_type(path);
-  if (!ftype) {
-    fprintf(stderr,"%s: File not found or can't stat.\n",path);
-    return -2;
-  }
+ 
+static int eggdev_rom_add_path_inner(struct eggdev_rom *rom,const char *path,char ftype) {
   if (ftype=='d') return eggdev_rom_add_directory(rom,path);
   if (ftype!='f') {
     fprintf(stderr,"%s:WARNING: Ignoring file due to unexpected type '%c'\n",path,ftype);
@@ -53,35 +115,32 @@ int eggdev_rom_add_path(struct eggdev_rom *rom,const char *path) {
    * It's worth noting that Executable will also successfully decode ROM files.
    */
   char sfx[16];
-  const char *sfxsrc=0;
-  int sfxsrcc=0,pathp=0;
-  for (;path[pathp];pathp++) {
-    if (path[pathp]=='/') {
-      sfxsrc=0;
-      sfxsrcc=0;
-    } else if (path[pathp]=='.') {
-      sfxsrc=path+pathp+1;
-      sfxsrcc=0;
-    } else if (sfxsrc) {
-      sfxsrcc++;
-    }
-  }
-  if ((sfxsrcc>0)&&(sfxsrcc<=sizeof(sfx))) {
-    int i=sfxsrcc;
-    while (i-->0) {
-      if ((sfxsrc[i]>='A')&&(sfxsrc[i]<='Z')) sfx[i]=sfxsrc[i]+0x20;
-      else sfx[i]=sfxsrc[i];
-    }
-    if ((sfxsrcc==4)&&!memcmp(sfx,"html",4)) return eggdev_rom_add_html(rom,path);
-    if ((sfxsrcc==3)&&!memcmp(sfx,"htm",3)) return eggdev_rom_add_html(rom,path);
-    if ((sfxsrcc==3)&&!memcmp(sfx,"exe",3)) return eggdev_rom_add_executable(rom,path);
-    if ((sfxsrcc==3)&&!memcmp(sfx,"egg",3)) return eggdev_rom_add_rom(rom,path);
+  int sfxc=eggdev_normalize_suffix(sfx,sizeof(sfx),path,-1);
+  if (sfxc) {
+    if ((sfxc==4)&&!memcmp(sfx,"html",4)) return eggdev_rom_add_html(rom,path);
+    if ((sfxc==3)&&!memcmp(sfx,"htm",3)) return eggdev_rom_add_html(rom,path);
+    if ((sfxc==3)&&!memcmp(sfx,"exe",3)) return eggdev_rom_add_executable(rom,path);
+    if ((sfxc==3)&&!memcmp(sfx,"egg",3)) return eggdev_rom_add_rom(rom,path);
   }
   struct eggdev_path parsed={0};
   if (eggdev_rom_parse_path(&parsed,rom,path)>=0) {
     if (parsed.tid&&parsed.rid) return eggdev_rom_add_file(rom,path);
   }
   return eggdev_rom_add_executable(rom,path);
+}
+
+int eggdev_rom_add_path(struct eggdev_rom *rom,const char *path) {
+  if (!rom||!path) return -1;
+  rom->seq++;
+  char ftype=file_get_type(path);
+  if (!ftype) {
+    fprintf(stderr,"%s: File not found or can't stat.\n",path);
+    return -2;
+  }
+  int err=eggdev_rom_add_path_inner(rom,path,ftype);
+  if (err<0) return err;
+  eggdev_rom_finalize_tids(rom);
+  return 0;
 }
 
 /* Type names.
@@ -127,26 +186,21 @@ int eggdev_tid_eval(const struct eggdev_rom *rom,const char *src,int srcc) {
 }
 
 /* Define custom type.
+ * It goes in the first available slot 16..127.
+ * They'll need to be sorted once the full set is acquired, and that means changing (tid) for existing resources.
  */
  
-static int eggdev_rom_name_type(struct eggdev_rom *rom,int tid,const char *src,int srcc) {
-  if ((tid<0)||(tid>0xff)) return -1;
+static int eggdev_rom_name_type(struct eggdev_rom *rom,const char *src,int srcc) {
   if (!src) srcc=0; else if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
-  if (tid>=rom->tnamea) {
-    int na=((tid+16)&~15);
-    void *nv=realloc(rom->tnamev,sizeof(void*)*na);
+  if (rom->tnamea<128) {
+    void *nv=realloc(rom->tnamev,sizeof(void*)*128);
     if (!nv) return -1;
     rom->tnamev=nv;
-    rom->tnamea=na;
+    rom->tnamea=128;
   }
-  if (!srcc) {
-    if (tid>=rom->tnamec) return 0;
-    if (!rom->tnamev[tid]) return 0;
-    free(rom->tnamev[tid]);
-    rom->tnamev[tid]=0;
-    return 0;
-  }
-  if ((tid<rom->tnamec)&&rom->tnamev[tid]&&!memcmp(src,rom->tnamev[tid],srcc)&&!rom->tnamev[tid][srcc]) return 0;
+  int tid=16;
+  while ((tid<rom->tnamec)&&rom->tnamev[tid]) tid++;
+  if (tid>=128) return -1;
   while (rom->tnamec<=tid) rom->tnamev[rom->tnamec++]=0;
   char *nv=malloc(srcc+1);
   if (!nv) return -1;
@@ -154,7 +208,7 @@ static int eggdev_rom_name_type(struct eggdev_rom *rom,int tid,const char *src,i
   nv[srcc]=0;
   if (rom->tnamev[tid]) free(rom->tnamev[tid]);
   rom->tnamev[tid]=nv;
-  return 0;
+  return tid;
 }
 
 /* Add directory: Callback for second level, expect single-resource files.
@@ -444,22 +498,15 @@ int eggdev_rom_parse_path(
   
   // Directory must name a type.
   if ((dir[0]>='0')&&(dir[0]<='9')) {
-    int sepp=-1,i=0;
-    for (;i<dirc;i++) {
-      if (dir[i]=='-') {
-        sepp=i;
-        break;
+    int v;
+    if ((sr_int_eval(&v,dir,dirc)<2)||(v<1)||(v>0xff)) return -1;
+    parsed->tid=v;
+  } else {
+    if ((parsed->tid=eggdev_tid_eval(rom,dir,dirc))<1) {
+      if ((parsed->tid=eggdev_rom_name_type(rom,dir,dirc))<0) {
+        return -1;
       }
     }
-    if (sepp<0) return -1;
-    int v;
-    if ((sr_int_eval(&v,dir,sepp)<2)||(v<1)||(v>0xff)) return -1;
-    parsed->tid=v;
-    parsed->tname=dir+sepp+1;
-    parsed->tnamec=dirc-sepp-1;
-    if (eggdev_rom_name_type(rom,parsed->tid,parsed->tname,parsed->tnamec)<0) return -1;
-  } else {
-    if ((parsed->tid=eggdev_tid_eval(rom,dir,dirc))<1) return -1;
     parsed->tname=dir;
     parsed->tnamec=dirc;
   }

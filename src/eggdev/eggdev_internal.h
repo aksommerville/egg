@@ -141,4 +141,8 @@ int eggdev_encode_gm_drums(struct sr_encoder *dst,const uint8_t *notebits/*16*/)
 
 void eggdev_hexdump(const void *src,int srcc);
 
+/* Never returns negative or >dsta, and output is lowercase.
+ */
+int eggdev_normalize_suffix(char *dst,int dsta,const char *src,int srcc);
+
 #endif

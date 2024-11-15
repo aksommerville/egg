@@ -48,13 +48,15 @@ Our tooling will expect a specific strict layout of data files to produce ROMs f
 DATAROOT/
   metadata
   code.wasm
-  strings/
-    LANG-RID[-RNAME]
-  [TID-]TNAME/
-    RID[-RNAME][[.COMMENT].FORMAT]
+  TNAME/
+    [LANG-]RID[-RNAME][[.COMMENT].FORMAT]
 ```
 
-`TID-` is required for custom types, optional for standard types.
+Custom types will be assigned IDs starting at 16, in alphabetical order.
+If you add or remove a type directory, beware that tids may change.
+Let eggdev generate a TOC, and only use the symbolic type IDs in your code.
 
 `LANG-` is two lowercase letters, which become the top ten bits of rid.
-`strings` uses this, probably nothing else should.
+`strings` uses this, probably nothing else should. But it's legal anywhere.
+
+`.COMMENT` is extra processing instructions for the compiler. You can't have a COMMENT without a FORMAT.

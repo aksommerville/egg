@@ -145,3 +145,29 @@ void eggdev_hexdump(const void *src,int srcc) {
   }
   fprintf(stderr,"%08x\n",srcc);
 }
+
+/* Normalize path suffix.
+ */
+ 
+int eggdev_normalize_suffix(char *dst,int dsta,const char *src,int srcc) {
+  if (!dst||(dsta<1)) return 0;
+  if (!src) return 0;
+  if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
+  const char *sfx=src+srcc;
+  int sfxc=0;
+  while (sfxc<srcc) {
+    if (sfx[-1]=='.') break;
+    if (sfx[-1]=='/') return 0;
+    sfx--;
+    sfxc++;
+  }
+  if (sfxc>dsta) return 0;
+  int i=sfxc;
+  while (i-->0) {
+    char ch=sfx[i];
+    if ((ch>='A')&&(ch<='Z')) dst[i]=ch+0x20;
+    else dst[i]=ch;
+  }
+  if (sfxc<dsta) dst[sfxc]=0;
+  return sfxc;
+}

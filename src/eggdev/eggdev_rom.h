@@ -30,9 +30,15 @@ struct eggdev_rom {
 void eggdev_res_cleanup(struct eggdev_res *res);
 void eggdev_rom_cleanup(struct eggdev_rom *rom);
 
+/* When we add files individually, custom types get tids willy-nilly.
+ * We must guarantee consistency, so after adding them all,
+ * call this to sort custom types alphabetically, and reassign resource tids as needed.
+ * eggdev_rom_add_path() does this for you; other 'add' functions do not.
+ */
+void eggdev_rom_finalize_tids(struct eggdev_rom *rom);
+
 /* Add a directory, ROM, executable, HTML file, or single-resource input.
  * ie anything we're able to add.
- * If it's a directory, we manage the manifest file.
  * We bump (rom->seq) at the start. ID conflicts against existing resources, the new ones win.
  */
 int eggdev_rom_add_path(struct eggdev_rom *rom,const char *path);
