@@ -107,7 +107,7 @@ export class Env {
     const dst = [];
     if (!(this.flags & 0x02)) velocity = 0;
     let susp = -1, termt = 0;
-    if (this.flags & 0x01) {
+    if (this.flags & 0x04) {
       susp = this.susp;
       termt = when + dur;
     }

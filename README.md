@@ -78,6 +78,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] AudioService.play: Detect formats playable directly and don't call /api/compile for them.
 - - [ ] Ensure parity between web and native.
 - - [ ] editor: MIDI in
+- - [ ] Channel.oscillateSub: Sub width stubbed out, figure this out.
 
 ## Third-Party Code
 

@@ -432,6 +432,7 @@ static void synth_play_song_internal(struct synth *synth,const void *src,int src
   synth->songp=0;
   synth->playhead=0;
   synth->songdelay=0;
+  if (!srcc) return;
   
   if ((srcc>=4)&&!memcmp(src,"\0EGS",4)) {
     const uint8_t *SRC=src;

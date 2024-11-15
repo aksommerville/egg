@@ -525,7 +525,7 @@ static int eggdev_serve_init_audio() {
   };
   if (!(eggdev.hostio=hostio_new(0,&delegate,0))) return -1;
   if ((hostio_init_audio(eggdev.hostio,eggdev.audio_drivers,&setup)<0)||!eggdev.hostio->audio) {
-    fprintf(stderr,"%s: Failed to initialize audio driver.\n",eggdev.exename);
+    fprintf(stderr,"%s: Failed to initialize audio driver. (%s)\n",eggdev.exename,eggdev.audio_drivers);
     return -2;
   }
   struct hostio_audio *driver=eggdev.hostio->audio;

@@ -106,8 +106,8 @@ export class Audio {
     if (!this.ctx) return;
     const snd = this.acquireSound(rid);
     if (!snd) return;
-    if (snd instanceof Promise) snd.then(buffer => this.playAudioBuffer(buffer, 0.5, 0));
-    else this.playAudioBuffer(snd, 0.5, 0);
+    if (snd instanceof Promise) snd.then(buffer => this.playAudioBuffer(buffer, 1, 0));
+    else this.playAudioBuffer(snd, 1, 0);
   }
   
   egg_play_song(rid, force, repeat) {
@@ -155,7 +155,7 @@ export class Audio {
     const serial = this.rt.rom.getResource(Rom.TID_sounds, rid);
     if (serial) {
       this.installSound(serial, soundsp, rid);
-      soundsp = this.searchSounds(rid, p);
+      soundsp = this.searchSounds(rid);
       if (soundsp >= 0) return this.finishSoundEntry(this.sounds[soundsp]);
       soundsp = -soundsp - 1;
     }

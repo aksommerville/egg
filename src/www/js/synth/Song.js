@@ -47,6 +47,7 @@ export class Song {
         if (this.repeat) {
           this.iter = SynthFormats.iterateEgsEvents(this.egs.events);
           this.nextEventTime += 0.001; // Force some amount of delay at repeat as a safety measure.
+          return true;
         } else {
           this.finished = true;
           return false;

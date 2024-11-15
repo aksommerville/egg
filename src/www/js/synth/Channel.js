@@ -40,7 +40,8 @@ export class Channel {
         } else {
           if (voice.tail.gain) {
             voice.tail.gain.setValueAtTime(voice.tail.gain.value, ctx.currentTime);
-            voice.tail.gain.setValueAtTime(0, ctx.currentTime + 0.100);
+            voice.tail.gain.cancelScheduledValues(ctx.currentTime);
+            voice.tail.gain.setValueAtTime(0, ctx.currentTime + 0.200);
           }
         }
       }
@@ -93,7 +94,7 @@ export class Channel {
         const p = this.inflight.findIndex(v => v.tail === tail);
         if (p >= 0) this.inflight.splice(p, 1);
       });
-      this.inflight.push({ time: when, tail });
+      this.inflight.push({ time: when, tail: env });
     }
   }
   
@@ -120,7 +121,8 @@ export class Channel {
   playNoteDrum(ctx, when, noteid, velocity) {
     const drum = this.drums[noteid];
     if (!drum) return;
-    const trim = drum.trimlo * (1 - velocity) + drum.trimhi * velocity;
+    let trim = drum.trimlo * (1 - velocity) + drum.trimhi * velocity;
+    trim *= this.trim;
     if (drum.buffer) {
       this.playPcm(ctx, when, drum.buffer, trim);
     } else {
@@ -329,7 +331,7 @@ export class Channel {
   
   oscillateSub(ctx, frequency, when, velocity, dur) {
     const noiseNode = new AudioBufferSourceNode(ctx, { buffer: this.noise, channelCount: 1, loop: true });
-    const Q = ((65536 - this.subWidth) * 2) / ctx.sampleRate; //TODO Sane calculation for Q.
+    const Q = 1;//((65536 - this.subWidth) * 2) / ctx.sampleRate; //TODO Sane calculation for Q.
     const filter = new BiquadFilterNode(ctx, { frequency, Q, type: "bandpass" });
     noiseNode.connect(filter);
     return [noiseNode, filter];
