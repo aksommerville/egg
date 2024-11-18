@@ -643,10 +643,11 @@ export class Song {
   buildChannelsFromMidiEvents(events) {
     this.channels = [];
     for (const event of events) {
-      if (event.time > 0) return;
       if (event.chid >= 0x10) continue;
       while (event.chid >= this.channels.length) this.channels.push(null);
-      if (!this.channels[event.chid]) this.channels[event.chid] = { chid: event.chid, mode: -1 };
+      if (!this.channels[event.chid]) {
+        this.channels[event.chid] = { chid: event.chid, mode: -1 };
+      }
       const channel = this.channels[event.chid];
       switch (event.mopcode) {
         case 0xb0: switch (event.k) {

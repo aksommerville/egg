@@ -1,7 +1,8 @@
 #ifndef SYNTH_INTERNAL_H
 #define SYNTH_INTERNAL_H
 
-#define SYNTH_VOICE_LIMIT 32
+// Spelling Bee does exceed 32 voices at times.
+#define SYNTH_VOICE_LIMIT 64
 #define SYNTH_CHANNEL_COUNT 16 /* Not negotiable. */
 #define SYNTH_RATE_MIN 200
 #define SYNTH_RATE_MAX 200000

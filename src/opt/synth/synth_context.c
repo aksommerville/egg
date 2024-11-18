@@ -405,7 +405,10 @@ struct synth_pcm *synth_init_pcm(struct synth *synth,const void *src,int srcc) {
  */
  
 void synth_play_sound(struct synth *synth,int rid) {
-  if (synth->voicec>=SYNTH_VOICE_LIMIT) return;
+  if (synth->voicec>=SYNTH_VOICE_LIMIT) {
+    fprintf(stderr,"%s:%d: Reject sound:%d, too many voices running.\n",__FILE__,__LINE__,rid);
+    return;
+  }
   int p=synth_resv_search(synth,EGG_TID_sound,rid);
   if (p<0) return;
   struct synth_res *res=synth->resv+p;
@@ -520,7 +523,10 @@ void synth_event(struct synth *synth,uint8_t chid,uint8_t opcode,uint8_t a,uint8
   if (chid>=SYNTH_CHANNEL_COUNT) return;
   switch (opcode) {
     case 0x98: {
-        if (synth->voicec>=SYNTH_VOICE_LIMIT) return;
+        if (synth->voicec>=SYNTH_VOICE_LIMIT) {
+          fprintf(stderr,"%s:%d: Reject event %02x %02x %02x, too many voices running.\n",__FILE__,__LINE__,chid,opcode,a);
+          return;
+        }
         struct synth_channel *channel=synth->channelv+chid;
         struct synth_voice *voice=synth_channel_play_note(channel,synth,a,b,durms);
         if (!voice) return;
