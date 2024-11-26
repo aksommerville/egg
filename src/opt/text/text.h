@@ -69,7 +69,7 @@ int strings_get(void *dstpp,int rid,int index);
  * Exclamations are ones in Control Rows and Control Columns.
  * Letters are ones in content.
  *
- * Each font has a fixed row height, which you must declare at construction.
+ * Each font has a fixed row height.
  *
  * Text must be encoded UTF-8.
  ******************************************************************/

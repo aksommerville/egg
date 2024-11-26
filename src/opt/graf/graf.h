@@ -101,6 +101,7 @@ struct texcache {
   } entryv[TEXCACHE_LIMIT];
   int entryc;
   int evictc; // Monitor for performance reporting. If it increases every frame, you likely need to increase the limit.
+  struct graf *graf; // WEAK. Caller may set directly, and we'll flush it before any eviction.
 };
 
 int texcache_get_image(struct texcache *tc,int imageid);

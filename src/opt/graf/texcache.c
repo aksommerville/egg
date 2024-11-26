@@ -26,6 +26,7 @@ int texcache_get_image(struct texcache *tc,int imageid) {
     entry->seq=0;
     return entry->texid;
   }
+  if (tc->graf) graf_flush(tc->graf);
   tc->evictc++;
   egg_texture_load_image(oldest->texid,imageid);
   oldest->imageid=imageid;
