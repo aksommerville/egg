@@ -65,14 +65,14 @@ export class Audio {
     }
   }
   
-  playSong(serial, repeat) {
+  playSong(serial, repeat, fullTrim) {
     this.endSong();
     if (!serial?.length) return;
     this.songid = 0x10000; // Assume it's an external song. Caller can replace this after.
     const format = SynthFormats.detectFormat(serial);
     switch (format) {
       case "egs": {
-          this.song = new Song(serial, repeat, this.ctx, this.globalTrim);
+          this.song = new Song(serial, repeat, this.ctx, fullTrim ? 1.0 : this.globalTrim);
         } break;
       case "wav": {
           const decoded = this.decodeSound(serial);
@@ -214,6 +214,7 @@ export class Audio {
     for (let iter=SynthFormats.iterateEgsEvents(egs.events), event; event=iter.next(); ) {
       if (event.type === "delay") durs += event.delay;
     }
+    durs += 0.500; // Add half a second to allow for tails beyond the last delay.
     const samplec = Math.max(1, Math.min(this.pcmLimit, Math.ceil(durs * this.ctx.sampleRate)));
     const subctx = new OfflineAudioContext(1, samplec, this.ctx.sampleRate);
     const song = new Song(egs, false, subctx, 1.0);

@@ -105,7 +105,7 @@ export class AudioService {
           if (!this.updateInterval) {
             this.updateInterval = setInterval(() => this.update(), 100);
           }
-          this.audio.playSong(new Uint8Array(rsp));
+          this.audio.playSong(new Uint8Array(rsp), false, true);
         });
     }
     return Promise.reject(`Invalid output mode ${JSON.stringify(this.outputMode)}`);

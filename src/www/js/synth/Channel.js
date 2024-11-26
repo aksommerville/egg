@@ -42,7 +42,7 @@ export class Channel {
           if (voice.tail.gain) {
             voice.tail.gain.setValueAtTime(voice.tail.gain.value, ctx.currentTime);
             voice.tail.gain.cancelScheduledValues(ctx.currentTime);
-            voice.tail.gain.setValueAtTime(0, ctx.currentTime + 0.200);
+            voice.tail.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.200);
           }
         }
       }
@@ -92,7 +92,7 @@ export class Channel {
       osc.stop(plan[plan.length - 1].t);
       osc.addEventListener("ended", () => {
         tail.disconnect();
-        const p = this.inflight.findIndex(v => v.tail === tail);
+        const p = this.inflight.findIndex(v => v.tail === env);
         if (p >= 0) this.inflight.splice(p, 1);
       });
       this.inflight.push({ time: when, tail: env });
@@ -257,7 +257,7 @@ export class Channel {
     if (srcp < src.length) {
       this.pitchenv = new Env();
       srcp = this.pitchenv.decode(src, srcp);
-      if (!this.pitchenv.pointc && (this.pitchenv.inivlo === 0.5) && (this.pitchenv.inivhi === 0.5)) {
+      if (!this.pitchenv.points.length && (this.pitchenv.inivlo === 0.5) && (this.pitchenv.inivhi === 0.5)) {
         this.pitchenv = null;
       } else {
         this.pitchenv.bias(-0.5);
