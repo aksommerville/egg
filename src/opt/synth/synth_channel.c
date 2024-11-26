@@ -175,12 +175,13 @@ static struct synth_voice *synth_channel_play_note_SUB(struct synth_channel *cha
 /* Decode.
  */
 
-int synth_channel_decode(struct synth_channel *channel,struct synth *synth,const void *src,int srcc) {
+int synth_channel_decode(struct synth_channel *channel,struct synth *synth,const void *src,int srcc,float global_trim) {
   if (!channel||channel->drumv||channel->wave) return -1;
   const uint8_t *SRC=src;
   if (srcc<6) return -1;
   channel->chid=SRC[0];
   channel->trim=SRC[1]/255.0f;
+  channel->trim*=global_trim;
   channel->mode=SRC[2];
   int bodylen=(SRC[3]<<16)|(SRC[4]<<8)|SRC[5];
   if (6>srcc-bodylen) return -1;

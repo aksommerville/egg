@@ -12,6 +12,11 @@ struct synth;
 void synth_del(struct synth *synth);
 struct synth *synth_new(int rate,int chanc);
 
+/* Call once immediately after construction to run at nominal volume, eg for printers.
+ * Normal synths reduce all channel levels by a constant.
+ */
+void synth_emit_full_volume(struct synth *synth);
+
 /* (c) in samples -- not frames, not bytes.
  * Float is the more natural format for us. You can change formats any time.
  */

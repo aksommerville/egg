@@ -57,8 +57,16 @@ struct synth *synth_new(int rate,int chanc) {
   synth->chanc=chanc;
   synth->framesperms=(double)rate/1000.0;
   synth_generate_rates(synth);
+  synth->global_trim=0.333f;
   
   return synth;
+}
+
+/* Trivial accessors.
+ */
+ 
+void synth_emit_full_volume(struct synth *synth) {
+  synth->global_trim=1.0f;
 }
 
 /* End current song.
@@ -453,7 +461,7 @@ static void synth_play_song_internal(struct synth *synth,const void *src,int src
         fprintf(stderr,"song:%d: Illegal reinitialization of channel %d\n",rid,chid);
         return;
       }
-      int err=synth_channel_decode(channel,synth,SRC+srcp,srcc-srcp);
+      int err=synth_channel_decode(channel,synth,SRC+srcp,srcc-srcp,synth->global_trim);
       if (err<1) {
         fprintf(stderr,"song:%d: Error decoding channel %d\n",rid,chid);
         return;

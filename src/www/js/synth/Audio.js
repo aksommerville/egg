@@ -19,6 +19,7 @@ export class Audio {
     this.pcmLimit = 0; // Maximum length of sound effect, gets populated during start().
     this.songid = 0;
     this.song = null;
+    this.globalTrim = 0.333;
     
     /* (sounds) is populated lazy, as sound effects get asked for.
      * So an entry in (sounds) with (serial) present needs to be decoded first.
@@ -71,7 +72,7 @@ export class Audio {
     const format = SynthFormats.detectFormat(serial);
     switch (format) {
       case "egs": {
-          this.song = new Song(serial, repeat, this.ctx);
+          this.song = new Song(serial, repeat, this.ctx, this.globalTrim);
         } break;
       case "wav": {
           const decoded = this.decodeSound(serial);
@@ -215,7 +216,7 @@ export class Audio {
     }
     const samplec = Math.max(1, Math.min(this.pcmLimit, Math.ceil(durs * this.ctx.sampleRate)));
     const subctx = new OfflineAudioContext(1, samplec, this.ctx.sampleRate);
-    const song = new Song(egs, false, subctx);
+    const song = new Song(egs, false, subctx, 1.0);
     song.update(subctx, subctx.currentTime + durs + 1.0);
     return subctx.startRendering();
   }

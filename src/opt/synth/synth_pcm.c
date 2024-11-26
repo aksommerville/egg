@@ -236,6 +236,7 @@ void synth_printer_del(struct synth_printer *printer) {
  
 static int synth_printer_init(struct synth_printer *printer,const uint8_t *src,int srcc,int rate) {
   if (!(printer->synth=synth_new(rate,1))) return -1;
+  synth_emit_full_volume(printer->synth);
   synth_play_song_borrow(printer->synth,src,srcc,0);
   if (!printer->synth->songid) return -1;
   

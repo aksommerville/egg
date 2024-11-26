@@ -11,9 +11,10 @@ export class Channel {
 
   /* (src) must be from SynthFormats.splitEgs().channels, and not null.
    */
-  constructor(src, ctx) {
+  constructor(src, ctx, globalTrim) {
     this.chid = src.chid;
     this.trim = src.trim / 255.0;
+    this.trim *= globalTrim;
     this.mode = src.mode;
     this.decode(src.v, ctx);
     this.inflight = []; // {time,tail}
@@ -168,7 +169,7 @@ export class Channel {
       }
       const samplec = Math.max(1, Math.ceil(durs * sampleRate));
       const subctx = new OfflineAudioContext(1, samplec, sampleRate);
-      const song = new Song(egs, false, subctx);
+      const song = new Song(egs, false, subctx, 1.0);
       song.update(subctx, subctx.currentTime + durs + 1.0);
       return subctx.startRendering();
     }

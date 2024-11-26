@@ -67,7 +67,7 @@ AUDIO_DRIVERS:=$(strip $(filter pulse asound alsafd macaudio msaudio,$(patsubst 
 EDIT_AUDIO_ARGS:=--audio=$(subst $(SPACE),$(COMMA),$(AUDIO_DRIVERS)) --audio-rate=44100 --audio-chanc=2
 # If you prefer web audio only, enable this:
 EDIT_AUDIO_ARGS:=
-edit:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=rt:$(EGG_SDK)/src/www --htdocs=$(EGG_SDK)/src/editor --htdocs=src/editor --htdocs=src --write=src $(EDIT_AUDIO_ARGS)
+edit:;$(EGG_SDK)/out/eggdev serve --htdocs=rt:$(EGG_SDK)/src/www --htdocs=$(EGG_SDK)/src/editor --htdocs=src/editor --htdocs=src --write=src $(EDIT_AUDIO_ARGS)
 
 web-run:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=$(EGG_SDK)/src/www --htdocs=out --default-rom=/$(notdir $(ROM))
 

@@ -44,7 +44,7 @@ void synth_channel_cleanup(struct synth_channel *channel);
  * Must be at least 6 bytes, and we validate aggressively.
  * We may borrow (src) indefinitely until cleanup; it must remain constant.
  */
-int synth_channel_decode(struct synth_channel *channel,struct synth *synth,const void *src,int srcc);
+int synth_channel_decode(struct synth_channel *channel,struct synth *synth,const void *src,int srcc,float global_trim);
 
 /* Returns a STRONG voice; updating and deleting it is the caller's responsibility.
  */

@@ -8,7 +8,7 @@ import { SynthFormats } from "./SynthFormats.js";
 import { Channel } from "./Channel.js";
  
 export class Song {
-  constructor(src, repeat, ctx) {
+  constructor(src, repeat, ctx, globalTrim) {
     if (src instanceof Uint8Array) {
       src = SynthFormats.splitEgs(src);
     }
@@ -22,7 +22,7 @@ export class Song {
     this.finished = false;
     this.channels = this.egs.channels.map(ch => {
       if (!ch) return null;
-      return new Channel(ch, ctx);
+      return new Channel(ch, ctx, globalTrim);
     });
   }
   

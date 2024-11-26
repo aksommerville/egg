@@ -27,6 +27,7 @@
 struct synth {
   int rate,chanc;
   double framesperms;
+  float global_trim;
   
   float *qbuf;
   int qbufa;
