@@ -349,11 +349,12 @@ export class Video {
     if (!src) return;
     const vtxc = vc * 2; // 2 GL vertices per input primitive.
     this.requireVbuf(vtxc * 8);
+    const s16 = (n) => ((n & 0x8000) ? (n | ~0x7fff) : n);
     for (let i=vc, p16=0, p8=4, srcp=0; i-->0; p16+=8, p8+=16, srcp+=12) {
-      this.vbufs16[p16+0] = src[srcp+0] | (src[srcp+1] << 8);
-      this.vbufs16[p16+1] = src[srcp+2] | (src[srcp+3] << 8);
-      this.vbufs16[p16+4] = src[srcp+4] | (src[srcp+5] << 8);
-      this.vbufs16[p16+5] = src[srcp+6] | (src[srcp+7] << 8);
+      this.vbufs16[p16+0] = s16(src[srcp+0] | (src[srcp+1] << 8));
+      this.vbufs16[p16+1] = s16(src[srcp+2] | (src[srcp+3] << 8));
+      this.vbufs16[p16+4] = s16(src[srcp+4] | (src[srcp+5] << 8));
+      this.vbufs16[p16+5] = s16(src[srcp+6] | (src[srcp+7] << 8));
       this.vbufu8[p8+0] = this.vbufu8[p8+8] = src[srcp+8];
       this.vbufu8[p8+1] = this.vbufu8[p8+9] = src[srcp+9];
       this.vbufu8[p8+2] = this.vbufu8[p8+10] = src[srcp+10];
@@ -403,11 +404,12 @@ export class Video {
     this.gl.enableVertexAttribArray(1);
     this.gl.vertexAttribPointer(0, 2, this.gl.SHORT, false, 8, 0);
     this.gl.vertexAttribPointer(1, 4, this.gl.UNSIGNED_BYTE, true, 8, 4);
+    const s16 = (n) => ((n & 0x8000) ? (n | ~0x7fff) : n);
     for (let i=vc, srcp=0; i-->0; srcp+=12) {
-      const x0 = src[srcp+0] | (src[srcp+1] << 8);
-      const y0 = src[srcp+2] | (src[srcp+3] << 8);
-      const x1 = x0 + (src[srcp+4] | (src[srcp+5] << 8));
-      const y1 = y0 + (src[srcp+6] | (src[srcp+7] << 8));
+      const x0 = s16(src[srcp+0] | (src[srcp+1] << 8));
+      const y0 = s16(src[srcp+2] | (src[srcp+3] << 8));
+      const x1 = s16(x0 + (src[srcp+4] | (src[srcp+5] << 8)));
+      const y1 = s16(y0 + (src[srcp+6] | (src[srcp+7] << 8)));
       const r = src[srcp+8];
       const g = src[srcp+9];
       const b = src[srcp+10];
@@ -456,13 +458,14 @@ export class Video {
     this.gl.enableVertexAttribArray(1);
     this.gl.vertexAttribPointer(0, 2, this.gl.SHORT, false, 8, 0);
     this.gl.vertexAttribPointer(1, 4, this.gl.UNSIGNED_BYTE, true, 8, 4);
+    const s16 = (n) => ((n & 0x8000) ? (n | ~0x7fff) : n);
     for (let i=vc, p16=0, p8=0, srcp=0; i-->0; srcp+=16, p16+=12, p8+=24) {
-      this.vbufs16[p16+0] = src[srcp+0] | (src[srcp+1] << 8);
-      this.vbufs16[p16+1] = src[srcp+2] | (src[srcp+3] << 8);
-      this.vbufs16[p16+4] = src[srcp+4] | (src[srcp+5] << 8);
-      this.vbufs16[p16+5] = src[srcp+6] | (src[srcp+7] << 8);
-      this.vbufs16[p16+8] = src[srcp+8] | (src[srcp+9] << 8);
-      this.vbufs16[p16+9] = src[srcp+10] | (src[srcp+11] << 8);
+      this.vbufs16[p16+0] = s16(src[srcp+0] | (src[srcp+1] << 8));
+      this.vbufs16[p16+1] = s16(src[srcp+2] | (src[srcp+3] << 8));
+      this.vbufs16[p16+4] = s16(src[srcp+4] | (src[srcp+5] << 8));
+      this.vbufs16[p16+5] = s16(src[srcp+6] | (src[srcp+7] << 8));
+      this.vbufs16[p16+8] = s16(src[srcp+8] | (src[srcp+9] << 8));
+      this.vbufs16[p16+9] = s16(src[srcp+10] | (src[srcp+11] << 8));
       this.vbufu8[p8+4] = this.vbufu8[p8+12] = this.vbufu8[p8+20] = src[srcp+12];
       this.vbufu8[p8+5] = this.vbufu8[p8+13] = this.vbufu8[p8+21] = src[srcp+13];
       this.vbufu8[p8+6] = this.vbufu8[p8+14] = this.vbufu8[p8+22] = src[srcp+14];
@@ -507,11 +510,12 @@ export class Video {
     this.gl.enableVertexAttribArray(1);
     this.gl.vertexAttribPointer(0, 2, this.gl.SHORT, false, 12, 0);
     this.gl.vertexAttribPointer(1, 2, this.gl.FLOAT, false, 12, 4);
+    const s16 = (n) => ((n & 0x8000) ? (n | ~0x7fff) : n);
     for (let i=vc, srcp=0; i-->0; srcp+=14) {
-      const dstx = src[srcp+0] | (src[srcp+1] << 8);
-      const dsty = src[srcp+2] | (src[srcp+3] << 8);
-      const srcx = src[srcp+4] | (src[srcp+5] << 8);
-      const srcy = src[srcp+6] | (src[srcp+7] << 8);
+      const dstx = s16(src[srcp+0] | (src[srcp+1] << 8));
+      const dsty = s16(src[srcp+2] | (src[srcp+3] << 8));
+      const srcx = s16(src[srcp+4] | (src[srcp+5] << 8));
+      const srcy = s16(src[srcp+6] | (src[srcp+7] << 8));
       const w = src[srcp+8] | (src[srcp+9] << 8);
       const h = src[srcp+10] | (src[srcp+11] << 8);
       const xform = src[srcp+12];
