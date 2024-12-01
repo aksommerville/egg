@@ -38,6 +38,20 @@ function waitForFirstInteraction(runtime) {
   });
 }
 
+function registerResizeHandler() {
+  const canvas = document.getElementById("egg-canvas");
+  if (!canvas) return;
+  const observer = new ResizeObserver(() => {
+    const bodyBounds = document.body.getBoundingClientRect();
+    const xscale = Math.max(1, Math.floor(bodyBounds.width / canvas.width));
+    const yscale = Math.max(1, Math.floor(bodyBounds.height / canvas.height));
+    const scale = Math.min(xscale, yscale);
+    canvas.style.width = (canvas.width * scale) + "px";
+    // Canvas height is always 100vh, and it has object-fit:contain, so the rest of aspect correction is all taken care of.
+  });
+  observer.observe(document.body);
+}
+
 function launchEgg(serial) {
   let runtime;
   return Promise.resolve().then(() => {
@@ -45,9 +59,10 @@ function launchEgg(serial) {
     if (!canvas) throw new Error("Canvas not found.");
     const rom = new Rom(serial);
     runtime = new Runtime(rom, canvas);
-    //console.log(`launchEgg`, { rom, serial, runtime });
+    //console.log(`launchEgg`, { rom, serial, runtime, canvas });
     return runtime.load();
   }).then(() => {
+    registerResizeHandler();
     return waitForFirstInteraction(runtime);
   }).then(() => {
     runtime.start();

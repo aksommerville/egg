@@ -7,6 +7,8 @@
 #define SCREENW 320
 #define SCREENH 180
 
+#define songid_last 14
+
 static int texid_tiles8=0;
 static int texid_qoi=0;
 static int texid_rawimg=0;
@@ -176,9 +178,10 @@ void egg_client_update(double elapsed) {
     if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1);
     if ((instate&EGG_BTN_EAST)&&!(pvinstate&EGG_BTN_EAST)) egg_play_sound(2);
     if ((instate&EGG_BTN_WEST)&&!(pvinstate&EGG_BTN_WEST)) {
-      if (++songid>5) songid=0;
+      //if (songid==5) songid=8; else if (songid==8) songid=6; else songid=5;
+      if (++songid>songid_last) songid=1;
       fprintf(stderr,"Play song %d...\n",songid);
-      egg_play_song(songid,0,1);
+      egg_play_song(songid,0,songid!=8);
     }
     pvinstate=instate;
   }
