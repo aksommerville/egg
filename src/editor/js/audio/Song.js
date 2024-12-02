@@ -177,12 +177,13 @@ export class Song {
         delay -= 4096;
       }
       if (delay >= 64) {
-        dst.u8(0x40 | (delay >> 6));
+        dst.u8(0x40 | ((delay >> 6) - 1));
         delay &= 63;
       }
       if (delay > 0) {
         dst.u8(delay);
       }
+      time = event.time;
       
       // There can and should be an End of Track event whose only purpose is to mark the delay.
       if (!event.eopcode) continue;
@@ -289,8 +290,8 @@ export class Song {
       if (!lead) break;
       
       if (!(lead & 0x80)) {
-        if (lead & 0x40) time += lead;
-        else time += (lead + 1) * 64;
+        if (lead & 0x40) time += ((lead & 0x3f) + 1) * 64;
+        else time += lead;
         continue;
       }
       
