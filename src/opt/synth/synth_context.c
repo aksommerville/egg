@@ -117,7 +117,7 @@ static int synth_update_song(struct synth *synth,int limit) {
   
   // Delay already pending?
   if (synth->songdelay>0) {
-   _apply_delay_:
+   _apply_delay_:;
     int updc=synth->songdelay;
     if (updc>limit) updc=limit;
     synth->songdelay-=updc;
