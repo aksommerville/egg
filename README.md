@@ -80,6 +80,9 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Ensure parity between web and native.
 - - [ ] editor: MIDI in
 - - [ ] Channel.oscillateSub: Sub width stubbed out, figure this out.
+- - [ ] Envelope editor: Don't create points on a single click. Require double-click or a modifier key.
+- - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
+- - [ ] Envelope editor: Option to sync time scale across all envelope editors.
 - [ ] Some means of funnelling command line args to the client. Thinking about how to disable a Quit option for kiosks, but of course there's lots of use cases.
 
 ## Third-Party Code

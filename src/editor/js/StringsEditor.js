@@ -192,9 +192,10 @@ export class StringsEditor {
     for (let srcp=0, lineno=1; srcp<src.length; lineno++) {
       let nlp = src.indexOf("\n", srcp);
       if (nlp < 0) nlp = srcp;
-      const line = src.substring(srcp, nlp).split("#")[0].trim();
+      const line = src.substring(srcp, nlp).trim();
       srcp = nlp + 1;
       if (!line) continue;
+      if (line.startsWith("#")) continue;
       let ixlen = 0;
       while (ixlen < line.length) {
         const ch = line.charCodeAt(ixlen);
