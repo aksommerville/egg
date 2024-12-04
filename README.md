@@ -84,6 +84,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
 - - [ ] Envelope editor: Option to sync time scale across all envelope editors.
 - [ ] Some means of funnelling command line args to the client. Thinking about how to disable a Quit option for kiosks, but of course there's lots of use cases.
+- [ ] Input first from keyboard, then the first joystick you pick up should also get player 1, but it currently gets player 2.
+- [x] printf clamps float whole parts at 999999999. That's a problem for timestamps.
 
 ## Third-Party Code
 

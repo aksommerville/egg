@@ -181,9 +181,10 @@ int vsnprintf(char *dst,int dsta,const char *fmt,va_list vargs) {
             double whole,fract;
             fract=modf(v,&whole);
             
-            int wholei=(whole>=1000000000.0)?999999999:(int)whole;
-            int wdigitc=1,wlimit=10;
-            while (wholei>wlimit) { wdigitc++; if (wlimit>INT_MAX/10) break; wlimit*=10; }
+            int64_t wholei=(int64_t)whole;
+            int64_t wlimit=10;
+            int wdigitc=1;
+            while (wholei>wlimit) { wdigitc++; if (wlimit>INT64_MAX/10) break; wlimit*=10; }
             if (dstc<=dsta-wdigitc) {
               int i=wdigitc; for (;i-->0;wholei/=10) dst[dstc+i]='0'+wholei%10;
             }
