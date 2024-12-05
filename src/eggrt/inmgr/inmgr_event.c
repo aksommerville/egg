@@ -49,6 +49,7 @@ static int inmgr_choose_playerid(const struct inmgr *inmgr) {
   int count_by_playerid[INMGR_PLAYER_LIMIT]={0};
   int i=inmgr->devicec; while (i-->0) {
     const struct inmgr_device *device=inmgr->devicev[i];
+    if (device->iskeyboard) continue; // Keyboards don't participate; they're always player 1.
     if ((device->playerid>=0)&&(device->playerid<inmgr->playerc)) {
       count_by_playerid[device->playerid]++;
     }
@@ -94,7 +95,8 @@ static void inmgr_srcbutton(struct inmgr *inmgr,int devid,int srcbtnid,int value
         case 1: case 2: case 3: x=1; break;
       }
       if (!device->playerid) {
-        device->playerid=inmgr_choose_playerid(inmgr);
+        if (!driver) { device->playerid=1; device->iskeyboard=1; } // no driver means system keyboard -- automatically player 1.
+        else device->playerid=inmgr_choose_playerid(inmgr);
         inmgr_set_button(inmgr,device->playerid,EGG_BTN_CD,1);
       }
       inmgr_set_button(inmgr,device->playerid,EGG_BTN_LEFT,(x<0));
@@ -117,7 +119,8 @@ static void inmgr_srcbutton(struct inmgr *inmgr,int devid,int srcbtnid,int value
       if (dstvalue) {
         device->state|=button->dstbtnid;
         if (!device->playerid) {
-          device->playerid=inmgr_choose_playerid(inmgr);
+          if (!driver) { device->playerid=1; device->iskeyboard=1; } // keyboard
+          else device->playerid=inmgr_choose_playerid(inmgr);
           inmgr_set_button(inmgr,device->playerid,EGG_BTN_CD,1);
           device->state|=EGG_BTN_CD;
         }

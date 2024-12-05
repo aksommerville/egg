@@ -149,7 +149,13 @@ int egg_client_init() {
   return 0;
 }
 
+static int pv1=0,pv2=0;
+
 void egg_client_update(double elapsed) {
+
+  int pstate;
+  if ((pstate=egg_input_get_one(1))!=pv1) fprintf(stderr,"Player 1: 0x%04x\n",pv1=pstate);
+  if ((pstate=egg_input_get_one(2))!=pv2) fprintf(stderr,"Player 2: 0x%04x\n",pv2=pstate);
 
   int instate=egg_input_get_one(0);
   if (instate!=pvinstate) {

@@ -55,6 +55,7 @@ static void eggrt_help_default() {
     "  --configure-input             Enter a special interactive mode to set up a gamepad.\n"
     "  --input-config=PATH           Where to load and save gamepad mappings.\n"
     "  --store=PATH                  Saved game. Blank for default, or \"none\" to disable.\n"
+    "  --store:KEY=VALUE             Add or override a store field.\n"
     "\n"
   );
   fprintf(stderr,
@@ -92,6 +93,56 @@ static int eggrt_config_set_string(char **dstpp,const char *src,int srcc) {
   }
   if (*dstpp) free(*dstpp);
   *dstpp=nv;
+  return 0;
+}
+
+/* Given a decoder containing a JSON object, and an incoming key and value string,
+ * either replace that field or append it.
+ * We guarantee to terminate (dst) on successful runs.
+ */
+ 
+static int eggrt_roll_in_json_string(struct sr_encoder *dst,struct sr_decoder *pv,const char *k,int kc,const char *v,int vc) {
+  int got=0;
+  int dstctx=sr_encode_json_object_start(dst,0,0);
+  if (dstctx<0) return dstctx;
+  if (sr_decode_json_object_start(pv)>=0) {
+    const char *pvk;
+    int pvkc;
+    while ((pvkc=sr_decode_json_next(&pvk,pv))>0) {
+      const char *pvv=0;
+      int pvvc=sr_decode_json_expression(&pvv,pv);
+      if ((pvkc==kc)&&!memcmp(pvk,k,kc)) {
+        if (sr_encode_json_string(dst,k,kc,v,vc)<0) return -1;
+        got=1;
+      } else {
+        if (sr_encode_json_preencoded(dst,pvk,pvkc,pvv,pvvc)<0) return -1;
+      }
+    }
+  }
+  if (!got) {
+    if (sr_encode_json_string(dst,k,kc,v,vc)<0) return -1;
+  }
+  if (sr_encode_json_end(dst,dstctx)<0) return -1;
+  if (sr_encoder_terminate(dst)<0) return -1;
+  return 0;
+}
+
+/* Add fake store field.
+ */
+ 
+static int eggrt_configure_store_field(const char *k,int kc,const char *v,int vc) {
+  if (!k) kc=0; else if (kc<0) { kc=0; while (k[kc]) kc++; }
+  if (!v) vc=0; else if (vc<0) { vc=0; while (v[vc]) vc++; }
+  struct sr_encoder dst={0};
+  struct sr_decoder pv={.v=eggrt.store_extra,.c=0};
+  if (pv.v) while (((char*)(pv.v))[pv.c]) pv.c++;
+  int err=eggrt_roll_in_json_string(&dst,&pv,k,kc,v,vc);
+  if (err<0) {
+    sr_encoder_cleanup(&dst);
+    return err;
+  }
+  if (eggrt.store_extra) free(eggrt.store_extra);
+  eggrt.store_extra=dst.v; // HANDOFF
   return 0;
 }
 
@@ -158,6 +209,9 @@ static int eggrt_configure_kv(const char *k,int kc,const char *v,int vc) {
   // --mono,--stereo
   if ((kc==4)&&!memcmp(k,"mono",4)) { eggrt.audio_chanc=1; return 0; }
   if ((kc==6)&&!memcmp(k,"stereo",6)) { eggrt.audio_chanc=2; return 0; }
+  
+  // --store:KEY=VALUE
+  if ((kc>=6)&&!memcmp(k,"store:",6)) return eggrt_configure_store_field(k+6,kc-6,v,vc);
   
   #define STROPT(opt,fld) if ((kc==sizeof(opt)-1)&&!memcmp(k,opt,kc)) return eggrt_config_set_string(&eggrt.fld,v,vc);
   #define INTOPT(opt,fld,lo,hi) if ((kc==sizeof(opt)-1)&&!memcmp(k,opt,kc)) { \

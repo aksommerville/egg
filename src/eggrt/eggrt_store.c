@@ -22,7 +22,7 @@ void eggrt_store_quit() {
  */
  
 static int eggrt_store_decode(const void *src,int srcc,const char *path) {
-  if (eggrt.storec) return -1;
+  if (srcc<0) { srcc=0; if (src) while (((char*)src)[srcc]) srcc++; }
   struct sr_decoder decoder={.v=src,.c=srcc};
   if (sr_decode_json_object_start(&decoder)<0) return -1;
   const char *k;
@@ -62,27 +62,42 @@ static int eggrt_store_encode(struct sr_encoder *dst) {
   return 0;
 }
 
+/* Load from file.
+ */
+ 
+static int eggrt_store_load_file(const char *path) {
+  void *src=0;
+  int srcc=file_read(&src,path);
+  if (srcc<0) {
+    fprintf(stderr,"%s: No saved game.\n",path);
+    return 0;
+  }
+  int err=eggrt_store_decode(src,srcc,path);
+  free(src);
+  if (err<0) {
+    if (err!=-2) fprintf(stderr,"%s: Malformed saved game.\n",path);
+    return -2;
+  }
+  fprintf(stderr,"%s: Loaded saved game.\n",path);
+  return 0;
+}
+
 /* Init.
  */
  
 int eggrt_store_init() {
-  if (!eggrt.storepath) {
+  int err;
+  if (eggrt.storepath) {
+    if ((err=eggrt_store_load_file(eggrt.storepath))<0) return err;
+  } else {
     fprintf(stderr,"%s: Will not save game as --store unset.\n",eggrt.exename);
-    return 0;
   }
-  void *src=0;
-  int srcc=file_read(&src,eggrt.storepath);
-  if (srcc<0) {
-    fprintf(stderr,"%s: No saved game.\n",eggrt.storepath);
-    return 0;
+  if (eggrt.store_extra) {
+    if ((err=eggrt_store_decode(eggrt.store_extra,-1,"<command line>"))<0) return err;
+    if (eggrt.storepath) {
+      fprintf(stderr,"%s: Modified save state per command line. If it saves, these extra fields will be included.\n",eggrt.exename);
+    }
   }
-  int err=eggrt_store_decode(src,srcc,eggrt.storepath);
-  free(src);
-  if (err<0) {
-    if (err!=-2) fprintf(stderr,"%s: Malformed saved game.\n",eggrt.storepath);
-    return -2;
-  }
-  fprintf(stderr,"%s: Loaded saved game.\n",eggrt.storepath);
   return 0;
 }
 

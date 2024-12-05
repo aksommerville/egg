@@ -35,6 +35,7 @@ extern struct eggrt {
   int configure_input;
   char *storepath;
   char *inmgr_path;
+  char *store_extra; // JSON, composed from '--store:KEY=VALUE' args
   
   // eggrt_romsrc.c:
   const void *romserial;

@@ -83,10 +83,12 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Envelope editor: Don't create points on a single click. Require double-click or a modifier key.
 - - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
 - - [ ] Envelope editor: Option to sync time scale across all envelope editors.
-- [ ] Some means of funnelling command line args to the client. Thinking about how to disable a Quit option for kiosks, but of course there's lots of use cases.
-- [ ] Input first from keyboard, then the first joystick you pick up should also get player 1, but it currently gets player 2.
+- [x] Some means of funnelling command line args to the client. Thinking about how to disable a Quit option for kiosks, but of course there's lots of use cases.
+- - Added "--store:KEY=VALUE". Beware that they persist.
+- [x] Input first from keyboard, then the first joystick you pick up should also get player 1, but it currently gets player 2.
 - [x] printf clamps float whole parts at 999999999. That's a problem for timestamps.
-- [ ] Web runtime: Can we have it ignore unprocessed F-key events? (and others?) It's annoying when F12 doesn't open the dev tools.
+- [x] Web runtime: Can we have it ignore unprocessed F-key events? (and others?) It's annoying when F12 doesn't open the dev tools.
+- - lol it already worked like this but some fool assigned F12 to EGG_SIGNAL_PAUSE. Moved to F5.
 
 ## Third-Party Code
 

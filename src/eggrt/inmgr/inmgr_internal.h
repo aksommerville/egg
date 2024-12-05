@@ -28,6 +28,7 @@ struct inmgr_device {
   int devid;
   int state;
   int playerid;
+  int iskeyboard;
   struct inmgr_device_button *buttonv;
   int buttonc,buttona;
 };
