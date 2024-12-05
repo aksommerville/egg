@@ -20,14 +20,19 @@ export class Song {
     this.repeat = repeat;
     this.nextEventTime = 0;
     this.finished = false;
+    this.node = new GainNode(ctx, { gain: 1.0 });
+    this.node.connect(ctx.destination);
     this.channels = this.egs.channels.map(ch => {
       if (!ch) return null;
-      return new Channel(ch, ctx, globalTrim);
+      return new Channel(ch, ctx, this.node, globalTrim);
     });
   }
   
   cancel(ctx) {
     this.finished = true;
+    this.node.gain.setValueAtTime(1.0, ctx.currentTime);
+    this.node.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 0.250);
+    window.setTimeout(() => this.node.disconnect(), 250);
     for (const ch of this.channels) {
       if (!ch) continue;
       ch.cancel(ctx);

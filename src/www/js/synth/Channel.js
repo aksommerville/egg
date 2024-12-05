@@ -11,13 +11,14 @@ export class Channel {
 
   /* (src) must be from SynthFormats.splitEgs().channels, and not null.
    */
-  constructor(src, ctx, globalTrim) {
+  constructor(src, ctx, dst, globalTrim) {
     this.chid = src.chid;
     this.trim = src.trim / 255.0;
     this.trim *= globalTrim;
     this.mode = src.mode;
     this.decode(src.v, ctx);
     this.inflight = []; // {time,tail}
+    this.dst = dst;
   }
   
   decode(src, ctx) {
@@ -38,12 +39,6 @@ export class Channel {
       for (const voice of this.inflight) {
         if (voice.time >= ctx.currentTime) {
           voice.tail.disconnect();
-        } else {
-          if (voice.tail.gain) {
-            voice.tail.gain.setValueAtTime(voice.tail.gain.value, ctx.currentTime);
-            voice.tail.gain.cancelScheduledValues(ctx.currentTime);
-            voice.tail.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.200);
-          }
         }
       }
     }
@@ -86,7 +81,7 @@ export class Channel {
     }
     
     tail.connect(env);
-    env.connect(ctx.destination);
+    env.connect(this.dst);
     if (osc) {
       osc.start(when);
       osc.stop(plan[plan.length - 1].t);
@@ -141,11 +136,11 @@ export class Channel {
     });
     let endNode = sourceNode;
     if (trim === 1.0) {
-      sourceNode.connect(ctx.destination);
+      sourceNode.connect(this.dst);
     } else {
       const gainNode = new GainNode(ctx, { gain: trim });
       sourceNode.connect(gainNode);
-      gainNode.connect(ctx.destination);
+      gainNode.connect(this.dst);
       endNode = gainNode;
     }
     this.inflight.push({ time: when, tail: endNode });

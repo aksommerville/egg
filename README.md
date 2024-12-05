@@ -86,6 +86,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Some means of funnelling command line args to the client. Thinking about how to disable a Quit option for kiosks, but of course there's lots of use cases.
 - [ ] Input first from keyboard, then the first joystick you pick up should also get player 1, but it currently gets player 2.
 - [x] printf clamps float whole parts at 999999999. That's a problem for timestamps.
+- [ ] Web runtime: Can we have it ignore unprocessed F-key events? (and others?) It's annoying when F12 doesn't open the dev tools.
 
 ## Third-Party Code
 
