@@ -82,4 +82,9 @@ int inmgr_tm_synthesize_hat(struct inmgr_tm *tm,int srcbtnid,int lo,int hi);
  */
 int inmgr_install_tm_over(struct inmgr *inmgr,struct inmgr_tm *tm_HANDOFF);
 
+/* Dangerously attempt to delete every device, then simulate reconnection so they find the latest template.
+ * Do this after installing new templates on the fly.
+ */
+int inmgr_reconnect_all(struct inmgr *inmgr);
+
 #endif

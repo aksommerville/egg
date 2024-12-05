@@ -392,6 +392,7 @@ static void incfg_finish(struct incfg *incfg,int commit) {
       if (inmgr_install_tm_over(eggrt.inmgr,tm)<0) { // HANDOFF on success
         inmgr_tm_del(tm);
       } else {
+        inmgr_reconnect_all(eggrt.inmgr);
         // Force them to sync now, in case main quits when we close.
         inmgr_update(eggrt.inmgr);
       }

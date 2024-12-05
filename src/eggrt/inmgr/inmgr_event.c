@@ -272,3 +272,58 @@ void inmgr_event_disconnect(struct inmgr *inmgr,struct hostio_input *driver,int 
   inmgr_drop_device_by_devid(inmgr,devid);
   inmgr_check_cd(inmgr);
 }
+
+/* Find driver for a given devid.
+ */
+ 
+static struct hostio_input *inmgr_find_driver(struct inmgr *inmgr,int devid) {
+  int di=eggrt.hostio->inputc;
+  while (di-->0) {
+    struct hostio_input *driver=eggrt.hostio->inputv[di];
+    if (!driver->type->devid_by_index) continue;
+    int p=0;
+    for (;;p++) {
+      int q=driver->type->devid_by_index(driver,p);
+      if (q<=0) break;
+      if (q==devid) return driver;
+    }
+  }
+  return 0;
+}
+
+/* Disconnect and reconnect all devices.
+ */
+ 
+int inmgr_reconnect_all(struct inmgr *inmgr) {
+  if (inmgr->devicec<1) return 0;
+  
+  // Cache all extant devid.
+  int devc=inmgr->devicec;
+  int *devidv=malloc(sizeof(int)*devc);
+  if (!devidv) return -1;
+  int i=devc;
+  while (i-->0) devidv[i]=inmgr->devicev[i]->devid;
+  int kbddevid=inmgr->syskbd;
+  
+  // Drop all devices.
+  inmgr_drop_device_by_devid(inmgr,kbddevid);
+  inmgr->syskbd=0;
+  for (i=devc;i-->0;) inmgr_drop_device_by_devid(inmgr,devidv[i]);
+  
+  // Reconnect system keyboard.
+  if (kbddevid) {
+    if (inmgr_welcome_device(inmgr,0,0,0,"System Keyboard",15,0,kbddevid)) {
+      inmgr->syskbd=kbddevid;
+    }
+  }
+  
+  // Reconnect joysticks.
+  for (i=devc;i-->0;) {
+    struct hostio_input *driver=inmgr_find_driver(inmgr,devidv[i]);
+    if (!driver) continue;
+    inmgr_event_connect(inmgr,driver,devidv[i]);
+  }
+  
+  free(devidv);
+  return 0;
+}
