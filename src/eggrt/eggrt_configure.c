@@ -354,6 +354,84 @@ static char *eggrt_configure_default_store() {
   return 0;
 }
 
+/* Compose path with a prefix and suffix.
+ * No output if prefix is null or empty, and we always terminate and never report something longer than fits.
+ */
+ 
+static int eggrt_input_path_with_suffix(char *dst,int dsta,const char *pfx,const char *sfx) {
+  if (!pfx||!pfx[0]) return -1;
+  int pfxc=0; while (pfx[pfxc]) pfxc++;
+  int sfxc=0; while (sfx[sfxc]) sfxc++;
+  int dstc=pfxc+sfxc;
+  if (dstc>=dsta) return -1;
+  memcpy(dst,pfx,pfxc);
+  memcpy(dst+pfxc,sfx,sfxc);
+  dst[dstc]=0;
+  return dstc;
+}
+
+/* Compose path to the default global input file: ~/.egg/input
+ * If it doesn't fit, or we can't resolve '~', return <0.
+ */
+ 
+static int eggrt_input_path_home_egg(char *dst,int dsta) {
+  int dstc;
+
+  const char *HOME=getenv("HOME");
+  if ((dstc=eggrt_input_path_with_suffix(dst,dsta,HOME,"/.egg/input"))>0) return dstc;
+  
+  const char *USER=getenv("USER");
+  if (USER&&USER[0]) {
+    //TODO Linux, MacOS, or Windows? They all structure it differently.
+    int userc=0; while (USER[userc]) userc++;
+    dstc=6+userc+11;
+    if (dstc>=dsta) return -1;
+    memcpy(dst,"/home/",6);
+    memcpy(dst+6,USER,userc);
+    memcpy(dst+6+userc,"/.egg/input",11);
+    dst[dstc]=0;
+    return dstc;
+  }
+  
+  return -1;
+}
+
+/* Make up default value for inmgr_path.
+ */
+ 
+static char *eggrt_configure_default_input() {
+  char path[1024];
+  int pathc;
+  #define RETURNIT { \
+    char *dst=malloc(pathc+1); \
+    if (!dst) return 0; \
+    memcpy(dst,path,pathc); \
+    dst[pathc]=0; \
+    return dst; \
+  }
+  
+  // "{ROM}.input" if the file exists.
+  if ((pathc=eggrt_input_path_with_suffix(path,sizeof(path),eggrt.rompath,".input"))>0) {
+    if (file_get_type(path)=='f') RETURNIT
+  }
+  
+  // "{EXE}.input" if the file exists.
+  if ((pathc=eggrt_input_path_with_suffix(path,sizeof(path),eggrt.exename,".input"))>0) {
+    if (file_get_type(path)=='f') RETURNIT
+  }
+  
+  // "~/.egg/input" if it exists.
+  if ((pathc=eggrt_input_path_home_egg(path,sizeof(path)))>0) {
+    if (file_get_type(path)=='f') RETURNIT
+    // Create the directory if needed, and then "~/.egg/input" is still our answer.
+    if (dir_mkdirp_parent(path)<0) return 0;
+    RETURNIT
+  }
+  
+  #undef RETURNIT
+  return 0;
+}
+
 /* List languages supported by the user, in consultation with OS.
  * Never returns >dsta.
  */
@@ -458,6 +536,12 @@ static int eggrt_configure_final() {
   else if (!strcmp(eggrt.storepath,"none")) {
     free(eggrt.storepath);
     eggrt.storepath=0;
+  }
+  
+  // Default (inmgr_path) if not provided, best effort.
+  if (!eggrt.inmgr_path) {
+    eggrt.inmgr_path=eggrt_configure_default_input();
+    fprintf(stderr,"%s: Selected input config '%s'\n",eggrt.exename,eggrt.inmgr_path);
   }
   
   // If (inmgr_path) unset, asking for (configure_input) is a hard error.

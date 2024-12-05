@@ -44,7 +44,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [x] Launch game.
 - [ ] Native runner.
 - - [x] --configure-input for true native (and presumably other cases, when a game is present): Must apply the new config live, in addition to saving it.
-- - [ ] Default input config path.
+- - [x] Default input config path.
 - - [ ] Config files
 - - [ ] User's language for MacOS and Windows.
 - - [ ] MacOS drivers
