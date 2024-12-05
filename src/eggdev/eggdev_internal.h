@@ -30,6 +30,7 @@ extern struct eggdev {
   const char **htdocsv;
   int htdocsc,htdocsa;
   const char *writepath;
+  const char *gamehtml;
   int port;
   int external;
   const char *lang; // null, "all", or a two-letter code.

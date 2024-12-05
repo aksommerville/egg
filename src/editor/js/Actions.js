@@ -11,16 +11,20 @@ import { MetadataEditor } from "./MetadataEditor.js";
 import { StringsEditor } from "./StringsEditor.js";
 import { WavEditor } from "./audio/WavEditor.js";
 import { SongEditor } from "./audio/SongEditor.js";
+import { LaunchService } from "./LaunchService.js";
  
 export class Actions {
   static getDependencies() {
-    return [Custom];
+    return [Custom, LaunchService];
   }
-  constructor(custom) {
+  constructor(custom, launchService) {
+    this.launchService = launchService;
+    
     this.ops = [
+      { op: "launch", label: "Launch", fn: () => this.launchService.launch() },
       ...custom.getActions(),
-      //TODO Standard Actions. {op,label,fn}
     ];
+    
     this.editors = [
       ...custom.getEditors(),
       MetadataEditor,

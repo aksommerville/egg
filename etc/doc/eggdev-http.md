@@ -57,3 +57,8 @@ TODO Can we get playhead feedback over a WebSocket?
 `POST /api/compile?srcfmt=NAME&dstfmt=NAME`
 
 Run one resource through the standard compiler or uncompiler.
+
+`GET /api/gamehtml`
+
+Returns the path for the game's final HTML output, as provided via `--gamehtml=PATH`.
+For launching game in the editor.

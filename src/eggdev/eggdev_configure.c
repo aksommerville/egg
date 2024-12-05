@@ -79,7 +79,7 @@ static void eggdev_print_help_validate() {
  */
  
 static void eggdev_print_help_serve() {
-  fprintf(stderr,"\nUsage: %s serve [--htdocs=[PFX:]PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n\n",eggdev.exename);
+  fprintf(stderr,"\nUsage: %s serve [--htdocs=[PFX:]PATH...] [--write=PATH] [--gamehtml=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n\n",eggdev.exename);
   fprintf(stderr,
     "Run the dev server, mostly a generic HTTP server.\n"
     "BEWARE: This server is not hardened for use on untrusted networks.\n"
@@ -189,7 +189,7 @@ static void eggdev_print_help_default() {
     "    bundle -oEXE|HTML ROM [LIB|--recompile]\n"
     "      list ROM|EXE|HTML|DIRECTORY [-fFORMAT]\n"
     "  validate ROM|EXE|HTML|DIRECTORY\n"
-    "     serve [--htdocs=[PFX:]PATH...] [--write=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n"
+    "     serve [--htdocs=[PFX:]PATH...] [--write=PATH] [--gamehtml=PATH] [--port=INT] [--external] [--default-rom=REQPATH] [--audio=DRIVER...]\n"
     "    config [KEYS...]\n"
     "      dump ROM TYPE:ID\n"
     "   project\n"
@@ -296,6 +296,11 @@ static int eggdev_configure_kv(const char *k,int kc,const char *v,int vc) {
       return -2;
     }
     eggdev.writepath=v;
+    return 0;
+  }
+  
+  if ((kc==8)&&!memcmp(k,"gamehtml",8)) {
+    eggdev.gamehtml=v;
     return 0;
   }
   

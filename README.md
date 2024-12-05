@@ -40,8 +40,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
-- [ ] Editor.
-- - [ ] Launch game.
+- [x] Editor.
+- - [x] Launch game.
 - [ ] Native runner.
 - - [ ] --configure-input for true native (and presumably other cases, when a game is present): Must apply the new config live, in addition to saving it.
 - - [ ] Default input config path.
@@ -51,7 +51,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Windows drivers
 - - [ ] Input assignments to player appear to be willy-nilly. Must assign player 1 as the first device touched.
 - - - Also, keyboard is supposed to always be player 1, and that didn't happen.
-- [x] Bundled HTML has a canvas width of 960px. Is that hard-coded somewhere? It's not appropriate for Spelling Bee's 360px framebuffer.
 - [ ] Web runner.
 - - [ ] Input config.
 - [ ] Rich set of client-side helper libraries.
@@ -60,7 +59,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.
 - [ ] Validate eject.
-- [x] Consider adding a uniform "linearFilter" parameter to mode7 blit.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
 - [ ] native: Neuter synth when dummy output.
 - [ ] Standard map and sprite support. Prove it out further in Spelling Bee, then migrate here.
@@ -83,12 +81,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Envelope editor: Don't create points on a single click. Require double-click or a modifier key.
 - - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
 - - [ ] Envelope editor: Option to sync time scale across all envelope editors.
-- [x] Some means of funnelling command line args to the client. Thinking about how to disable a Quit option for kiosks, but of course there's lots of use cases.
-- - Added "--store:KEY=VALUE". Beware that they persist.
-- [x] Input first from keyboard, then the first joystick you pick up should also get player 1, but it currently gets player 2.
-- [x] printf clamps float whole parts at 999999999. That's a problem for timestamps.
-- [x] Web runtime: Can we have it ignore unprocessed F-key events? (and others?) It's annoying when F12 doesn't open the dev tools.
-- - lol it already worked like this but some fool assigned F12 to EGG_SIGNAL_PAUSE. Moved to F5.
 
 ## Third-Party Code
 
