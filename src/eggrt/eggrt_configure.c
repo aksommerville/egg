@@ -1,6 +1,8 @@
 #include "eggrt_internal.h"
 #include "opt/serial/serial.h"
 
+static int eggrt_input_path_with_suffix(char *dst,int dsta,const char *pfx,const char *sfx);
+
 /* --version
  */
  
@@ -37,6 +39,10 @@ static void eggrt_help_default() {
     fprintf(stderr,"\nUsage: %s [OPTIONS] ROM\n\n",eggrt.exename);
   }
   fprintf(stderr,
+    "An environment variable EGG_CONFIG may name a file with KEY=VALUE lines, using the options listed here.\n"
+    "If unset, we read from ~/.egg/egg.cfg.\n"
+    "Options on the command-line override those in the config file.\n"
+    "\n"
     "OPTIONS:\n"
     "  --help[=TOPIC]                Print canned documentation, see below.\n"
     "  --lang=ISO639                 Set language. Overrides environment.\n"
@@ -188,12 +194,12 @@ static int eggrt_configure_kv(const char *k,int kc,const char *v,int vc) {
   
   // --window
   if ((kc==6)&&!memcmp(k,"window",6)) {
-    int i=kc; while (i-->0) {
-      if (k[i]=='x') {
+    int i=vc; while (i-->0) {
+      if (v[i]=='x') {
         int w,h;
         if (
-          (sr_int_eval(&w,k,i)>=2)&&
-          (sr_int_eval(&h,k+i+1,kc-i-1)>=2)&&
+          (sr_int_eval(&w,v,i)>=2)&&
+          (sr_int_eval(&h,v+i+1,vc-i-1)>=2)&&
           (w>=1)&&(w<=4096)&&(h>=1)&&(h<=4096)
         ) {
           eggrt.window_w=w;
@@ -313,6 +319,72 @@ static int eggrt_configure_argv(int argc,char **argv) {
       return -2;
     }
   }
+  return 0;
+}
+
+/* Apply the text of a config file.
+ */
+ 
+static int eggrt_configure_text(const char *src,int srcc,const char *path) {
+  struct sr_decoder decoder={.v=src,.c=srcc};
+  const char *line;
+  int linec,lineno=1;
+  for (;(linec=sr_decode_line(&line,&decoder))>0;lineno++) {
+    while (linec&&((unsigned char)line[0]<=0x20)) { linec--; line++; }
+    while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
+    if (!linec||(line[0]=='#')) continue;
+    
+    const char *k=line;
+    int kc=0;
+    int linep=0;
+    while ((linep<linec)&&(line[linep++]!='=')) kc++;
+    while (kc&&((unsigned char)k[kc-1]<=0x20)) kc--;
+    const char *v=line+linep;
+    int vc=linec-linep;
+    
+    if (
+      ((kc==4)&&!memcmp(k,"help",4))||
+      ((kc==15)&&!memcmp(k,"configure-input",15))||
+    0) {
+      fprintf(stderr,"%s:%d:WARNING: Option '%.*s' is forbidden in config files. Ignoring.\n",path,lineno,kc,k);
+      continue;
+    }
+    
+    int err=eggrt_configure_kv(k,kc,v,vc);
+    if (err<0) {
+      fprintf(stderr,"%s:%d: Error applying config field '%.*s' = '%.*s'\n",path,lineno,kc,k,vc,v);
+      return -2;
+    }
+  }
+  return 0;
+}
+
+/* Read a text file and apply each line as a config field.
+ */
+ 
+static int eggrt_configure_file(const char *path) {
+  if (!path||!path[0]) return -1;
+  char *src=0;
+  int srcc=file_read(&src,path);
+  if (srcc<0) {
+    fprintf(stderr,"%s: Failed to read file. Using default global configuration.\n",path);
+    return 0;
+  }
+  fprintf(stderr,"%s: Applying global configuration.\n",path);
+  int err=eggrt_configure_text(src,srcc,path);
+  free(src);
+  return err;
+}
+
+/* Configure from the file named in EGG_CONFIG, or a default.
+ */
+ 
+static int eggrt_configure_mainfile() {
+  const char *path=getenv("EGG_CONFIG");
+  if (path&&path[0]) return eggrt_configure_file(path);
+  char tmp[1024];
+  int tmpc=eggrt_input_path_with_suffix(tmp,sizeof(tmp),getenv("HOME"),"/.egg/egg.cfg");
+  if (tmpc>0) return eggrt_configure_file(tmp);
   return 0;
 }
 
@@ -541,7 +613,6 @@ static int eggrt_configure_final() {
   // Default (inmgr_path) if not provided, best effort.
   if (!eggrt.inmgr_path) {
     eggrt.inmgr_path=eggrt_configure_default_input();
-    fprintf(stderr,"%s: Selected input config '%s'\n",eggrt.exename,eggrt.inmgr_path);
   }
   
   // If (inmgr_path) unset, asking for (configure_input) is a hard error.
@@ -567,8 +638,7 @@ int eggrt_configure(int argc,char **argv) {
   if ((argc>=1)&&argv&&argv[0]&&argv[0][0]) eggrt.exename=argv[0];
   else eggrt.exename="egg";
   
-  //TODO Config files.
-  //TODO Environment?
+  if ((err=eggrt_configure_mainfile())<0) return err;
   if ((err=eggrt_configure_argv(argc,argv))<0) return err;
   
   return eggrt_configure_final();
