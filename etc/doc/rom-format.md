@@ -27,18 +27,24 @@ It is beneficial to assign (rid) contiguously from 1 for each type.
 
 ## Types
 
-| tid     | Name     | Comment |
-|---------|----------|---------|
-| 0       |          | Illegal. |
-| 1       | metadata | Required, rid must be 1. See metadata-format.md. |
-| 2       | code     | Required, rid must be 1. WebAssembly module. |
-| 3       | strings  | rid is 6 bits, with language in the top 10 bits. See strings-format.md. |
-| 4       | image    | Recommend PNG. See image-format.md. |
-| 5       | sound    | See audio-format.md. |
-| 6       | song     | See audio-format.md. |
-| 7..15   |          | Reserved for future standard types. |
-| 16..127 |          | Reserved for client use. |
-| 128..   |          | Reserved, no plan. |
+| tid     | Name      | Comment |
+|---------|-----------|---------|
+| 0       |           | Illegal. |
+| 1       | metadata  | Required, rid must be 1. See metadata-format.md. |
+| 2       | code      | Required, rid must be 1. WebAssembly module. |
+| 3       | strings   | rid is 6 bits, with language in the top 10 bits. See strings-format.md. |
+| 4       | image     | Recommend PNG. See image-format.md. |
+| 5       | sound     | See audio-format.md. |
+| 6       | song      | See audio-format.md. |
+| 7       | map       | Convenience. See map-format.md. |
+| 8       | tilesheet | Convenience. See tilesheet-format.md. |
+| 9       | sprite    | Convenience. See sprite-format.md. |
+| 10..15  |           | Reserved for future standard types. |
+| 16..127 |           | Reserved for client use. |
+| 128..   |           | Reserved, no plan. |
+
+The ones marked "Convenience" are Standard Types, but not actually used by our runtime.
+They're defined standard in order to provide tooling, because they can get pretty complex.
 
 ## Layout On Disk
 

@@ -88,13 +88,19 @@ void egg_set_language(int lang);
 #define EGG_TID_image 4
 #define EGG_TID_sound 5
 #define EGG_TID_song 6
+#define EGG_TID_map 7
+#define EGG_TID_tilesheet 8
+#define EGG_TID_sprite 9
 #define EGG_TID_FOR_EACH \
   _(metadata) \
   _(code) \
   _(strings) \
   _(image) \
   _(sound) \
-  _(song)
+  _(song) \
+  _(map) \
+  _(tilesheet) \
+  _(sprite)
 
 /* Copy the entire ROM file into (dst) and return its length.
  * If too long, we return the correct length and don't touch (dst).

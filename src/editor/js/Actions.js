@@ -12,6 +12,10 @@ import { StringsEditor } from "./StringsEditor.js";
 import { WavEditor } from "./audio/WavEditor.js";
 import { SongEditor } from "./audio/SongEditor.js";
 import { LaunchService } from "./LaunchService.js";
+import { MapEditor } from "./map/MapEditor.js";
+import { SpriteEditor } from "./map/SpriteEditor.js";
+import { TilesheetEditor } from "./map/TilesheetEditor.js";
+import { CommandListEditor } from "./map/CommandListEditor.js";
  
 export class Actions {
   static getDependencies() {
@@ -27,11 +31,15 @@ export class Actions {
     
     this.editors = [
       ...custom.getEditors(),
+      MapEditor,
+      SpriteEditor,
+      TilesheetEditor,
       MetadataEditor,
       StringsEditor,
       ImageEditor,
       WavEditor,
       SongEditor,
+      CommandListEditor,
       TextEditor,
       HexEditor,
     ];

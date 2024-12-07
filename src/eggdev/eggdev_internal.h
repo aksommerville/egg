@@ -43,11 +43,33 @@ extern struct eggdev {
   int audio_buffer;
   const char *audio_device;
   int repeat;
+  const char **schemasrcv;
+  int schemasrcc,schemasrca;
   
   struct http_context *http;
   struct hostio *hostio; // (serve). We only use audio, and (hostio) is null if not in use.
   struct synth *synth;
   volatile int terminate;
+  
+  /* Command list schemae and namespaces.
+   */
+  struct eggdev_cmd_entry {
+    int tid;
+    struct eggdev_command_list_schema *v;
+    int c,a;
+  } *cmd_entryv;
+  int cmd_entryc,cmd_entrya;
+  struct eggdev_namespace {
+    char *ns;
+    int nsc;
+    struct eggdev_ns_entry {
+      char *name;
+      int namec;
+      int id;
+    } *entryv;
+    int entryc,entrya;
+  } *namespacev;
+  int namespacec,namespacea;
   
 } eggdev;
 
@@ -109,6 +131,12 @@ int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom); // eggd
 int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom); // ''
 int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom);
 int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_map(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_map(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_tilesheet(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_tilesheet(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_sprite(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_uncompile_sprite(struct eggdev_res *res,struct eggdev_rom *rom);
 
 /* Generic anything-to-anything conversion for anything serializable that doesn't depend on external context.
  */
@@ -145,5 +173,32 @@ void eggdev_hexdump(const void *src,int srcc);
 /* Never returns negative or >dsta, and output is lowercase.
  */
 int eggdev_normalize_suffix(char *dst,int dsta,const char *src,int srcc);
+
+struct eggdev_command_list_schema {
+  const char *name; // Null to terminate schema list, otherwise must be a C identifier.
+  uint8_t opcode; // Zero to skip compilation.
+  const char *args; // TODO format
+};
+int eggdev_command_list_compile(
+  struct sr_encoder *dst,
+  const char *src,int srcc,
+  const char *refname,int lineno0,
+  const struct eggdev_command_list_schema *schema,int schemac,
+  struct eggdev_rom *rom
+);
+int eggdev_command_list_uncompile(
+  struct sr_encoder *dst,
+  const uint8_t *src,int srcc,
+  const char *refname,
+  const struct eggdev_command_list_schema *schema,int schemac,
+  struct eggdev_rom *rom
+);
+
+/* These lazy-load the cache.
+ */
+int eggdev_command_list_schema_lookup(const struct eggdev_command_list_schema **dstpp,int tid,struct eggdev_rom *rom);
+int eggdev_namespace_lookup(int *v,const char *ns,int nsc,const char *token,int tokenc,struct eggdev_rom *rom);
+int eggdev_namespace_name_from_id(const char **dstpp,const char *ns,int nsc,int id,struct eggdev_rom *rom);
+void eggdev_command_list_require(struct eggdev_rom *rom); // Load everything. Caller can then read it all out of globals.
 
 #endif

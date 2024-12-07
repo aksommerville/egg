@@ -40,21 +40,19 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
-- [x] Editor.
-- - [x] Launch game.
 - [ ] Native runner.
-- - [x] --configure-input for true native (and presumably other cases, when a game is present): Must apply the new config live, in addition to saving it.
-- - [x] Default input config path.
-- - [x] Config files
 - - [ ] User's language for MacOS and Windows.
+- - [ ] Home directory for MacOS and Windows.
 - - [ ] MacOS drivers
 - - [ ] Windows drivers
-- - [ ] Input assignments to player appear to be willy-nilly. Must assign player 1 as the first device touched.
-- - - Also, keyboard is supposed to always be player 1, and that didn't happen.
+- - [ ] MacOS: WABT, WAMR, and clang. Trouble is brewing here... Can we get all three tools to run on the old MacBook?
 - [ ] Web runner.
 - - [ ] Input config.
 - [ ] Rich set of client-side helper libraries.
-- - [ ] Maps?
+- - [ ] Maps, sprites, tilesheets.
+- - [ ] State engine and persistence.
+- [ ] eggdev: Store a rom globally, it's cumbersome to keep passing it around like we do. And how often will there be more than one?
+- [ ] eggdev and specs: Collapse CMD_ and NS_ into a single set of things, and key internally on strings rather than tid.
 - [ ] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama?
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.

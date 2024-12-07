@@ -62,3 +62,21 @@ Run one resource through the standard compiler or uncompiler.
 
 Returns the path for the game's final HTML output, as provided via `--gamehtml=PATH`.
 For launching game in the editor.
+
+`GET /api/symbols`
+
+Returns the entire digested content of namespaces declared with `--schema=PATH` arguments.
+This lets the editor share symbols with your C code.
+"CMD_" and "NS_" symbols are lumped together irreversibly.
+```
+{
+  ns: {
+    name: string;
+    sym: {
+      name: string;
+      id: number;
+      args: string;
+    }[];
+  }[];
+}
+```

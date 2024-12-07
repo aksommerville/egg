@@ -113,6 +113,68 @@ int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *sr
   // Similarly, egg_get_events() only works during egg_client_update().
 }
 
+/* 2024-12-06: Testing map, tilesheet, and sprite as I build them out.
+ ***************************************************************/
+ 
+static void dump_map(const struct rom_res *res) {
+  fprintf(stderr,"map:%d, %d bytes\n",res->rid,res->c);
+  struct rom_map map;
+  if (rom_map_decode(&map,res->v,res->c)<0) {
+    fprintf(stderr,"map:%d failed to decode!\n",res->rid);
+    return;
+  }
+  fprintf(stderr,"map:%d %dx%d\n",res->rid,map.w,map.h);
+  struct rom_command_reader reader={.v=map.cmdv,.c=map.cmdc};
+  struct rom_command cmd;
+  while (rom_command_reader_next(&cmd,&reader)>0) {
+    fprintf(stderr,"  cmd %02x, %d bytes payload\n",cmd.opcode,cmd.argc);
+  }
+}
+ 
+static void dump_tilesheet(const struct rom_res *res) {
+  fprintf(stderr,"tilesheet:%d, %d bytes\n",res->rid,res->c);
+  struct rom_tilesheet_reader reader;
+  if (rom_tilesheet_reader_init(&reader,res->v,res->c)<0) {
+    fprintf(stderr,"tilesheet:%d failed to decode!\n",res->rid);
+    return;
+  }
+  struct rom_tilesheet_entry entry;
+  while (rom_tilesheet_reader_next(&entry,&reader)>0) {
+    fprintf(stderr,"  tableid=0x%02x tileid=0x%02x c=%d\n",entry.tableid,entry.tileid,entry.c);
+  }
+}
+ 
+static void dump_sprite(const struct rom_res *res) {
+  fprintf(stderr,"sprite:%d, %d bytes\n",res->rid,res->c);
+  struct rom_sprite sprite;
+  if (rom_sprite_decode(&sprite,res->v,res->c)<0) {
+    fprintf(stderr,"sprite:%d failed to decode!\n",res->rid);
+    return;
+  }
+  struct rom_command_reader reader={.v=sprite.cmdv,.c=sprite.cmdc};
+  struct rom_command cmd;
+  while (rom_command_reader_next(&cmd,&reader)>0) {
+    fprintf(stderr,"  cmd %02x, %d bytes payload\n",cmd.opcode,cmd.argc);
+  }
+}
+ 
+static void dump_new_standard_resources() {
+  romc=egg_get_rom(0,0);
+  if (!(rom=malloc(romc))) return;
+  if (egg_get_rom(rom,romc)!=romc) return;
+  struct rom_reader reader={0};
+  if (rom_reader_init(&reader,rom,romc)<0) return;
+  struct rom_res *res;
+  while (res=rom_reader_next(&reader)) {
+    //fprintf(stderr,"%d:%d %d\n",res->tid,res->rid,res->c);
+    switch (res->tid) {
+      case EGG_TID_map: dump_map(res); break;
+      case EGG_TID_tilesheet: dump_tilesheet(res); break;
+      case EGG_TID_sprite: dump_sprite(res); break;
+    }
+  }
+}
+
 /* Entry points.
  **************************************************************/
 
@@ -121,6 +183,13 @@ void egg_client_quit(int status) {
 }
 
 int egg_client_init() {
+
+  if (1) {
+    dump_new_standard_resources();
+    fprintf(stderr,"%s aborting, we're just dumping the new resources\n",__func__);
+    return -1;
+  }
+
   fprintf(stderr,"%d function %s was called, around %s:%d. %d!\n",123,__func__,__FILE__,__LINE__,789);
   test_full_api();
   fprintf(stderr,"test_full_api ok\n");

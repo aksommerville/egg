@@ -4,11 +4,12 @@
  */
  
 static void eggdev_print_help_pack() {
-  fprintf(stderr,"\nUsage: %s pack -oROM DIRECTORY...\n\n",eggdev.exename);
+  fprintf(stderr,"\nUsage: %s pack -oROM DIRECTORY... [--schema=PATH...]\n\n",eggdev.exename);
   fprintf(stderr,
     "Generate a ROM file from loose inputs.\n"
     "IDs within each input must be unique.\n"
     "Across different inputs, the later one overrides the earlier.\n"
+    "--schema names C header files that can be scanned for symbols used in the resources.\n"
     "ROM files, executables, and HTML bundles are also accepted as input.\n"
     "So we also serve as the reverse of 'eggdev bundle'.\n"
     "\n"
@@ -19,11 +20,12 @@ static void eggdev_print_help_pack() {
  */
  
 static void eggdev_print_help_unpack() {
-  fprintf(stderr,"\nUsage: %s unpack -oDIRECTORY ROM|EXE|HTML [--raw]\n\n",eggdev.exename);
+  fprintf(stderr,"\nUsage: %s unpack -oDIRECTORY ROM|EXE|HTML [--raw] [--schema=PATH...]\n\n",eggdev.exename);
   fprintf(stderr,
     "Extract all resources into a new directory.\n"
     "By default, we will try to reformat standard types to the preferred input format.\n"
     "Use '--raw' to suppress that behavior, and output resources exactly as stored.\n"
+    "--schema names C header files that can be scanned for symbols used in the resources. Very optional.\n"
     "\n"
   );
 }
@@ -184,8 +186,8 @@ static void eggdev_print_help_default() {
   fprintf(stderr,"\nUsage: %s COMMAND -oOUTPUT [INPUT...] [OPTIONS]\n\n",eggdev.exename);
   fprintf(stderr,
     "Try --help=COMMAND for more detail:\n"
-    "      pack -oROM DIRECTORY...\n"
-    "    unpack -oDIRECTORY ROM|EXE|HTML [--raw]\n"
+    "      pack -oROM DIRECTORY... [--schema=PATH...]\n"
+    "    unpack -oDIRECTORY ROM|EXE|HTML [--raw] [--schema=PATH...]\n"
     "    bundle -oEXE|HTML ROM [LIB|--recompile]\n"
     "      list ROM|EXE|HTML|DIRECTORY [-fFORMAT]\n"
     "  validate ROM|EXE|HTML|DIRECTORY\n"
@@ -287,6 +289,19 @@ static int eggdev_configure_kv(const char *k,int kc,const char *v,int vc) {
       eggdev.htdocsa=na;
     }
     eggdev.htdocsv[eggdev.htdocsc++]=v;
+    return 0;
+  }
+  
+  if ((kc==6)&&!memcmp(k,"schema",6)) {
+    if (eggdev.schemasrcc>=eggdev.schemasrca) {
+      int na=eggdev.schemasrca+4;
+      if (na>INT_MAX/sizeof(void*)) return -1;
+      void *nv=realloc(eggdev.schemasrcv,sizeof(void*)*na);
+      if (!nv) return -1;
+      eggdev.schemasrcv=nv;
+      eggdev.schemasrca=na;
+    }
+    eggdev.schemasrcv[eggdev.schemasrcc++]=v;
     return 0;
   }
   

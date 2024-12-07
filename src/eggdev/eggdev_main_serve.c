@@ -457,6 +457,13 @@ static int eggdev_cb_get_api_gamehtml(struct http_xfer *req,struct http_xfer *rs
   return http_xfer_set_status(rsp,200,"OK");
 }
 
+/* GET /api/symbols
+ */
+ 
+static int eggdev_cb_get_api_symbols(struct http_xfer *req,struct http_xfer *rsp) {
+  return http_xfer_set_status(rsp,200,"OK");
+}
+
 /* Serve HTTP request.
  * Note that errors returned here do not fall through http_update; http handles and eats them.
  */
@@ -469,6 +476,7 @@ static int eggdev_cb_serve(struct http_xfer *req,struct http_xfer *rsp,void *use
     HTTP_METHOD_POST,"/api/sound",eggdev_cb_post_api_sound,
     HTTP_METHOD_POST,"/api/compile",eggdev_cb_post_api_compile,
     HTTP_METHOD_GET,"/api/gamehtml",eggdev_cb_get_api_gamehtml,
+    HTTP_METHOD_GET,"/api/symbols",eggdev_cb_get_api_symbols,
     HTTP_METHOD_PUT,"",eggdev_cb_put,
     HTTP_METHOD_DELETE,"",eggdev_cb_delete,
     HTTP_METHOD_GET,"",eggdev_cb_get

@@ -40,7 +40,7 @@ ifneq (,$(strip $($(NATIVE_TARGET)_AR)))
 endif
 
 demo_DATAFILES:=$(filter src/demo/data/%,$(SRCFILES)) $(demo_CODE1)
-$(demo_ROM):$(demo_DATAFILES) $(eggdev_EXE);$(PRECMD) $(eggdev_EXE) pack -o$@ src/demo/data $(demo_EXTRA_DATA)
+$(demo_ROM):$(demo_DATAFILES) $(eggdev_EXE);$(PRECMD) $(eggdev_EXE) pack -o$@ src/demo/data $(demo_EXTRA_DATA) --schema=src/demo/src/demo_symbols.h
 
 # Blank any of these if you don't want them. You do want HTML.
 demo_EXE_FAKE:=$(demo_OUTDIR)/demo.fake

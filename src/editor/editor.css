@@ -426,3 +426,24 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+.CommandListEditor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.CommandListEditor .row {
+  display: flex;
+  flex-direction: row;
+}
+.CommandListEditor .validation {
+  width: 1em;
+  height: 1em;
+  border: 1px solid #000;
+}
+.CommandListEditor .validation.valid {
+  background-color: #0f0;
+}
+.CommandListEditor .validation.invalid {
+  background-color: #f00;
+}

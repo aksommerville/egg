@@ -246,3 +246,89 @@ int rom_lookup_metadata(void *dstpp,const void *src,int srcc,const char *k,int k
   *(const void**)dstpp=mctx.vn;
   return mctx.vnc;
 }
+
+/* Map.
+ */
+ 
+int rom_map_decode(struct rom_map *map,const void *src,int srcc) {
+  const unsigned char *SRC=src;
+  if (!src||(srcc<8)) return -1;
+  if ((SRC[0]!=0x00)||(SRC[1]!='E')||(SRC[2]!='M')||(SRC[3]!='P')) return -1;
+  int srcp=4;
+  map->w=(SRC[srcp]<<8)|SRC[srcp+1]; srcp+=2;
+  map->h=(SRC[srcp]<<8)|SRC[srcp+1]; srcp+=2;
+  int cellslen=map->w*map->h;
+  if (srcp>srcc-cellslen) return -1;
+  map->v=SRC+srcp;
+  srcp+=cellslen;
+  map->cmdv=SRC+srcp;
+  map->cmdc=srcc-srcp;
+  return 0;
+}
+
+/* Sprite.
+ */
+
+int rom_sprite_decode(struct rom_sprite *sprite,const void *src,int srcc) {
+  const unsigned char *SRC=src;
+  if (!src||(srcc<4)) return -1;
+  if ((SRC[0]!=0x00)||(SRC[1]!='E')||(SRC[2]!='S')||(SRC[3]!='P')) return -1;
+  sprite->cmdv=SRC+4;
+  sprite->cmdc=srcc-4;
+  return 0;
+}
+
+/* Command list.
+ */
+
+int rom_command_reader_next(struct rom_command *command,struct rom_command_reader *reader) {
+  if (reader->p>=reader->c) return 0; // Implicit EOF, the usual case.
+  if (!reader->v[reader->p]) return 0; // Explicit EOF.
+  command->opcode=reader->v[reader->p++];
+  int paylen;
+  switch (command->opcode&0xe0) {
+    case 0x00: paylen=0; break;
+    case 0x20: paylen=2; break;
+    case 0x40: paylen=4; break;
+    case 0x60: paylen=8; break;
+    case 0x80: paylen=12; break;
+    case 0xa0: paylen=16; break;
+    case 0xc0: {
+        if (reader->p>=reader->c) return -1;
+        paylen=reader->v[reader->p++];
+      } break;
+    case 0xe0: return -1; // Reserved.
+  }
+  if (reader->p>reader->c-paylen) return -1;
+  command->argv=reader->v+reader->p;
+  reader->p+=paylen;
+  command->argc=paylen;
+  return 1;
+}
+
+/* Tilesheet.
+ */
+ 
+int rom_tilesheet_reader_init(struct rom_tilesheet_reader *reader,const void *src,int srcc) {
+  const unsigned char *SRC=src;
+  if (!src||(srcc<4)) return -1;
+  if ((SRC[0]!=0x00)||(SRC[1]!='E')||(SRC[2]!='T')||(SRC[3]!='S')) return -1;
+  reader->v=SRC+4;
+  reader->c=srcc-4;
+  reader->p=0;
+  return 0;
+}
+
+int rom_tilesheet_reader_next(struct rom_tilesheet_entry *entry,struct rom_tilesheet_reader *reader) {
+  if (reader->p>=reader->c) return 0; // Implicit EOF, the usual case.
+  if (!reader->v[reader->p]) return 0; // Explicit EOF.
+  if (reader->p>reader->c-3) return -1;
+  entry->tableid=reader->v[reader->p++];
+  entry->tileid=reader->v[reader->p++];
+  entry->c=reader->v[reader->p++]+1;
+  if (reader->p>reader->c-entry->c) return -1;
+  if (entry->tileid+entry->c>0x100) return -1;
+  entry->v=reader->v+reader->p;
+  reader->p+=entry->c;
+  return 1;
+}
