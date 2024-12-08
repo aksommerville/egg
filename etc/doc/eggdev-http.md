@@ -67,15 +67,15 @@ For launching game in the editor.
 
 Returns the entire digested content of namespaces declared with `--schema=PATH` arguments.
 This lets the editor share symbols with your C code.
-"CMD_" and "NS_" symbols are lumped together irreversibly.
 ```
 {
   ns: {
     name: string;
+    mode: "NS" | "CMD";
     sym: {
       name: string;
       id: number;
-      args: string;
+      args?: string;
     }[];
   }[];
 }

@@ -51,10 +51,9 @@ static void eggdev_sound_cb_pcm_out(int16_t *v,int c,struct hostio_audio *maybe)
 }
 
 /* sound, given final serial data.
- * (rom) might be empty.
  */
  
-static int eggdev_sound_inner(struct eggdev_rom *rom,const void *src,int srcc,const char *path) {
+static int eggdev_sound_inner(const void *src,int srcc,const char *path) {
   capture.c=0;
   samplec=0;
   lo=0;
@@ -185,17 +184,11 @@ int eggdev_main_sound() {
    */
   void *src=0;
   int srcc=0;
-  struct eggdev_rom rom={0};
   if (rompath) {
-    if ((err=eggdev_rom_add_path(&rom,rompath))<0) {
-      if (err!=-2) fprintf(stderr,"%s: Unspecified error loading ROM.\n",rompath);
-      eggdev_rom_cleanup(&rom);
-      return -2;
-    }
-    struct eggdev_res *res=eggdev_rom_res_by_string(&rom,resname,-1);
+    if ((err=eggdev_require_rom(rompath))<0) return err;
+    struct eggdev_res *res=eggdev_rom_res_by_string(eggdev.rom,resname,-1);
     if (!res) {
       fprintf(stderr,"%s: Resource '%s' not found.\n",rompath,resname);
-      eggdev_rom_cleanup(&rom);
       return -2;
     }
     src=res->serial;
@@ -215,10 +208,9 @@ int eggdev_main_sound() {
   /* Convert resource to an internal format.
    */
   struct eggdev_res res={.serial=src,.serialc=srcc};
-  if ((err=eggdev_compile_song(&res,&rom))<0) {
+  if ((err=eggdev_compile_song(&res))<0) {
     if (err!=-2) fprintf(stderr,"%s: Failed to compile sound from %d bytes input.\n",rompath?rompath:path,srcc);
     free(src);
-    eggdev_rom_cleanup(&rom);
     return -2;
   }
   src=res.serial;
@@ -230,9 +222,9 @@ int eggdev_main_sound() {
     char refname[1024];
     int refnamec=snprintf(refname,sizeof(refname),"%s:%s",rompath,resname);
     if ((refnamec<0)||(refnamec>=sizeof(refname))) refname[0]=0;
-    err=eggdev_sound_inner(&rom,src,srcc,refname);
+    err=eggdev_sound_inner(src,srcc,refname);
   } else {
-    err=eggdev_sound_inner(&rom,src,srcc,path);
+    err=eggdev_sound_inner(src,srcc,path);
   }
   if (eggdev.hostio) {
     hostio_del(eggdev.hostio);
@@ -243,6 +235,5 @@ int eggdev_main_sound() {
     eggdev.synth=0;
   }
   free(src);
-  eggdev_rom_cleanup(&rom);
   return err;
 }

@@ -7,7 +7,7 @@
 
 /* Namespace "sys" is for loose constants that the editor needs.
  */
-#define NS_sys_tilesize 16 /* pixels */
+#define NS_sys_tilesize 8 /* pixels */
 
 /* Commands for "map" resource.
  * A few are used by the editor if you define them: image, door, sprite, neighbors
@@ -41,5 +41,15 @@
 #define NS_tilesheet_physics 1
 #define NS_tilesheet_neighbors 0
 #define NS_tilesheet_family 0
+#define NS_tilesheet_weight 0
+
+/* Any tilesheet table name can also be a namespace, and we'll show the label in the editor's tile modal.
+ */
+#define NS_physics_vacant 0
+#define NS_physics_solid 1
+#define NS_physics_water 2
+#define NS_physics_pudding 3
+#define NS_physics_plasma 4
+#define NS_physics_hole 5
 
 #endif

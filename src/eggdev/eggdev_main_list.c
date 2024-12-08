@@ -8,7 +8,7 @@ static int eggdev_list_default(const struct eggdev_rom *rom,const char *path) {
   const struct eggdev_res *res=rom->resv;
   int i=rom->resc;
   for (;i-->0;res++) {
-    fprintf(stdout,"%16s:%-6d %7d %.*s\n",eggdev_tid_repr(rom,res->tid),res->rid,res->serialc,res->namec,res->name);
+    fprintf(stdout,"%16s:%-6d %7d %.*s\n",eggdev_tid_repr(res->tid),res->rid,res->serialc,res->namec,res->name);
   }
   return 0;
 }
@@ -34,7 +34,7 @@ static void eggdev_toc_reduce_peers(struct eggdev_res *res,int c,const char *pat
       if ((namep>=0)&&((res[i].namec!=res[namep].namec)||memcmp(res[i].name,res[namep].name,res[i].namec))) {
         fprintf(stderr,
           "%s:WARNING: Conflicting names '%.*s' and '%.*s' for resource %s:%d\n",
-          path,res[i].namec,res[i].name,res[namep].namec,res[namep].name,eggdev_tid_repr(0,res[i].tid),res[i].rid
+          path,res[i].namec,res[i].name,res[namep].namec,res[namep].name,eggdev_tid_repr(res[i].tid),res[i].rid
         );
       } else if (namep<0) {
         namep=i;
@@ -88,7 +88,7 @@ static int eggdev_list_toc(struct eggdev_rom *rom,const char *path) {
   
   for (res=rom->resv,i=rom->resc;i-->0;res++) {
     if (!res->namec) continue;
-    fprintf(stdout,"#define RID_%s_%.*s %d\n",eggdev_tid_repr(rom,res->tid),res->namec,res->name,res->rid);
+    fprintf(stdout,"#define RID_%s_%.*s %d\n",eggdev_tid_repr(res->tid),res->namec,res->name,res->rid);
   }
   
   fprintf(stdout,"\n#endif\n");
@@ -113,7 +113,7 @@ static int eggdev_list_summary(const struct eggdev_rom *rom,const char *path) {
   }
   int tid=0; for (;tid<=tidmax;tid++) {
     if (!countv[tid]) continue;
-    fprintf(stdout,"%16s %5d %7d\n",eggdev_tid_repr(rom,tid),countv[tid],sizev[tid]);
+    fprintf(stdout,"%16s %5d %7d\n",eggdev_tid_repr(tid),countv[tid],sizev[tid]);
   }
   return 0;
 }
@@ -126,21 +126,15 @@ int eggdev_main_list() {
     fprintf(stderr,"%s: Exactly one input file is required for 'list'\n",eggdev.exename);
     return -2;
   }
-  struct eggdev_rom rom={0};
-  int err=eggdev_rom_add_path(&rom,eggdev.srcpathv[0]);
-  if (err<0) {
-    if (err!=-2) fprintf(stderr,"%s: Unspecified error decoding ROM\n",eggdev.srcpathv[0]);
-    eggdev_rom_cleanup(&rom);
-    return -2;
-  }
-  if (!eggdev.format) err=eggdev_list_default(&rom,eggdev.srcpathv[0]);
-  else if (!strcmp(eggdev.format,"default")) err=eggdev_list_default(&rom,eggdev.srcpathv[0]);
-  else if (!strcmp(eggdev.format,"toc")) err=eggdev_list_toc(&rom,eggdev.srcpathv[0]);
-  else if (!strcmp(eggdev.format,"summary")) err=eggdev_list_summary(&rom,eggdev.srcpathv[0]);
+  int err=eggdev_require_rom(eggdev.srcpathv[0]);
+  if (err<0) return err;
+  if (!eggdev.format) err=eggdev_list_default(eggdev.rom,eggdev.srcpathv[0]);
+  else if (!strcmp(eggdev.format,"default")) err=eggdev_list_default(eggdev.rom,eggdev.srcpathv[0]);
+  else if (!strcmp(eggdev.format,"toc")) err=eggdev_list_toc(eggdev.rom,eggdev.srcpathv[0]);
+  else if (!strcmp(eggdev.format,"summary")) err=eggdev_list_summary(eggdev.rom,eggdev.srcpathv[0]);
   else {
     fprintf(stderr,"%s: Unknown list format '%s'\n",eggdev.exename,eggdev.format);
     err=-2;
   }
-  eggdev_rom_cleanup(&rom);
   return err;
 }

@@ -501,7 +501,7 @@ int eggdev_song_sanitize_wav(struct sr_encoder *dst,const uint8_t *src,int srcc,
  * Our 'sound' and 'song' resources are so similar, I like to keep both in the same place.
  */
  
-int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_compile_song(struct eggdev_res *res) {
   struct sr_encoder dst={0};
   int err=0;
   
@@ -534,7 +534,7 @@ int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
   return 0;
 }
 
-int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_uncompile_song(struct eggdev_res *res) {
   struct sr_encoder dst={0};
   int err=0;
   
@@ -561,7 +561,7 @@ int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom) {
   return 0;
 }
 
-int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom_DONT_USE) {
+int eggdev_compile_sound(struct eggdev_res *res) {
   struct sr_encoder dst={0};
   int err=0;
   
@@ -594,7 +594,7 @@ int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom_DONT_USE)
   return 0;
 }
 
-int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_uncompile_sound(struct eggdev_res *res) {
   struct sr_encoder dst={0};
   int err=0;
   

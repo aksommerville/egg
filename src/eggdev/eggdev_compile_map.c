@@ -3,7 +3,7 @@
 /* Binary from text.
  */
  
-static int eggdev_map_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *path,struct eggdev_rom *rom) {
+static int eggdev_map_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *path) {
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
   int linec,lineno=1;
@@ -55,15 +55,14 @@ static int eggdev_map_bin_from_text(struct sr_encoder *dst,const char *src,int s
   
   /* Compile commands.
    */
-  const struct eggdev_command_list_schema *schema=0;
-  int schemac=eggdev_command_list_schema_lookup(&schema,EGG_TID_map,rom);
-  return eggdev_command_list_compile(dst,src+decoder.p,srcc-decoder.p,path,lineno,schema,schemac,rom);
+  const struct eggdev_ns *ns=eggdev_ns_by_tid(EGG_TID_map);
+  return eggdev_command_list_compile(dst,src+decoder.p,srcc-decoder.p,path,lineno,ns);
 }
 
 /* Text from binary.
  */
  
-static int eggdev_map_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *path,struct eggdev_rom *rom) {
+static int eggdev_map_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *path) {
   if (!src||(srcc<8)||memcmp(src,"\0EMP",4)) return -1;
   int srcp=4,err;
   int w=(src[srcp]<<8)|src[srcp+1]; srcp+=2;
@@ -79,9 +78,8 @@ static int eggdev_map_text_from_bin(struct sr_encoder *dst,const uint8_t *src,in
   }
   if (sr_encode_u8(dst,0x0a)<0) return -1;
   if (srcp<srcc) {
-    const struct eggdev_command_list_schema *schema=0;
-    int schemac=eggdev_command_list_schema_lookup(&schema,EGG_TID_map,rom);
-    if ((err=eggdev_command_list_uncompile(dst,src+srcp,srcc-srcp,path,schema,schemac,rom))<0) return err;
+    const struct eggdev_ns *ns=eggdev_ns_by_tid(EGG_TID_map);
+    if ((err=eggdev_command_list_uncompile(dst,src+srcp,srcc-srcp,path,ns))<0) return err;
   }
   return 0;
 }
@@ -89,10 +87,10 @@ static int eggdev_map_text_from_bin(struct sr_encoder *dst,const uint8_t *src,in
 /* Map resource, main entry point.
  */
  
-int eggdev_compile_map(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_compile_map(struct eggdev_res *res) {
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0EMP",4)) return 0;
   struct sr_encoder dst={0};
-  if (eggdev_map_bin_from_text(&dst,res->serial,res->serialc,res->path,rom)>=0) {
+  if (eggdev_map_bin_from_text(&dst,res->serial,res->serialc,res->path)>=0) {
     eggdev_res_handoff_serial(res,dst.v,dst.c);
     return 0;
   }
@@ -101,11 +99,11 @@ int eggdev_compile_map(struct eggdev_res *res,struct eggdev_rom *rom) {
   return -2;
 }
 
-int eggdev_uncompile_map(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_uncompile_map(struct eggdev_res *res) {
   int err;
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0EMP",4)) {
     struct sr_encoder dst={0};
-    if ((err=eggdev_map_text_from_bin(&dst,res->serial,res->serialc,res->path,rom))<0) {
+    if ((err=eggdev_map_text_from_bin(&dst,res->serial,res->serialc,res->path))<0) {
       if (err!=-2) fprintf(stderr,"%s: Failed to uncompile map.\n",res->path);
       sr_encoder_cleanup(&dst);
       return -2;

@@ -33,20 +33,13 @@ int eggdev_main_dump() {
   }
   const char *path=eggdev.srcpathv[0];
   const char *rname=eggdev.srcpathv[1];
-  struct eggdev_rom rom={0};
-  int err=eggdev_rom_add_path(&rom,path);
-  if (err<0) {
-    if (err!=-2) fprintf(stderr,"%s: Unspecified error reading ROM file.\n",path);
-    eggdev_rom_cleanup(&rom);
-    return -2;
-  }
-  struct eggdev_res *res=eggdev_rom_res_by_string(&rom,rname,-1);
+  int err=eggdev_require_rom(path);
+  if (err<0) return err;
+  struct eggdev_res *res=eggdev_rom_res_by_string(eggdev.rom,rname,-1);
   if (!res) {
     fprintf(stderr,"%s: Invalid resource identifier '%s'\n",eggdev.exename,rname);
-    eggdev_rom_cleanup(&rom);
     return -2;
   }
   eggdev_hexdump_stdout(res->serial,res->serialc);
-  eggdev_rom_cleanup(&rom);
   return 0;
 }

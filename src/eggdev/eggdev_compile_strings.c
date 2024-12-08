@@ -134,7 +134,7 @@ int eggdev_strings_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int s
 /* Main entry points.
  */
  
-int eggdev_compile_strings(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_compile_strings(struct eggdev_res *res) {
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0ES\xff",4)) return 0;
   struct sr_encoder dst={0};
   int err=eggdev_strings_bin_from_text(&dst,res->serial,res->serialc,res->path);
@@ -146,7 +146,7 @@ int eggdev_compile_strings(struct eggdev_res *res,struct eggdev_rom *rom) {
   return 0;
 }
 
-int eggdev_uncompile_strings(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_uncompile_strings(struct eggdev_res *res) {
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0ES\xff",4)) {
     struct sr_encoder dst={0};
     int err=eggdev_strings_text_from_bin(&dst,res->serial,res->serialc,"");

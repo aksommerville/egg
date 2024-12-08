@@ -15,6 +15,9 @@
 #include <limits.h>
 #include <stdio.h>
 
+#define EGGDEV_NS_MODE_CMD 1 /* Command list opcodes, associated with one resource type. */
+#define EGGDEV_NS_MODE_NS  2 /* Arbitrary symbols. */
+
 extern struct eggdev {
 
   // Populated by eggdev_configure:
@@ -43,33 +46,35 @@ extern struct eggdev {
   int audio_buffer;
   const char *audio_device;
   int repeat;
-  const char **schemasrcv;
+  const char **schemasrcv; // Holds --schema paths until we need them.
   int schemasrcc,schemasrca;
+  int schema_volatile; // If nonzero, namespaces will keep (schemasrcv) populated and refresh its lists on demand. For server.
   
   struct http_context *http;
   struct hostio *hostio; // (serve). We only use audio, and (hostio) is null if not in use.
   struct synth *synth;
   volatile int terminate;
   
-  /* Command list schemae and namespaces.
+  /* Namespaces for command list and arbitrary user symbols.
+   * Symbols are not sorted and collisions are allowed.
    */
-  struct eggdev_cmd_entry {
-    int tid;
-    struct eggdev_command_list_schema *v;
-    int c,a;
-  } *cmd_entryv;
-  int cmd_entryc,cmd_entrya;
-  struct eggdev_namespace {
-    char *ns;
-    int nsc;
+  struct eggdev_ns {
+    char *name; // Resource type or user-chosen name of namespace.
+    int namec;
+    int mode; // EGGDEV_NS_MODE_*
     struct eggdev_ns_entry {
       char *name;
       int namec;
       int id;
-    } *entryv;
-    int entryc,entrya;
-  } *namespacev;
-  int namespacec,namespacea;
+      char *args;
+      int argsc;
+    } *v;
+    int c,a;
+  } *nsv;
+  int nsc,nsa;
+  int ns_acquisition_in_progress;
+  
+  struct eggdev_rom *rom;
   
 } eggdev;
 
@@ -100,12 +105,15 @@ int _eggdev_buildcfg_assert(const char *k,const char *v);
 int eggdev_configure(int argc,char **argv);
 void eggdev_print_help(const char *topic);
 
-// (rom) is optional, for its manifest. Never fails to return a string.
-const char *eggdev_tid_repr(const struct eggdev_rom *rom,int tid);
-int eggdev_tid_eval(const struct eggdev_rom *rom,const char *src,int srcc);
+/* Uses the global rom if needed.
+ */
+const char *eggdev_tid_repr(int tid);
+int eggdev_tid_eval(const char *src,int srcc);
 
 const char *eggdev_guess_mime_type(const char *path,const void *src,int srcc);
 int eggdev_lineno(const char *src,int srcc);
+
+int eggdev_require_rom();
 
 int eggdev_main_pack();
 int eggdev_main_unpack();
@@ -119,24 +127,24 @@ int eggdev_main_project();
 int eggdev_main_metadata();
 int eggdev_main_sound();
 
-int eggdev_compile_metadata(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_metadata(struct eggdev_res *res,struct eggdev_rom *rom);
-static inline int eggdev_compile_code(struct eggdev_res *res,struct eggdev_rom *rom) { return 0; }
-static inline int eggdev_uncompile_code(struct eggdev_res *res,struct eggdev_rom *rom) { return 0; }
-int eggdev_compile_strings(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_strings(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_compile_image(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_image(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_compile_sound(struct eggdev_res *res,struct eggdev_rom *rom); // eggdev_compile_song.c; (rom) optional
-int eggdev_uncompile_sound(struct eggdev_res *res,struct eggdev_rom *rom); // ''
-int eggdev_compile_song(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_song(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_compile_map(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_map(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_compile_tilesheet(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_tilesheet(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_compile_sprite(struct eggdev_res *res,struct eggdev_rom *rom);
-int eggdev_uncompile_sprite(struct eggdev_res *res,struct eggdev_rom *rom);
+int eggdev_compile_metadata(struct eggdev_res *res);
+int eggdev_uncompile_metadata(struct eggdev_res *res);
+static inline int eggdev_compile_code(struct eggdev_res *res) { return 0; }
+static inline int eggdev_uncompile_code(struct eggdev_res *res) { return 0; }
+int eggdev_compile_strings(struct eggdev_res *res);
+int eggdev_uncompile_strings(struct eggdev_res *res);
+int eggdev_compile_image(struct eggdev_res *res);
+int eggdev_uncompile_image(struct eggdev_res *res);
+int eggdev_compile_sound(struct eggdev_res *res); // eggdev_compile_song.c
+int eggdev_uncompile_sound(struct eggdev_res *res); // ''
+int eggdev_compile_song(struct eggdev_res *res);
+int eggdev_uncompile_song(struct eggdev_res *res);
+int eggdev_compile_map(struct eggdev_res *res);
+int eggdev_uncompile_map(struct eggdev_res *res);
+int eggdev_compile_tilesheet(struct eggdev_res *res);
+int eggdev_uncompile_tilesheet(struct eggdev_res *res);
+int eggdev_compile_sprite(struct eggdev_res *res);
+int eggdev_uncompile_sprite(struct eggdev_res *res);
 
 /* Generic anything-to-anything conversion for anything serializable that doesn't depend on external context.
  */
@@ -149,7 +157,7 @@ int eggdev_cvta2a(
 );
 
 int eggdev_metadata_get(void *dstpp,const void *src,int srcc,const char *k,int kc);
-int eggdev_strings_get(void *dstpp,const struct eggdev_rom *rom,int rid,int index);
+int eggdev_strings_get(void *dstpp,int rid,int index);
 
 /* Conversion entry points exposed only for eggdev_cvta2a.
  */
@@ -174,31 +182,31 @@ void eggdev_hexdump(const void *src,int srcc);
  */
 int eggdev_normalize_suffix(char *dst,int dsta,const char *src,int srcc);
 
-struct eggdev_command_list_schema {
-  const char *name; // Null to terminate schema list, otherwise must be a C identifier.
-  uint8_t opcode; // Zero to skip compilation.
-  const char *args; // TODO format
-};
 int eggdev_command_list_compile(
   struct sr_encoder *dst,
   const char *src,int srcc,
   const char *refname,int lineno0,
-  const struct eggdev_command_list_schema *schema,int schemac,
-  struct eggdev_rom *rom
+  const struct eggdev_ns *ns
 );
 int eggdev_command_list_uncompile(
   struct sr_encoder *dst,
   const uint8_t *src,int srcc,
   const char *refname,
-  const struct eggdev_command_list_schema *schema,int schemac,
-  struct eggdev_rom *rom
+  const struct eggdev_ns *ns
 );
 
 /* These lazy-load the cache.
+ * When searching, (mode) zero matches all.
  */
-int eggdev_command_list_schema_lookup(const struct eggdev_command_list_schema **dstpp,int tid,struct eggdev_rom *rom);
-int eggdev_namespace_lookup(int *v,const char *ns,int nsc,const char *token,int tokenc,struct eggdev_rom *rom);
-int eggdev_namespace_name_from_id(const char **dstpp,const char *ns,int nsc,int id,struct eggdev_rom *rom);
-void eggdev_command_list_require(struct eggdev_rom *rom); // Load everything. Caller can then read it all out of globals.
+int eggdev_lookup_value_from_name(int *v,int mode,const char *ns,int nsc,const char *name,int namec);
+int eggdev_lookup_name_from_value(const char **dstpp,int mode,const char *ns,int nsc,int v);
+struct eggdev_ns *eggdev_ns_by_name(int mode,const char *name,int namec);
+struct eggdev_ns *eggdev_ns_by_tid(int tid);
+struct eggdev_ns_entry *eggdev_ns_entry_by_name(const struct eggdev_ns *ns,const char *name,int namec);
+struct eggdev_ns_entry *eggdev_ns_entry_by_value(const struct eggdev_ns *ns,int v);
+int eggdev_ns_value_from_name(int *v,const struct eggdev_ns *ns,const char *name,int namec);
+int eggdev_ns_name_from_value(const char **dstpp,const struct eggdev_ns *ns,int v);
+void eggdev_ns_require();
+void eggdev_ns_flush(); // Clear cached state. You must have set (eggdev.schema_volatile) before, otherwise we can't recover it.
 
 #endif

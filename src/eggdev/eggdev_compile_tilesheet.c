@@ -3,7 +3,7 @@
 /* Binary from text.
  */
  
-static int eggdev_tilesheet_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *path,struct eggdev_rom *rom) {
+static int eggdev_tilesheet_bin_from_text(struct sr_encoder *dst,const char *src,int srcc,const char *path) {
   if (sr_encode_raw(dst,"\0ETS",4)<0) return -1;
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
@@ -24,7 +24,7 @@ static int eggdev_tilesheet_bin_from_text(struct sr_encoder *dst,const char *src
       if ((sr_int_eval(&tbid,line,linec)>=2)&&(tbid>=0)&&(tbid<=0xff)) {
         // Numeric is cool.
       } else {
-        int err=eggdev_namespace_lookup(&tbid,"tilesheet",9,line,linec,rom);
+        int err=eggdev_lookup_value_from_name(&tbid,EGGDEV_NS_MODE_NS,"tilesheet",9,line,linec);
         if (err<0) {
           fprintf(stderr,"%s:%d: Unknown tilesheet table '%.*s'\n",path,lineno,linec,line);
           return -2;
@@ -93,7 +93,7 @@ static int eggdev_tilesheet_bin_from_text(struct sr_encoder *dst,const char *src
 /* Text from binary.
  */
  
-static int eggdev_tilesheet_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *path,struct eggdev_rom *rom) {
+static int eggdev_tilesheet_text_from_bin(struct sr_encoder *dst,const uint8_t *src,int srcc,const char *path) {
   if (!src||(srcc<4)||memcmp(src,"\0ETS",4)) return -1;
   int srcp=4,tablec=0,tablea=4;
   struct table {
@@ -142,7 +142,7 @@ static int eggdev_tilesheet_text_from_bin(struct sr_encoder *dst,const uint8_t *
   for (;ti-->0;table++) {
     
     const char *tbname=0;
-    int tbnamec=eggdev_namespace_name_from_id(&tbname,"tilesheet",9,table->id,rom);
+    int tbnamec=eggdev_lookup_name_from_value(&tbname,EGGDEV_NS_MODE_NS,"tilesheet",9,table->id);
     if (tbnamec>0) {
       if (sr_encode_raw(dst,tbname,tbnamec)<0) return -1;
     } else {
@@ -170,10 +170,10 @@ static int eggdev_tilesheet_text_from_bin(struct sr_encoder *dst,const uint8_t *
 /* Tilesheet resource, main entry point.
  */
  
-int eggdev_compile_tilesheet(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_compile_tilesheet(struct eggdev_res *res) {
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0ETS",4)) return 0;
   struct sr_encoder dst={0};
-  int err=eggdev_tilesheet_bin_from_text(&dst,res->serial,res->serialc,res->path,rom);
+  int err=eggdev_tilesheet_bin_from_text(&dst,res->serial,res->serialc,res->path);
   if (err<0) {
     sr_encoder_cleanup(&dst);
     return err;
@@ -182,10 +182,10 @@ int eggdev_compile_tilesheet(struct eggdev_res *res,struct eggdev_rom *rom) {
   return 0;
 }
 
-int eggdev_uncompile_tilesheet(struct eggdev_res *res,struct eggdev_rom *rom) {
+int eggdev_uncompile_tilesheet(struct eggdev_res *res) {
   if ((res->serialc>=4)&&!memcmp(res->serial,"\0ETS",4)) {
     struct sr_encoder dst={0};
-    int err=eggdev_tilesheet_text_from_bin(&dst,res->serial,res->serialc,res->path,rom);
+    int err=eggdev_tilesheet_text_from_bin(&dst,res->serial,res->serialc,res->path);
     if (err<0) {
       sr_encoder_cleanup(&dst);
       return err;

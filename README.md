@@ -51,8 +51,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Rich set of client-side helper libraries.
 - - [ ] Maps, sprites, tilesheets.
 - - [ ] State engine and persistence.
-- [ ] eggdev: Store a rom globally, it's cumbersome to keep passing it around like we do. And how often will there be more than one?
-- [ ] eggdev and specs: Collapse CMD_ and NS_ into a single set of things, and key internally on strings rather than tid.
+- [x] eggdev: Store a rom globally, it's cumbersome to keep passing it around like we do. And how often will there be more than one?
+- [x] eggdev and specs: Collapse CMD_ and NS_ into a single set of things, and key internally on strings rather than tid.
 - [ ] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama?
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.

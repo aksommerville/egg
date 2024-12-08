@@ -101,11 +101,12 @@ int eggdev_lineno(const char *src,int srcc) {
 /* Get string from resource.
  */
  
-int eggdev_strings_get(void *dstpp,const struct eggdev_rom *rom,int rid,int index) {
+int eggdev_strings_get(void *dstpp,int rid,int index) {
   if (index<0) return 0;
-  int resp=eggdev_rom_search(rom,EGG_TID_strings,rid);
+  if (!eggdev.rom) return 0;
+  int resp=eggdev_rom_search(eggdev.rom,EGG_TID_strings,rid);
   if (resp<0) return 0;
-  const struct eggdev_res *res=rom->resv+resp;
+  const struct eggdev_res *res=eggdev.rom->resv+resp;
   const uint8_t *src=res->serial;
   int srcc=res->serialc;
   if ((srcc<4)||memcmp(src,"\0ES\xff",4)) return 0;

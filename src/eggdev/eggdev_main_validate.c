@@ -384,7 +384,7 @@ static int eggdev_validate_metadata(const struct eggdev_res *res,const struct eg
       continue;
     }
     const char *string=0;
-    int stringc=eggdev_strings_get(&string,rom,stringsid,index);
+    int stringc=eggdev_strings_get(&string,stringsid,index);
     if (stringc<0) stringc=0;
     if ((stringc!=plain->vc)||memcmp(string,plain->v,stringc)) {
       fprintf(stderr,
@@ -669,11 +669,11 @@ static int eggdev_validate_egs(const struct eggdev_res *res,const struct eggdev_
   int srcc=res->serialc;
   int status=0;
   #define ERROR(fmt,...) { \
-    fprintf(stderr,"%s:%s:%d:%d: "fmt"\n",path,eggdev_tid_repr(rom,res->tid),res->rid,sndid,##__VA_ARGS__); \
+    fprintf(stderr,"%s:%s:%d:%d: "fmt"\n",path,eggdev_tid_repr(res->tid),res->rid,sndid,##__VA_ARGS__); \
     return -2; \
   }
   #define SOFTERROR(fmt,...) { \
-    fprintf(stderr,"%s:%s:%d:%d: "fmt"\n",path,eggdev_tid_repr(rom,res->tid),res->rid,sndid,##__VA_ARGS__); \
+    fprintf(stderr,"%s:%s:%d:%d: "fmt"\n",path,eggdev_tid_repr(res->tid),res->rid,sndid,##__VA_ARGS__); \
     status=-2; \
   }
   
@@ -944,14 +944,12 @@ int eggdev_main_validate() {
     fprintf(stderr,"%s: 'validate' requires exactly one input source.\n",eggdev.exename);
     return -2;
   }
-  struct eggdev_rom rom={0};
-  int err=eggdev_rom_add_path(&rom,eggdev.srcpathv[0]);
+  int err=eggdev_require_rom(eggdev.srcpathv[0]);
   if (err<0) {
     eggdev_validate_why_did_rom_fail(eggdev.srcpathv[0],err==-2);
     return -2;
   }
-  err=eggdev_validate_rom(&rom,eggdev.srcpathv[0]);
-  eggdev_rom_cleanup(&rom);
+  err=eggdev_validate_rom(eggdev.rom,eggdev.srcpathv[0]);
   if (err>=0) return 0;
   if (err!=-2) fprintf(stderr,"%s: Unspecified error\n",eggdev.srcpathv[0]);
   return -2;

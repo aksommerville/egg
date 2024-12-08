@@ -1,33 +1,5 @@
 #include "eggdev_internal.h"
 
-/* Find schema by name or opcode.
- */
- 
-const struct eggdev_command_list_schema *eggdev_command_list_schema_by_opcode(
-  const struct eggdev_command_list_schema *schema,int schemac,
-  uint8_t opcode
-) {
-  if (!opcode) return 0;
-  for (;schemac-->0;schema++) {
-    if (schema->opcode==opcode) return schema;
-  }
-  return 0;
-}
- 
-const struct eggdev_command_list_schema *eggdev_command_list_schema_by_name(
-  const struct eggdev_command_list_schema *schema,int schemac,
-  const char *name,int namec
-) {
-  if (!name) return 0;
-  if (namec<0) { namec=0; while (name[namec]) namec++; }
-  for (;schemac-->0;schema++) {
-    if (memcmp(schema->name,name,namec)) continue;
-    if (schema->name[namec]) continue;
-    return schema;
-  }
-  return 0;
-}
-
 /* Compile one argument.
  */
  
@@ -35,9 +7,8 @@ static int eggdev_command_arg_compile(
   struct sr_encoder *dst,
   const char *src,int srcc,
   const char *refname,int lineno,
-  const struct eggdev_command_list_schema *def,
-  int argp,
-  struct eggdev_rom *rom
+  const struct eggdev_ns_entry *entry,
+  int argp
 ) {
   if (srcc<1) return 0;
   
@@ -114,7 +85,7 @@ static int eggdev_command_arg_compile(
     }
     int v,err;
     if (ns) {
-      err=eggdev_namespace_lookup(&v,ns,nsc,src+srcp,srcc-srcp,rom);
+      err=eggdev_lookup_value_from_name(&v,EGGDEV_NS_MODE_NS,ns,nsc,src+srcp,srcc-srcp);
     } else {
       err=sr_int_eval(&v,src+srcp,srcc-srcp);
     }
@@ -134,11 +105,11 @@ static int eggdev_command_arg_compile(
   
   /* "TYPE:NAME" for a 2-byte resource ID.
    */
-  if (rom) {
+  if (eggdev.rom) {
     int i=srcc;
     while (i-->0) {
       if (src[i]==':') {
-        struct eggdev_res *res=eggdev_rom_res_by_string(rom,src,srcc);
+        struct eggdev_res *res=eggdev_rom_res_by_string(eggdev.rom,src,srcc);
         if (!res) {
           fprintf(stderr,"%s:%d: Resource '%.*s' not found\n",refname,lineno,srcc,src);
           return -2;
@@ -166,8 +137,7 @@ int eggdev_command_list_compile(
   struct sr_encoder *dst,
   const char *src,int srcc,
   const char *refname,int lineno0,
-  const struct eggdev_command_list_schema *schema,int schemac,
-  struct eggdev_rom *rom
+  const struct eggdev_ns *ns
 ) {
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
@@ -182,17 +152,17 @@ int eggdev_command_list_compile(
      */
     const char *name=line+linep;
     int namec=0,opcode;
-    const struct eggdev_command_list_schema *def=0;
+    const struct eggdev_ns_entry *entry=0;
     while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) namec++;
     if ((sr_int_eval(&opcode,name,namec)>=2)&&(opcode>0)&&(opcode<=0xff)) {
-      def=eggdev_command_list_schema_by_opcode(schema,schemac,opcode); // Null is ok.
+      entry=eggdev_ns_entry_by_value(ns,opcode); // Null is ok.
     } else {
-      def=eggdev_command_list_schema_by_name(schema,schemac,name,namec);
-      if (!def) {
+      entry=eggdev_ns_entry_by_name(ns,name,namec);
+      if (!entry) {
         fprintf(stderr,"%s:%d: Unknown command '%.*s'\n",refname,lineno,namec,name);
         return -2;
       }
-      opcode=def->opcode;
+      opcode=entry->id;
     }
     if (sr_encode_u8(dst,opcode)<0) return -1;
     
@@ -236,7 +206,7 @@ int eggdev_command_list_compile(
         linep+=tokenc;
       } else {
         while ((linep<linec)&&((unsigned char)line[linep++]>0x20)) tokenc++;
-        int err=eggdev_command_arg_compile(dst,token,tokenc,refname,lineno,def,argp,rom);
+        int err=eggdev_command_arg_compile(dst,token,tokenc,refname,lineno,entry,argp);
         if (err<0) {
           if (err!=-2) fprintf(stderr,"%s:%d: Unspecified error compiling argument '%.*s'\n",refname,lineno,tokenc,token);
           return -2;
@@ -288,8 +258,7 @@ int eggdev_command_list_uncompile(
   struct sr_encoder *dst,
   const uint8_t *src,int srcc,
   const char *refname,
-  const struct eggdev_command_list_schema *schema,int schemac,
-  struct eggdev_rom *rom
+  const struct eggdev_ns *ns
 ) {
   int srcp=0;
   while (srcp<srcc) {
@@ -316,14 +285,14 @@ int eggdev_command_list_uncompile(
     if (srcp>srcc-paylen) return -1;
     srcp+=paylen;
     
-    const struct eggdev_command_list_schema *def=eggdev_command_list_schema_by_opcode(schema,schemac,opcode);
-    if (def) {
-      if (sr_encode_raw(dst,def->name,-1)<0) return -1;
+    const struct eggdev_ns_entry *entry=eggdev_ns_entry_by_value(ns,opcode);
+    if (entry) {
+      if (sr_encode_raw(dst,entry->name,entry->namec)<0) return -1;
     } else {
       if (sr_encode_fmt(dst,"0x%02x",opcode)<0) return -1;
     }
     if (paylen) {
-      //TODO We might format (def->args) formally such that we could produce sensible context-aware text here. Skipping that for now.
+      //TODO We might format (entry->args) formally such that we could produce sensible context-aware text here. Skipping that for now.
       if (sr_encode_raw(dst," 0x",3)<0) return -1;
       int i=0; for (;i<paylen;i++) {
         if (sr_encode_fmt(dst,"%02x",payload[i])<0) return -1;
@@ -334,135 +303,73 @@ int eggdev_command_list_uncompile(
   return 0;
 }
 
-/* Schema and namespace cache primitives.
+/* Add a namespace.
  */
  
-static int eggdev_cmd_entry_search(int tid) {
-  int lo=0,hi=eggdev.cmd_entryc;
-  while (lo<hi) {
-    int ck=(lo+hi)>>1;
-    const struct eggdev_cmd_entry *q=eggdev.cmd_entryv+ck;
-         if (tid<q->tid) hi=ck;
-    else if (tid>q->tid) lo=ck+1;
-    else return ck;
-  }
-  return -lo-1;
-}
-
-static struct eggdev_cmd_entry *eggdev_cmd_entry_insert(int p,int tid) {
-  if (eggdev.cmd_entryc>=eggdev.cmd_entrya) {
-    int na=eggdev.cmd_entrya+8;
-    if (na>INT_MAX/sizeof(struct eggdev_cmd_entry)) return 0;
-    void *nv=realloc(eggdev.cmd_entryv,sizeof(struct eggdev_cmd_entry)*na);
+static struct eggdev_ns *eggdev_ns_create(int mode,const char *nsname,int nsnamec) {
+  if (eggdev.nsc>=eggdev.nsa) {
+    int na=eggdev.nsa+16;
+    if (na>INT_MAX/sizeof(struct eggdev_ns)) return 0;
+    void *nv=realloc(eggdev.nsv,sizeof(struct eggdev_ns)*na);
     if (!nv) return 0;
-    eggdev.cmd_entryv=nv;
-    eggdev.cmd_entrya=na;
+    eggdev.nsv=nv;
+    eggdev.nsa=na;
   }
-  struct eggdev_cmd_entry *entry=eggdev.cmd_entryv+p;
-  memmove(entry+1,entry,sizeof(struct eggdev_cmd_entry)*(eggdev.cmd_entryc-p));
-  eggdev.cmd_entryc++;
-  memset(entry,0,sizeof(struct eggdev_cmd_entry));
-  entry->tid=tid;
-  return entry;
+  if (!nsname) nsnamec=0; else if (nsnamec<0) { nsnamec=0; while (nsname[nsnamec]) nsnamec++; }
+  if (!nsnamec) return 0;
+  char *nname=malloc(nsnamec+1);
+  if (!nname) return 0;
+  memcpy(nname,nsname,nsnamec);
+  nname[nsnamec]=0;
+  struct eggdev_ns *ns=eggdev.nsv+eggdev.nsc++;
+  memset(ns,0,sizeof(struct eggdev_ns));
+  ns->name=nname;
+  ns->namec=nsnamec;
+  ns->mode=mode;
+  return ns;
 }
 
-/* Define new symbols.
+/* Define one namespace symbol.
  */
  
-static int eggdev_define_schema_symbol(const char *tname,int tnamec,const char *cname,int cnamec,const char *args,int argsc,int v,const char *path,int lineno,struct eggdev_rom *rom) {
-  int tid=eggdev_tid_eval(rom,tname,tnamec);
-  if (tid<=0) {
-    fprintf(stderr,"%s:%d: Unknown resource type '%.*s'\n",path,lineno,tnamec,tname);
-    return -2;
-  }
-  struct eggdev_cmd_entry *entry;
-  int p=eggdev_cmd_entry_search(tid);
-  if (p>=0) {
-    entry=eggdev.cmd_entryv+p;
-  } else {
-    p=-p-1;
-    if (!(entry=eggdev_cmd_entry_insert(p,tid))) return -1;
-  }
-  if (entry->c>=entry->a) {
-    int na=entry->a+16;
-    if (na>INT_MAX/sizeof(struct eggdev_command_list_schema)) return -1;
-    void *nv=realloc(entry->v,sizeof(struct eggdev_command_list_schema)*na);
+static int eggdev_ns_define(int mode,const char *nsname,int nsnamec,const char *fname,int fnamec,int id,const char *args,int argsc) {
+  struct eggdev_ns *ns=eggdev_ns_by_name(mode,nsname,nsnamec);
+  if (!ns&&!(ns=eggdev_ns_create(mode,nsname,nsnamec))) return -1;
+  if (ns->c>=ns->a) {
+    int na=ns->a+32;
+    if (na>INT_MAX/sizeof(struct eggdev_ns_entry)) return -1;
+    void *nv=realloc(ns->v,sizeof(struct eggdev_ns_entry)*na);
     if (!nv) return -1;
-    entry->v=nv;
-    entry->a=na;
+    ns->v=nv;
+    ns->a=na;
   }
-  struct eggdev_command_list_schema *schema=entry->v+entry->c++;
-  memset(schema,0,sizeof(struct eggdev_command_list_schema));
-  char *nname=malloc(cnamec+1);
-  if (!nname) return -1;
-  memcpy(nname,cname,cnamec);
-  nname[cnamec]=0;
-  schema->name=nname; // leak
-  schema->opcode=v;
+  if (!fname) fnamec=0; else if (fnamec<0) { fnamec=0; while (fname[fnamec]) fnamec++; }
+  if (!args) argsc=0; else if (argsc<0) { argsc=0; while (args[argsc]) argsc++; }
+  char *nfname=0,*nargs=0;
+  if (fnamec) {
+    if (!(nfname=malloc(fnamec+1))) return -1;
+    memcpy(nfname,fname,fnamec);
+    nfname[fnamec]=0;
+  }
   if (argsc) {
-    char *nargs=malloc(argsc+1);
-    if (!nargs) return -1;
+    if (!(nargs=malloc(argsc+1))) return -1;
     memcpy(nargs,args,argsc);
     nargs[argsc]=0;
-    schema->args=nargs; // leak
   }
-  return 0;
-}
-
-static int eggdev_namespace_add(struct eggdev_namespace *namespace,const char *name,int namec,const char *args,int argsc,int v) {
-  if (namespace->entryc>=namespace->entrya) {
-    int na=namespace->entrya+16;
-    if (na>INT_MAX/sizeof(struct eggdev_ns_entry)) return -1;
-    void *nv=realloc(namespace->entryv,sizeof(struct eggdev_ns_entry)*na);
-    if (!nv) return -1;
-    namespace->entryv=nv;
-    namespace->entrya=na;
-  }
-  struct eggdev_ns_entry *entry=namespace->entryv+namespace->entryc++;
+  struct eggdev_ns_entry *entry=ns->v+ns->c++;
   memset(entry,0,sizeof(struct eggdev_ns_entry));
-  if (!(entry->name=malloc(namec+1))) return -1;
-  memcpy(entry->name,name,namec);
-  entry->name[namec]=0;
-  entry->namec=namec;
-  entry->id=v;
+  entry->name=nfname;
+  entry->namec=fnamec;
+  entry->args=nargs;
+  entry->argsc=argsc;
+  entry->id=id;
   return 0;
 }
 
-static int eggdev_define_ns_symbol(const char *ns,int nsc,const char *name,int namec,const char *args,int argsc,int v,const char *path,int lineno,struct eggdev_rom *rom) {
-  int nsi=eggdev.namespacec;
-  while (nsi-->0) {
-    struct eggdev_namespace *namespace=eggdev.namespacev+nsi;
-    if (namespace->nsc!=nsc) continue;
-    if (memcmp(namespace->ns,ns,nsc)) continue;
-    return eggdev_namespace_add(namespace,name,namec,args,argsc,v);
-  }
-  if (eggdev.namespacec>=eggdev.namespacea) {
-    int na=eggdev.namespacea+8;
-    if (na>INT_MAX/sizeof(struct eggdev_namespace)) return -1;
-    void *nv=realloc(eggdev.namespacev,sizeof(struct eggdev_namespace)*na);
-    if (!nv) return -1;
-    eggdev.namespacev=nv;
-    eggdev.namespacea=na;
-  }
-  struct eggdev_namespace *namespace=eggdev.namespacev+eggdev.namespacec++;
-  memset(namespace,0,sizeof(struct eggdev_namespace));
-  if (!(namespace->ns=malloc(nsc+1))) return -1;
-  memcpy(namespace->ns,ns,nsc);
-  namespace->ns[nsc]=0;
-  namespace->nsc=nsc;
-  return eggdev_namespace_add(namespace,name,namec,args,argsc,v);
-}
-
-/* Read a schema file and add any symbols we find.
+/* Acquire namespace from loose text.
  */
  
-static int eggdev_schema_read(const char *path,struct eggdev_rom *rom) {
-  char *src=0;
-  int srcc=file_read(&src,path);
-  if (srcc<0) {
-    fprintf(stderr,"%s:WARNING: Failed to read schema file.\n",path);
-    return -2;
-  }
+static int eggdev_ns_acquire_from_text(const char *src,int srcc,const char *path) {
   struct sr_decoder decoder={.v=src,.c=srcc};
   const char *line;
   int linec,lineno=1;
@@ -502,128 +409,150 @@ static int eggdev_schema_read(const char *path,struct eggdev_rom *rom) {
       while (argsc&&((unsigned char)args[0]<=0x20)) { args++; argsc--; }
     }
     
+    // Value must be a plain integer.
     int v,err;
     if (sr_int_eval(&v,value,valuec)<2) continue;
     
-    if ((symbolc>=4)&&!memcmp(symbol,"CMD_",4)) {
-      int symp=4;
-      for (;symp<symbolc;symp++) {
-        if (symbol[symp]=='_') {
-          const char *tname=symbol+4;
-          int tnamec=symp-4;
-          const char *cname=symbol+symp+1;
-          int cnamec=symbolc-symp-1;
-          if ((err=eggdev_define_schema_symbol(tname,tnamec,cname,cnamec,args,argsc,v,path,lineno,rom))<0) return err;
-          break;
-        }
-      }
-      
-    } else if ((symbolc>=3)&&!memcmp(symbol,"NS_",3)) {
-      int symp=3;
-      for (;symp<symbolc;symp++) {
-        if (symbol[symp]=='_') {
-          const char *ns=symbol+3;
-          int nsc=symp-3;
-          const char *name=symbol+symp+1;
-          int namec=symbolc-symp-1;
-          if ((err=eggdev_define_ns_symbol(ns,nsc,name,namec,args,argsc,v,path,lineno,rom))<0) return err;
-          break;
-        }
-      }
-    }
+    // Symbol is "{MODE}_{NAMESPACE}_{SYMBOL}"
+    // If it's missing that second underscore, ignore the line.
+    int symbolp,mode;
+    if ((symbolc>=4)&&!memcmp(symbol,"CMD_",4)) { symbolp=4; mode=EGGDEV_NS_MODE_CMD; }
+    else if ((symbolc>=3)&&!memcmp(symbol,"NS_",3)) { symbolp=3; mode=EGGDEV_NS_MODE_NS; }
+    else continue;
+    const char *nsname=symbol+symbolp;
+    int nsnamec=0;
+    while ((symbolp<symbolc)&&(symbol[symbolp++]!='_')) nsnamec++;
+    const char *fname=symbol+symbolp;
+    int fnamec=symbolc-symbolp;
+    if (fnamec<1) continue;
+    
+    // Cool, define it.
+    if ((err=eggdev_ns_define(mode,nsname,nsnamec,fname,fnamec,v,args,argsc))<0) return err;
   }
-  free(src);
   return 0;
 }
 
-/* Get schema.
+/* Acquire namespace from path.
  */
  
-int eggdev_command_list_schema_lookup(const struct eggdev_command_list_schema **dstpp,int tid,struct eggdev_rom *rom) {
-  struct eggdev_cmd_entry *entry=0;
-  int p=eggdev_cmd_entry_search(tid);
-  if (p<0) {
-    p=-p-1;
-    entry=eggdev_cmd_entry_insert(p,tid);
-    if (!entry) return 0;
-    while (eggdev.schemasrcc&&!entry->c) {
-      const char *path=eggdev.schemasrcv[--(eggdev.schemasrcc)];
-      eggdev_schema_read(path,rom);
-    }
-  } else {
-    entry=eggdev.cmd_entryv+p;
+static int eggdev_ns_acquire(const char *path) {
+  void *src=0;
+  int srcc=file_read(&src,path);
+  if (srcc<0) {
+    fprintf(stderr,"%s: Failed to read schema file.\n",path);
+    return -2;
   }
-  *dstpp=entry->v;
-  return entry->c;
+  int err=eggdev_ns_acquire_from_text(src,srcc,path);
+  free(src);
+  return err;
 }
 
-/* Lookup symbol in namespace.
+/* Namespace cache, public entry points.
  */
  
-int eggdev_namespace_lookup(int *v,const char *ns,int nsc,const char *token,int tokenc,struct eggdev_rom *rom) {
-  if (!ns||!token) return -1;
-  if (nsc<0) { nsc=0; while (ns[nsc]) nsc++; }
-  if (tokenc<0) { tokenc=0; while (token[tokenc]) tokenc++; }
- _again_:;
-  struct eggdev_namespace *namespace=eggdev.namespacev;
-  int nsi=eggdev.namespacec;
-  for (;nsi-->0;namespace++) {
-    if (namespace->nsc!=nsc) continue;
-    if (memcmp(namespace->ns,ns,nsc)) continue;
-    struct eggdev_ns_entry *entry=namespace->entryv;
-    int ei=namespace->entryc;
-    for (;ei-->0;entry++) {
-      if (entry->namec!=tokenc) continue;
-      if (memcmp(entry->name,token,tokenc)) continue;
-      *v=entry->id;
-      return 0;
-    }
-    return -1;
-  }
-  // We didn't find the namespace. If any schemae are still unresolved, resolve them and try again.
-  if (eggdev.schemasrcc>0) {
-    eggdev_command_list_require(rom);
-    if (!eggdev.schemasrcc) goto _again_;
-  }
-  return -1;
+int eggdev_lookup_value_from_name(int *v,int mode,const char *_ns,int nsc,const char *name,int namec) {
+  const struct eggdev_ns *ns=eggdev_ns_by_name(mode,_ns,nsc);
+  return eggdev_ns_value_from_name(v,ns,name,namec);
 }
 
-/* Namespace reverse lookup.
- */
- 
-int eggdev_namespace_name_from_id(const char **dstpp,const char *ns,int nsc,int id,struct eggdev_rom *rom) {
-  if (!ns) return -1;
-  if (nsc<0) { nsc=0; while (ns[nsc]) nsc++; }
- _again_:;
-  struct eggdev_namespace *namespace=eggdev.namespacev;
-  int nsi=eggdev.namespacec;
-  for (;nsi-->0;namespace++) {
-    if (namespace->nsc!=nsc) continue;
-    if (memcmp(namespace->ns,ns,nsc)) continue;
-    struct eggdev_ns_entry *entry=namespace->entryv;
-    int ei=namespace->entryc;
-    for (;ei-->0;entry++) {
-      if (entry->id==id) {
-        *dstpp=entry->name;
-        return entry->namec;
+int eggdev_lookup_name_from_value(const char **dstpp,int mode,const char *_ns,int nsc,int v) {
+  const struct eggdev_ns *ns=eggdev_ns_by_name(mode,_ns,nsc);
+  return eggdev_ns_name_from_value(dstpp,ns,v);
+}
+
+struct eggdev_ns *eggdev_ns_by_name(int mode,const char *name,int namec) {
+  if (!name) return 0;
+  if (namec<0) { namec=0; while (name[namec]) namec++; }
+  if (!namec) return 0;
+  eggdev_ns_require();
+  struct eggdev_ns *ns=eggdev.nsv;
+  int i=eggdev.nsc;
+  for (;i-->0;ns++) {
+    if (mode&&(mode!=ns->mode)) continue;
+    if (ns->namec!=namec) continue;
+    if (memcmp(ns->name,name,namec)) continue;
+    return ns;
+  }
+  return 0;
+}
+
+struct eggdev_ns *eggdev_ns_by_tid(int tid) {
+  const char *name=eggdev_tid_repr(tid);
+  return eggdev_ns_by_name(EGGDEV_NS_MODE_CMD,name,-1);
+}
+
+struct eggdev_ns_entry *eggdev_ns_entry_by_name(const struct eggdev_ns *ns,const char *name,int namec) {
+  if (!ns) return 0;
+  if (!name) namec=0; else if (namec<0) { namec=0; while (name[namec]) namec++; }
+  if (!namec) return 0;
+  struct eggdev_ns_entry *entry=ns->v;
+  int i=ns->c;
+  for (;i-->0;entry++) {
+    if (entry->namec!=namec) continue;
+    if (memcmp(entry->name,name,namec)) continue;
+    return entry;
+  }
+  return 0;
+}
+
+struct eggdev_ns_entry *eggdev_ns_entry_by_value(const struct eggdev_ns *ns,int v) {
+  if (!ns) return 0;
+  struct eggdev_ns_entry *entry=ns->v;
+  int i=ns->c;
+  for (;i-->0;entry++) {
+    if (entry->id!=v) continue;
+    return entry;
+  }
+  return 0;
+}
+
+int eggdev_ns_value_from_name(int *v,const struct eggdev_ns *ns,const char *name,int namec) {
+  const struct eggdev_ns_entry *entry=eggdev_ns_entry_by_name(ns,name,namec);
+  if (!entry) return -1;
+  *v=entry->id;
+  return 0;
+}
+
+int eggdev_ns_name_from_value(const char **dstpp,const struct eggdev_ns *ns,int v) {
+  const struct eggdev_ns_entry *entry=eggdev_ns_entry_by_value(ns,v);
+  if (!entry) return -1;
+  *dstpp=entry->name;
+  return entry->namec;
+}
+
+void eggdev_ns_require() {
+  // Populating the cache will accidentally re-enter here.
+  // Rather than making separate reentrant and non-reentrant APIs, just flag the function and abort if already running.
+  if (eggdev.ns_acquisition_in_progress) return;
+  eggdev.ns_acquisition_in_progress=1;
+  if (eggdev.schema_volatile) {
+    if (!eggdev.nsc) {
+      int i=eggdev.schemasrcc;
+      while (i-->0) {
+        eggdev_ns_acquire(eggdev.schemasrcv[i]);
       }
     }
-    return -1;
+  } else {
+    while (eggdev.schemasrcc>0) {
+      const char *path=eggdev.schemasrcv[--(eggdev.schemasrcc)];
+      eggdev_ns_acquire(path);
+    }
   }
-  // We didn't find the namespace. If any schemae are still unresolved, resolve them and try again.
-  if (eggdev.schemasrcc>0) {
-    eggdev_command_list_require(rom);
-    if (!eggdev.schemasrcc) goto _again_;
-  }
-  return -1;
+  eggdev.ns_acquisition_in_progress=0;
 }
 
-/* Load all def files.
- */
- 
-void eggdev_command_list_require(struct eggdev_rom *rom) {
-  while (eggdev.schemasrcc>0) {
-    const char *path=eggdev.schemasrcv[--(eggdev.schemasrcc)];
-    eggdev_schema_read(path,rom);
+void eggdev_ns_flush() {
+  while (eggdev.nsc>0) {
+    eggdev.nsc--;
+    struct eggdev_ns *ns=eggdev.nsv+eggdev.nsc;
+    if (ns->name) free(ns->name);
+    if (ns->v) {
+      while (ns->c-->0) {
+        struct eggdev_ns_entry *entry=ns->v+ns->c;
+        if (entry->name) free(entry->name);
+        if (entry->args) free(entry->args);
+      }
+      free(ns->v);
+    }
   }
 }

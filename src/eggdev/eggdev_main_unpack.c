@@ -10,12 +10,12 @@ static int eggdev_unpack_convert(struct eggdev_rom *rom,const char *srcpath) {
   for (;i-->0;res++) {
     int err=0;
     switch (res->tid) {
-      #define _(tag) case EGG_TID_##tag: err=eggdev_uncompile_##tag(res,rom); break;
+      #define _(tag) case EGG_TID_##tag: err=eggdev_uncompile_##tag(res); break;
       EGG_TID_FOR_EACH
       #undef _
     }
     if (err<0) {
-      if (err!=-2) fprintf(stderr,"%s:%d: Failed to convert resource\n",eggdev_tid_repr(rom,res->tid),res->rid);
+      if (err!=-2) fprintf(stderr,"%s:%d: Failed to convert resource\n",eggdev_tid_repr(res->tid),res->rid);
       return -2;
     }
   }
@@ -40,7 +40,7 @@ static int eggdev_unpack_write(const char *rootpath,const struct eggdev_rom *rom
     if (res->tid<1) return -1;
     if (res->tid!=tid) {
       tid=res->tid;
-      const char *tname=eggdev_tid_repr(rom,tid);
+      const char *tname=eggdev_tid_repr(tid);
       if (!tname||!tname[0]) return -1;
       int tnamec=0;
       while (tname[tnamec]) tnamec++;
@@ -57,7 +57,7 @@ static int eggdev_unpack_write(const char *rootpath,const struct eggdev_rom *rom
     int addc=eggdev_synthesize_basename(subpath+subpathc,sizeof(subpath)-subpathc,res);
     if ((addc<1)||(subpathc>=sizeof(subpath)-addc)) return -1;
     if (file_write(subpath,res->serial,res->serialc)<0) {
-      fprintf(stderr,"%s: Failed to write %d bytes for resource %s:%d\n",subpath,res->serialc,eggdev_tid_repr(rom,res->tid),res->rid);
+      fprintf(stderr,"%s: Failed to write %d bytes for resource %s:%d\n",subpath,res->serialc,eggdev_tid_repr(res->tid),res->rid);
       return -2;
     }
   }
@@ -76,29 +76,20 @@ int eggdev_main_unpack() {
     fprintf(stderr,"%s: 'unpack' expects exactly one input file, have %d.\n",eggdev.exename,eggdev.srcpathc);
     return -2;
   }
-  struct eggdev_rom rom={0};
-  int err=eggdev_rom_add_path(&rom,eggdev.srcpathv[0]);
-  if (err<0) {
-    if (err!=-2) fprintf(stderr,"%s: Unspecified error reading ROM file.\n",eggdev.srcpathv[0]);
-    eggdev_rom_cleanup(&rom);
-    return -2;
-  }
-  if ((err=eggdev_unpack_convert(&rom,eggdev.srcpathv[0]))<0) {
+  int err=eggdev_require_rom(eggdev.srcpathv[0]);
+  if (err<0) return err;
+  if ((err=eggdev_unpack_convert(eggdev.rom,eggdev.srcpathv[0]))<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error reformatting resources.\n",eggdev.srcpathv[0]);
-    eggdev_rom_cleanup(&rom);
     return -2;
   }
   if (dir_mkdir(eggdev.dstpath)<0) {
     fprintf(stderr,"%s: mkdir failed\n",eggdev.dstpath);
-    eggdev_rom_cleanup(&rom);
     return -2;
   }
-  if ((err=eggdev_unpack_write(eggdev.dstpath,&rom))<0) {
+  if ((err=eggdev_unpack_write(eggdev.dstpath,eggdev.rom))<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error writing out resource files.\n",eggdev.dstpath);
     dir_rmrf(eggdev.dstpath);
-    eggdev_rom_cleanup(&rom);
     return -2;
   }
-  eggdev_rom_cleanup(&rom);
   return 0;
 }

@@ -407,7 +407,7 @@ static int eggdev_cb_post_api_sound(struct http_xfer *req,struct http_xfer *rsp)
    */
   struct eggdev_res res={0};
   if (eggdev_res_set_serial(&res,body->v,body->c)<0) return -1;
-  int err=eggdev_compile_sound(&res,0);
+  int err=eggdev_compile_sound(&res);
   if (err<0) {
     eggdev_res_cleanup(&res);
     return http_xfer_set_status(rsp,500,"Compilation failed");
@@ -460,7 +460,60 @@ static int eggdev_cb_get_api_gamehtml(struct http_xfer *req,struct http_xfer *rs
 /* GET /api/symbols
  */
  
+static int eggdev_api_symbols_encode_ns(struct sr_encoder *dst,const struct eggdev_ns *ns) {
+  int jsonctx=sr_encode_json_object_start(dst,0,0);
+  sr_encode_json_string(dst,"name",4,ns->name,ns->namec);
+  sr_encode_json_string(dst,"mode",4,(ns->mode==EGGDEV_NS_MODE_CMD)?"CMD":"NS",-1);
+  int arrayctx=sr_encode_json_array_start(dst,"sym",3);
+  const struct eggdev_ns_entry *entry=ns->v;
+  int i=ns->c;
+  for (;i-->0;entry++) {
+    int objctx=sr_encode_json_object_start(dst,0,0);
+    sr_encode_json_string(dst,"name",4,entry->name,entry->namec);
+    sr_encode_json_int(dst,"id",2,entry->id);
+    if (entry->argsc) {
+      sr_encode_json_string(dst,"args",4,entry->args,entry->argsc);
+    }
+    sr_encode_json_end(dst,objctx);
+  }
+  sr_encode_json_end(dst,arrayctx);
+  return sr_encode_json_end(dst,jsonctx);
+}
+ 
 static int eggdev_cb_get_api_symbols(struct http_xfer *req,struct http_xfer *rsp) {
+
+  /* Acquiring the ROM is tricky. When you launch `eggdev serve`, you don't actually supply a data directory as such, just "directories".
+   * I'm going to assume that (writepath) has a "data" directory under it, and that's what we want.
+   * Log errors clearly enough that I can fix it in the future, when I discover just how bad an idea this really is.
+   */
+  if (!eggdev.rom) {
+    char path[1024];
+    int pathc=0;
+    if (eggdev.writepath) {
+      pathc=snprintf(path,sizeof(path),"%s/data",eggdev.writepath);
+      if ((pathc<0)||(pathc>=sizeof(path))) pathc=0;
+      else if (file_get_type(path)!='d') pathc=0;
+    }
+    if (!pathc) {
+      fprintf(stderr,"%s:%d: GET /api/symbols was requested but we don't know how to acquire the ROM!\n",__FILE__,__LINE__);
+      return http_xfer_set_status(rsp,500,"%s:%d: GET /api/symbols expects '--write=DIR' with DIR containing 'data'",__FILE__,__LINE__);
+    }
+  }
+  eggdev_ns_flush();
+  eggdev_ns_require();
+  
+  struct sr_encoder *dst=http_xfer_get_body(rsp);
+  int jsonctx_outer=sr_encode_json_object_start(dst,0,0);
+  if (jsonctx_outer<0) { dst->c=0; return http_xfer_set_status(rsp,500,""); }
+  int jsonctx_ns=sr_encode_json_array_start(dst,"ns",2);
+  const struct eggdev_ns *ns=eggdev.nsv;
+  int i=eggdev.nsc;
+  for (;i-->0;ns++) {
+    int err=eggdev_api_symbols_encode_ns(dst,ns);
+    if (err<0) { dst->c=0; return http_xfer_set_status(rsp,500,""); }
+  }
+  sr_encode_json_end(dst,jsonctx_ns);
+  if (sr_encode_json_end(dst,jsonctx_outer)<0) { dst->c=0; return http_xfer_set_status(rsp,500,""); }
   return http_xfer_set_status(rsp,200,"OK");
 }
 
@@ -582,6 +635,7 @@ int eggdev_main_serve() {
   if (!eggdev.port) eggdev.port=8080;
   if (eggdev.http) return -1;
   signal(SIGINT,eggdev_http_rcvsig);
+  eggdev.schema_volatile=1;
   if ((err=eggdev_serve_init_http())<0) goto _done_;
   if ((err=eggdev_serve_init_audio())<0) goto _done_;
   while (!eggdev.terminate) {

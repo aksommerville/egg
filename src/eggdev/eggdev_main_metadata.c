@@ -5,7 +5,6 @@
  
 struct eggdev_metadata_context {
   const char *path;
-  struct eggdev_rom rom;
   struct sr_encoder dst;
   const uint8_t *src;
   int srcc;
@@ -27,7 +26,6 @@ static void eggdev_metadata_field_cleanup(struct eggdev_metadata_field *field) {
 }
 
 static void eggdev_metadata_context_cleanup(struct eggdev_metadata_context *ctx) {
-  eggdev_rom_cleanup(&ctx->rom);
   sr_encoder_cleanup(&ctx->dst);
   if (ctx->fieldv) {
     while (ctx->fieldc-->0) eggdev_metadata_field_cleanup(ctx->fieldv+ctx->fieldc);
@@ -84,10 +82,10 @@ static int eggdev_metadata_field_search(const struct eggdev_metadata_context *ct
  
 static int eggdev_metadata_resolve_single_lang(void *dstpp,const struct eggdev_metadata_context *ctx,int lang,int rid,int index,const char *natural,int naturalc) {
   int qrid=(lang<<6)|rid;
-  int resp=eggdev_rom_search(&ctx->rom,EGG_TID_strings,qrid);
+  int resp=eggdev_rom_search(eggdev.rom,EGG_TID_strings,qrid);
   if (resp>=0) {
     const char *src=0;
-    int srcc=rom_string_by_index(&src,ctx->rom.resv[resp].serial,ctx->rom.resv[resp].serialc,index);
+    int srcc=rom_string_by_index(&src,eggdev.rom->resv[resp].serial,eggdev.rom->resv[resp].serialc,index);
     if (srcc>0) {
       natural=src;
       naturalc=srcc;
@@ -116,8 +114,8 @@ static int eggdev_metadata_resolve_all_langs(void *dstpp,const struct eggdev_met
   if (naturalc) {
     if (sr_encode_json_string(&encoder,"default",7,natural,naturalc)<0) { sr_encoder_cleanup(&encoder); return -1; }
   }
-  const struct eggdev_res *res=ctx->rom.resv;
-  int resi=ctx->rom.resc;
+  const struct eggdev_res *res=eggdev.rom->resv;
+  int resi=eggdev.rom->resc;
   for (;resi-->0;res++) {
     if (res->tid<EGG_TID_strings) continue;
     if (res->tid>EGG_TID_strings) break;
@@ -156,13 +154,13 @@ static int eggdev_metadata_digest(struct eggdev_metadata_context *ctx) {
           fprintf(stderr,"%s:WARNING: %.*s '%.*s', invalid resource id.\n",ctx->path,field->kc,field->k,field->vc,field->v);
           field->kc=0;
         } else {
-          int resp=eggdev_rom_search(&ctx->rom,EGG_TID_image,rid);
+          int resp=eggdev_rom_search(eggdev.rom,EGG_TID_image,rid);
           if (resp<0) {
             fprintf(stderr,"%s:WARNING: %.*s %d, image not found.\n",ctx->path,field->kc,field->k,rid);
             field->kc=0;
           } else {
-            const void *src=ctx->rom.resv[resp].serial;
-            int srcc=ctx->rom.resv[resp].serialc;
+            const void *src=eggdev.rom->resv[resp].serial;
+            int srcc=eggdev.rom->resv[resp].serialc;
             int dsta=2+(srcc<<1); // Really 2+ceil(srcc*4/3); +2*2 covers it.
             char *dst=malloc(dsta);
             if (!dst) return -1;
@@ -233,13 +231,13 @@ static int eggdev_metadata_inner(struct eggdev_metadata_context *ctx) {
   
   /* metadata:1 should always be the first resource, but search generically just to be safe.
    */
-  int resp=eggdev_rom_search(&ctx->rom,EGG_TID_metadata,1);
+  int resp=eggdev_rom_search(eggdev.rom,EGG_TID_metadata,1);
   if (resp<0) {
     fprintf(stderr,"%s: metadata:1 not found\n",ctx->path);
     return -2;
   }
-  ctx->src=ctx->rom.resv[resp].serial;
-  ctx->srcc=ctx->rom.resv[resp].serialc;
+  ctx->src=eggdev.rom->resv[resp].serial;
+  ctx->srcc=eggdev.rom->resv[resp].serialc;
   if ((ctx->srcc<4)||memcmp(ctx->src,"\0EM\xff",4)) {
     fprintf(stderr,"%s: Invalid metadata, signature check failed.\n",ctx->path);
     return -2;
@@ -317,11 +315,7 @@ int eggdev_main_metadata() {
       }
     }
   }
-  if ((err=eggdev_rom_add_path(&ctx.rom,ctx.path))<0) {
-    if (err!=-2) fprintf(stderr,"%s: Unspecified error decoding ROM\n",ctx.path);
-    eggdev_metadata_context_cleanup(&ctx);
-    return -2;
-  }
+  if ((err=eggdev_require_rom(ctx.path))<0) return err;
   if ((err=eggdev_metadata_inner(&ctx))<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error dumping metadata.\n",ctx.path);
     eggdev_metadata_context_cleanup(&ctx);

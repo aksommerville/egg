@@ -150,13 +150,14 @@ int eggdev_rom_add_path(struct eggdev_rom *rom,const char *path) {
 static char eggdev_tid_storage[256];
 static int eggdev_tid_storagep=0;
  
-const char *eggdev_tid_repr(const struct eggdev_rom *rom,int tid) {
+const char *eggdev_tid_repr(int tid) {
   if ((tid<0)||(tid>0xff)) return "?";
   switch (tid) {
     #define _(tag) case EGG_TID_##tag: return #tag;
     EGG_TID_FOR_EACH
     #undef _
   }
+  struct eggdev_rom *rom=eggdev.rom;
   if (rom&&(tid<rom->tnamec)&&rom->tnamev[tid]) return rom->tnamev[tid];
   if (eggdev_tid_storagep>=sizeof(eggdev_tid_storage)-4) eggdev_tid_storagep=0;
   char *dst=eggdev_tid_storage+eggdev_tid_storagep;
@@ -164,12 +165,13 @@ const char *eggdev_tid_repr(const struct eggdev_rom *rom,int tid) {
   return dst;
 }
 
-int eggdev_tid_eval(const struct eggdev_rom *rom,const char *src,int srcc) {
+int eggdev_tid_eval(const char *src,int srcc) {
   if (!src) return 0;
   if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
   #define _(tag) if ((srcc==sizeof(#tag)-1)&&!memcmp(src,#tag,srcc)) return EGG_TID_##tag;
   EGG_TID_FOR_EACH
   #undef _
+  struct eggdev_rom *rom=eggdev.rom;
   if (rom) {
     int i=rom->tnamec;
     while (i-->0) {
@@ -264,7 +266,7 @@ int eggdev_rom_add_rom_serial(struct eggdev_rom *rom,const void *src,int srcc,co
     } else {
       res=rom->resv+p;
       if (res->seq==rom->seq) {
-        fprintf(stderr,"%s: Duplicate resource %s:%d\n",path,eggdev_tid_repr(rom,res->tid),res->rid);
+        fprintf(stderr,"%s: Duplicate resource %s:%d\n",path,eggdev_tid_repr(res->tid),res->rid);
         return -2;
       }
       eggdev_res_set_name(res,0,0);
@@ -502,7 +504,7 @@ int eggdev_rom_parse_path(
     if ((sr_int_eval(&v,dir,dirc)<2)||(v<1)||(v>0xff)) return -1;
     parsed->tid=v;
   } else {
-    if ((parsed->tid=eggdev_tid_eval(rom,dir,dirc))<1) {
+    if ((parsed->tid=eggdev_tid_eval(dir,dirc))<1) {
       if ((parsed->tid=eggdev_rom_name_type(rom,dir,dirc))<0) {
         return -1;
       }
@@ -574,7 +576,7 @@ struct eggdev_res *eggdev_rom_res_by_string(const struct eggdev_rom *rom,const c
   if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
   int sepp=0; for (;sepp<srcc;sepp++) {
     if (src[sepp]==':') {
-      int tid=eggdev_tid_eval(rom,src,sepp);
+      int tid=eggdev_tid_eval(src,sepp);
       if (tid<1) return 0;
       const char *rname=src+sepp+1;
       int rnamec=srcc-sepp-1;
@@ -809,14 +811,14 @@ int eggdev_rom_validate(struct eggdev_rom *rom) {
       return -2;
     }
     if (res->serialc>4210688) {
-      fprintf(stderr,"ERROR: Invalid resource size %d for %s:%d (%s)\n",res->serialc,eggdev_tid_repr(rom,res->tid),res->rid,res->path);
+      fprintf(stderr,"ERROR: Invalid resource size %d for %s:%d (%s)\n",res->serialc,eggdev_tid_repr(res->tid),res->rid,res->path);
       return -2;
     }
     switch (res->tid) {
       case EGG_TID_metadata:
       case EGG_TID_code: {
           if (res->rid!=1) {
-            fprintf(stderr,"ERROR: ID for '%s' resource can only be 1, found %d.\n",eggdev_tid_repr(rom,res->tid),res->rid);
+            fprintf(stderr,"ERROR: ID for '%s' resource can only be 1, found %d.\n",eggdev_tid_repr(res->tid),res->rid);
             return -2;
           }
         } break;
@@ -882,5 +884,29 @@ int eggdev_rom_encode(struct sr_encoder *dst,const struct eggdev_rom *rom) {
     
   }
   if (sr_encode_u8(dst,0x00)<0) return -1;
+  return 0;
+}
+
+/* Ensure the global ROM is loaded.
+ */
+ 
+int eggdev_require_rom(const char *path) {
+  if (eggdev.rom) return 0;
+  if (!path) {
+    if (eggdev.srcpathc<1) {
+      fprintf(stderr,"%s: Expected ROM path\n",eggdev.exename);
+      return -2;
+    }
+    path=eggdev.srcpathv[0];
+  }
+  if (!(eggdev.rom=calloc(1,sizeof(struct eggdev_rom)))) return -1;
+  int err=eggdev_rom_add_path(eggdev.rom,path);
+  if (err<0) {
+    eggdev_rom_cleanup(eggdev.rom);
+    free(eggdev.rom);
+    eggdev.rom=0;
+    if (err!=-2) fprintf(stderr,"%s: Unspecified error loading ROM\n",path);
+    return -2;
+  }
   return 0;
 }

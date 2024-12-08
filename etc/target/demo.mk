@@ -57,6 +57,7 @@ demo-edit:$(eggdev_EXE);$(eggdev_EXE) serve \
   --htdocs=out:out --htdocs=rt:src/www --htdocs=src/editor --htdocs=src/demo --htdocs=src/demo/editor \
   --write=src/demo \
   --gamehtml=$(demo_HTML) \
+  --schema=src/demo/src/demo_symbols.h \
   $(demo_EDIT_AUDIO_ARGS)
 
 #-------------------------------------------------------------------------------------
