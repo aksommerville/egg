@@ -28,6 +28,7 @@ export class MapEditor {
     this.res = null;
     this.map = null;
     this.tilesheet = null;
+    this.annotations = [];
     this.mapToolbar = null;
     this.mapCanvas = null;
     
@@ -59,6 +60,7 @@ export class MapEditor {
       this.res = res;
       this.map = this.mapStore.getMapByPath(res.path);
       if (!this.map) throw new Error(`${JSON.stringify(res.path)} not found in MapStore`);
+      this.annotations = this.mapStore.generateAnnotations(this.map);
       this.acquireTilesheet();
       this.mapPaint.setup(this, this.map);
       this.mapToolbar = this.dom.spawnController(this.element, MapToolbar, [this]);
@@ -80,6 +82,11 @@ export class MapEditor {
   
   dirty() {
     this.mapStore.dirty(this.res.path);
+  }
+  
+  refreshAnnotations() {
+    this.annotations = this.mapStore.generateAnnotations(this.map);
+    this.mapCanvas.renderSoon();
   }
   
   onKey(event) {

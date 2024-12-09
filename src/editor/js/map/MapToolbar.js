@@ -204,7 +204,7 @@ export class MapToolbar {
       this.mapEditor.map.replaceCommands(result);
       this.mapEditor.dirty();
       this.mapEditor.mapCanvas.renderSoon();
-      //TODO Will we need to signal a refresh of POI?
+      this.mapEditor.refreshAnnotations();
     }).catch(e => this.dom.modalError(e));
   }
   

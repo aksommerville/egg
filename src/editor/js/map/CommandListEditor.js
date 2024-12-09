@@ -195,6 +195,7 @@ export class CommandListEditor {
     return "";
   }
   
+  // (src) is a single-line string.
   static splitCommand(src) {
     const words = [];
     for (let srcp=0; srcp<src.length; ) {
@@ -221,6 +222,22 @@ export class CommandListEditor {
       srcp = spp + 1;
     }
     return words;
+  }
+  
+  // (src) may be string or Uint8Array. Calls (cb) with an array of strings, once per line.
+  // Return true from (cb) to stop iteration.
+  static forEachCommand(src, cb) {
+    if (!src) return;
+    if (src instanceof Uint8Array) src = new TextDecoder("utf8").decode(src);
+    if (typeof(src) !== "string") return;
+    for (let srcp=0, lineno=1; srcp<src.length; lineno++) {
+      let nlp = src.indexOf("\n", srcp);
+      if (nlp < 0) nlp = src.length;
+      const line = src.substring(srcp, nlp).trim();
+      srcp = nlp + 1;
+      if (!line || (line[0] === '#')) continue;
+      if (cb(this.splitCommand(line))) break;
+    }
   }
 }
 

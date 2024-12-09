@@ -26,6 +26,8 @@ export class MapCanvas {
     this.zoom = 4; // Larger means bigger tiles.
     this.tilesize = Math.round(this.mapEditor.tilesize * this.zoom); // For display. Natural tilesize in the source image is (this.mapEditor.tilesize) always.
     this.image = null;
+    this.icons = null;
+    this.hoverAnnotation = null;
     this.loadImage();
     
     // Placement of the mousedown listener is fragile: Can't use canvas because it's pointer-events:none, and can't use sizer because it might be short.
@@ -69,6 +71,10 @@ export class MapCanvas {
     }).catch(e => {
       console.log(`MapCanvas failed to acquire image ${JSON.stringify(name)}`, e);
     });
+    // Unrelated, but same idea: Load the icons image.
+    const img = new Image();
+    img.addEventListener("load", () => { this.icons = img; this.renderSoon(); }, { once: true });
+    img.src = "/egg-editor-icons.png";
   }
   
   /* Populates (originx,originy) based on inputs, (this.tilesize), and sizer bounds (ie visible map size).
@@ -169,16 +175,40 @@ export class MapCanvas {
       ctx.globalAlpha = 1;
     }
     
-    /* Highlight regions of interest, from the commands.
+    /* Highlight regions of interest (annotations with (w,h)).
      */
     if (visibility.includes("regions")) {
-      //TODO ROI
+      ctx.globalAlpha = 0.5;
+      for (const an of this.mapEditor.annotations) {
+        if (!an.hasOwnProperty("w")) continue;
+        an.vx = this.originx + an.x * this.tilesize;
+        an.vy = this.originy + an.y * this.tilesize;
+        an.vw = Math.max(an.w, 0.5) * this.tilesize;
+        an.vh = Math.max(an.h, 0.5) * this.tilesize;
+        ctx.fillStyle = this.colorForRegion(an);
+        ctx.fillRect(an.vx, an.vy, an.vw, an.vh);
+      }
+      ctx.globalAlpha = 1;
     }
     
-    /* Highlight points of interest, from the commands.
+    /* Highlight points of interest (annotations without (w,h)).
      */
     if (visibility.includes("poi")) {
-      //TODO POI
+      const countByPosition = [];
+      for (let ai=0; ai<this.mapEditor.annotations.length; ai++) {
+        const an = this.mapEditor.annotations[ai];
+        if (an.hasOwnProperty("w")) continue;
+        an.vx = this.originx + an.x * this.tilesize;
+        an.vy = this.originy + an.y * this.tilesize;
+        an.vw = 16;
+        an.vh = 16;
+        const p = an.y * this.mapEditor.map.w + an.x;
+        const index = countByPosition[p] || 0;
+        countByPosition[p] = index + 1;
+        if (index & 1) an.vx += this.tilesize >> 1;
+        if (index & 2) an.vy += this.tilesize >> 1;
+        this.renderPoi(ctx, an);
+      }
     }
     
     /* Selection if present.
@@ -260,6 +290,25 @@ export class MapCanvas {
     }
   }
   
+  // Render one POI annotation, with (vx,vy) already established.
+  renderPoi(ctx, an) {
+    if (an.thumbnail) {
+      ctx.drawImage(an.thumbnail, an.vx, an.vy);
+      return;
+    }
+    if (this.icons) {
+      const icon = (col, row) => ctx.drawImage(this.icons, col * 16, row * 16, 16, 16, an.vx, an.vy, an.vw, an.vh);
+      switch (an.opcode) {
+        case "door": icon(0, 1); return;
+        case "door:exit": icon(1, 1); return;
+        case "sprite": icon(2, 1); return;
+        default: icon(3, 1); return; // Generic question mark is better than the flat green box.
+      }
+    }
+    ctx.fillStyle = "#0f0";
+    ctx.fillRect(an.vx, an.vy, an.vw, an.vh);
+  }
+  
   /* Tile colors, when image is not available.
    * I don't expect this to come up often, but we have to do something.
    */
@@ -267,6 +316,10 @@ export class MapCanvas {
     const col = tileid & 15;
     const row = tileid >> 4;
     return "#" + "0123456789abcdef"[col] + "0123456789abcdef"[row] + "0123456789abcdef"[Math.max(col, row)];
+  }
+  
+  colorForRegion(annotation) {
+    return "#f00";
   }
   
   // Returns [x,y], the map cell containing (x,y) in canvas pixels.
@@ -304,9 +357,6 @@ export class MapCanvas {
     if (this.mouseListener) return;
     const [col, row] = this.mapPositionFromEvent(event); // NB (col,row) are fractional
     if ((col < 0) || (row < 0) || (col >= this.mapEditor.map.w) || (row >= this.mapEditor.map.h)) return;
-    
-    //TODO Search for POI handles or other overlay widgets.
-    
     if (this.mapEditor.mapPaint.mouseDown(Math.floor(col), Math.floor(row))) {
       this.mouseListener = e => this.onMouseUpOrMove(e);
       this.window.addEventListener("mousemove", this.mouseListener);
@@ -330,8 +380,40 @@ export class MapCanvas {
   onMouseMove(event) {
     if (event.type === "mouseleave") {
       this.mapEditor.mapToolbar.clearTattle();
+      if (this.hoverAnnotation) {
+        this.hoverAnnotation = null;
+        const tool = this.mapEditor.mapToolbar.getToolName();
+        if ((tool === "poimove") || (tool === "poiedit")) {
+          this.mapEditor.mapToolbar.setNote("");
+        }
+      }
     } else {
       const [x, y] = this.mapPositionFromEvent(event);
+    
+      /* Check if we're hovering over an annotation.
+       */
+      const [cx, cy] = this.canvasPositionFromMap(x, y);
+      let nextAnnotation = null;
+      for (const an of this.mapEditor.annotations) {
+        if (an.vx > cx) continue;
+        if (an.vy > cy) continue;
+        if (an.vx + an.vw <= cx) continue;
+        if (an.vy + an.vh <= cy) continue;
+        // Prefer smaller annotation handles. POI should always be <tile and regions should always be >=tile.
+        if (!nextAnnotation || (an.vw < nextAnnotation.vw) || (an.vh < nextAnnotation.vh)) {
+          nextAnnotation = an;
+        }
+      }
+      if (nextAnnotation !== this.hoverAnnotation) {
+        this.hoverAnnotation = nextAnnotation;
+        const tool = this.mapEditor.mapToolbar.getToolName();
+        if ((tool === "poimove") || (tool === "poiedit") || (tool === "door")) {
+          this.mapEditor.mapToolbar.setNote(this.hoverAnnotation?.desc || "");
+        }
+      }
+      
+      /* Update cell coords tattle.
+       */
       this.mapEditor.mapToolbar.setTattle(Math.floor(x), Math.floor(y));
     }
   }

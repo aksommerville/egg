@@ -441,6 +441,9 @@ body {
 .CommandListEditor .validation.invalid {
   background-color: #f00;
 }
+.CommandListEditor .command {
+  min-width: 300px;
+}
 
 .TilesheetEditor {
   display: flex;
@@ -541,13 +544,13 @@ body {
   color: #0f0;
   font-family: monospace;
   text-align: center;
-  width: 60px;
+  width: 160px;
   height: 1.5em;
 }
 .MapToolbar .note {
   background-color: #320;
   color: #ff0;
-  width: 60px;
+  width: 160px;
   height: 1.5em;
   text-align: center;
 }
@@ -555,6 +558,7 @@ body {
   display: flex;
   flex-direction: row;
   align-items: center;
+  user-select: none;
 }
 .MapToolbar .visibility > input {
   display: none;
@@ -589,4 +593,15 @@ body {
   width: calc(100% - 15px); /* Hacky estimate of scroll bar width */
   height: calc(100% - 15px);
   pointer-events: none;
+}
+
+.PoiModal {
+  display: flex;
+  flex-direction: column;
+}
+.PoiModal > input[type='text'] {
+  width: 400px;
+}
+.PoiModal > input[type='button'] {
+  width: 100px;
 }

@@ -160,4 +160,19 @@ export class MapCommand {
   encode() {
     return this.tokens.join(" ");
   }
+  
+  adjustPosition(dx, dy, paramIndex) {
+    if (!paramIndex) paramIndex = 0;
+    for (let i=0; i<this.tokens.length; i++) {
+      const match = this.tokens[i].match(/^@(\d+),(\d+)(,[\d,]*)?$/);
+      if (!match) continue;
+      if (paramIndex--) continue;
+      const x = +match[1];
+      const y = +match[2];
+      const rem = match[3] || "";
+      this.tokens[i] = `@${x + dx},${y + dy}${rem}`;
+      return true;
+    }
+    return false;
+  }
 }

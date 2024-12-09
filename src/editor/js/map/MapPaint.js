@@ -4,13 +4,20 @@
  * Each MapEditor instance gets a fresh MapPaint, and other parties should access it via MapEditor.
  */
  
-import { MapRes } from "./MapRes.js";
+import { MapRes, MapCommand } from "./MapRes.js";
+import { PoiModal } from "./PoiModal.js";
+import { Data } from "../Data.js";
+import { Dom } from "../Dom.js";
  
 export class MapPaint {
   static getDependencies() {
-    return [];
+    return [Data, Window, Dom];
   }
-  constructor() {
+  constructor(data, window, dom) {
+    this.data = data;
+    this.window = window;
+    this.dom = dom;
+    
     this.mapEditor = null;
     this.map = null;
     this.mousex = 0; // Most recent coords, when tracking motion.
@@ -26,6 +33,8 @@ export class MapPaint {
     this.selectMode = ""; // "add" | "remove"
     this.shiftKey = false;
     this.ctrlKey = false;
+    this.poimoveAnnotation = null;
+    this.poimovePrevious = null;
   }
   
   setup(mapEditor, map) {
@@ -181,21 +190,119 @@ export class MapPaint {
     }
   }
   
+  duplicateCommandForAnnotation(an) {
+    // Some things, it doesn't make sense to allow duplication.
+    switch (an.opcode) {
+      case "door:exit":
+        return;
+    }
+    const oldCommand = an.map.commands.find(c => c.mapCommandId === an.mapCommandId);
+    if (!oldCommand) return;
+    const newCommand = new MapCommand(oldCommand);
+    an.map.commands.push(newCommand);
+    this.mapEditor.mapStore.dirty(an.map);
+    this.mapEditor.annotations.push({
+      ...an,
+      mapCommandId: newCommand.mapCommandId,
+    });
+    this.mapEditor.mapCanvas.renderSoon();
+  }
+  
   poimoveBegin() {
-    //TODO POI. Needs some kind of coordination with MapCanvas, because we don't have fractional coords here.
-    return false;
+    const an = this.mapEditor.mapCanvas.hoverAnnotation;
+    if (!an) return false;
+    if (this.shiftKey) {
+      this.duplicateCommandForAnnotation(an);
+    }
+    this.poimoveAnnotation = an;
+    this.poimovePrevious = [this.mousex, this.mousey];
+    return true;
   }
   
   poimoveMove() {
+    const an = this.poimoveAnnotation;
+    const dx = this.mousex - this.poimovePrevious[0];
+    const dy = this.mousey - this.poimovePrevious[1];
+    this.poimovePrevious = [this.mousex, this.mousey];
+    an.x += dx;
+    an.y += dy;
+    const cmd = an.map.commands.find(c => c.mapCommandId === an.mapCommandId);
+    if (cmd) {
+      let pix = 0;
+      if (an.opcode === "door:exit") pix = 1;
+      cmd.adjustPosition(dx, dy, pix);
+      this.mapEditor.mapStore.dirty(an.map.path);
+    }
+    this.mapEditor.mapCanvas.renderSoon();
   }
   
   poieditBegin() {
-    //TODO POI. Needs some kind of coordination with MapCanvas, because we don't have fractional coords here.
+    const modal = this.dom.spawnModal(PoiModal);
+    let an = this.mapEditor.mapCanvas.hoverAnnotation;
+    if (an) {
+      modal.setupExisting(an);
+    } else {
+      modal.setupNewPositioned(this.mousex, this.mousey);
+    }
+    modal.result.then(result => {
+      if (!result) return;
+      if (result.delete) {
+        const p = an.map.commands.findIndex(c => c.mapCommandId === an.mapCommandId);
+        if (p < 0) return;
+        an.map.commands.splice(p, 1);
+      } else if (!result.newText) {
+        // ignore it
+      } else if (an) {
+        const cmd = an.map.commands.find(c => c.mapCommandId === an.mapCommandId);
+        if (!cmd) throw new Error(`Command ${an.mapCommandId} not found`);
+        cmd.decode(result.newText);
+      } else {
+        this.mapEditor.map.commands.push(new MapCommand(result.newText));
+      }
+      this.mapEditor.refreshAnnotations();
+      this.mapEditor.dirty();
+    }).catch(e => this.dom.modalError(e));
     return false;
   }
   
   doorBegin() {
-    //TODO POI. Needs some kind of coordination with MapCanvas, because we don't have fractional coords here.
+    let an = this.mapEditor.mapCanvas.hoverAnnotation;
+    if (an) {
+
+      if (an.opcode === "door") {
+        const cmd = an.map.commands.find(c => c.mapCommandId === an.mapCommandId);
+        if (!cmd) return false;
+        const mapid = cmd.tokens[2];
+        if (!mapid) return false;
+        const res = this.data.resByString(mapid, "map");
+        if (!res) return false;
+        this.window.location = "#" + res.path;
+        
+      } else if (an.opcode === "door:exit") {
+        this.window.location = "#" + an.map.path;
+        
+      }
+    } else {
+      const modal = this.dom.spawnModal(PoiModal);
+      modal.setupNewDoor(this.mousex, this.mousey, this.mapEditor.map, this.mapEditor.mapStore);
+      modal.result.then(result => {
+        if (!result || !result.newText) return;
+        const cmd = new MapCommand(result.newText);
+        if ((cmd.tokens.length < 4) || (cmd.tokens[0] !== "door")) {
+          throw new Error(`door command should have at least 4 tokens: door SRCPOS DSTID DSTPOS`);
+        }
+        if (result.createRemote) {
+          const remCmd = `door ${cmd.tokens[3]} map:${this.mapEditor.map.rid} ${cmd.tokens[1]}`;
+          const remMap = this.mapEditor.mapStore.getMapByString(cmd.tokens[2]);
+          if (!remMap) throw new Error(`${remMap} not found`);
+          remMap.commands.push(new MapCommand(remCmd));
+          this.mapEditor.mapStore.dirty(remMap.path);
+        }
+        this.mapEditor.map.commands.push(cmd);
+        this.mapEditor.refreshAnnotations();
+        this.mapEditor.dirty();
+      }).catch(e => this.dom.modalError(e));
+    }
     return false;
   }
   

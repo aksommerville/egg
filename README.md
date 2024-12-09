@@ -53,12 +53,13 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - [ ] editor: Preserve map workbench state across selecting new resource. (and across refresh? We could use the URL hash...)
 - - - [x] editor: ctl-wheel to zoom
 - - - [x] editor: Map commands
-- - - [ ] editor: Map POI and regions
+- - - [x] editor: Map POI and regions
 - - - [x] editor: Map actions
 - - - [ ] editor: Neighbor maps and initial size, if configured.
 - - - [ ] Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.
 - - - [ ] editor: Sprite image and tile
 - - [ ] State engine and persistence.
+- [ ] MapStore: Custom POI icons supplied by game.
 - [x] eggdev: Store a rom globally, it's cumbersome to keep passing it around like we do. And how often will there be more than one?
 - [x] eggdev and specs: Collapse CMD_ and NS_ into a single set of things, and key internally on strings rather than tid.
 - [ ] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama?

@@ -1,6 +1,8 @@
-0100000002
-0000000000
-03000000ff
+0100000000
+0000030200
+03000001ff
 
 image image:bgtiles
 door (u8:eggStyle)scrambled *
+door @3,1 map:brand_new @5,6
+door @3,0 map:2 @11,18

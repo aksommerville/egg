@@ -62,6 +62,10 @@ export class Namespaces {
   idFromName(mode, nsname, name) {
     return this.entryByName(mode, nsname, name)?.id || 0;
   }
+  
+  nameExists(mode, nsname, name) {
+    return !!this.entryByName(mode, nsname, name);
+  }
 }
 
 Namespaces.singleton = true;
