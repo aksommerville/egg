@@ -1,10 +1,12 @@
 /* CommandListEditor.js
  * Generic editor for command lists.
  * We can be used as a top-level resource editor, and also piecemeal within other editors.
+ * Also we export CommandListModal to wrap the loose case in a modal for convenience.
  */
  
 import { Dom } from "../Dom.js";
 import { Data } from "../Data.js";
+import { MapCommand } from "./MapRes.js";
 
 export class CommandListEditor {
   static getDependencies() {
@@ -17,6 +19,7 @@ export class CommandListEditor {
     
     this.clientValidate = null; // (words) => errorMessage | null
     this.clientAssist = null; // (words) => void. Pop up a modal or something, it's all yours.
+    this.onDirty = null; // Notify of dirty, only with setupLoose(). You can call encodeFromUi() to get a Uint8Array of the new content.
     
     this.res = null;
   }
@@ -30,7 +33,32 @@ export class CommandListEditor {
     this.buildUi();
   }
   
-  //TODO setup() equivalent with loose text, no resource
+  /* (src) may be:
+   * - string
+   * - Uint8Array
+   * - string[]
+   * - string[][]
+   * - MapCommand[]
+   * We will call (onDirty) if set, when anything changes.
+   */
+  setupLoose(src) {
+    this.res = null;
+    this.buildUi();
+    this.populateUi(this.forceString(src));
+  }
+  
+  forceString(src) {
+    if (!src) return "";
+    if (typeof(src) === "string") return src;
+    if (src instanceof Uint8Array) return new TextDecoder("utf8").decode(src);
+    if (src instanceof Array) {
+      if (!src.length) return "";
+      if (src[0] instanceof MapCommand) return src.map(s => s.encode()).join("\n");
+      if (typeof(src[0]) === "string") return src.join("\n");
+      if (src[0] instanceof Array) return src.map(s => s.join(" ")).join("\n");
+    }
+    throw new Error(`Inappropriate input to CommandListEditor`);
+  }
   
   /* Returns an array of arrays of strings.
    */
@@ -101,8 +129,8 @@ export class CommandListEditor {
   }
   
   dirty() {
-    if (!this.res) return;
-    this.data.dirty(this.res.path, () => this.encodeFromUi());
+    if (this.res) this.data.dirty(this.res.path, () => this.encodeFromUi());
+    else if (this.onDirty) this.onDirty();
   }
   
   onDeleteRow(row) {
@@ -193,5 +221,27 @@ export class CommandListEditor {
       srcp = spp + 1;
     }
     return words;
+  }
+}
+
+export class CommandListModal {
+  static getDependencies() {
+    return [HTMLDialogElement, Dom];
+  }
+  constructor(element, dom) {
+    this.element = element;
+    this.dom = dom;
+    this.editor = null;
+  }
+  
+  setup(src) {
+    this.element.innerHTML = "";
+    this.editor = this.dom.spawnController(this.element, CommandListEditor);
+    this.editor.setupLoose(src);
+    this.dom.spawn(this.element, "INPUT", { type: "button", value: "OK", "on-click": () => this.onSubmit() });
+  }
+  
+  onSubmit() {
+    this.resolve(this.editor.encodeFromUi());
   }
 }

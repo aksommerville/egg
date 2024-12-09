@@ -56,5 +56,6 @@ export class GenericModal {
       event.preventDefault();
     }});
     input.focus();
+    if (preset) input.select(0, preset.length);
   }
 }

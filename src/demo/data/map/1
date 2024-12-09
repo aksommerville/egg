@@ -2,5 +2,5 @@
 0000000000
 03000000ff
 
-image image:tiles8
+image image:bgtiles
 door (u8:eggStyle)scrambled *

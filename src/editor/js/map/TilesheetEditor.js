@@ -223,7 +223,7 @@ export class TilesheetEditor {
         if (name === "neighbors") {
           this.renderNeighborMask(ctx, x, y, boxw, boxh, v);
         } else {
-          ctx.fillStyle = this.colorForTableValue(v);
+          ctx.fillStyle = TilesheetEditor.colorForTableValue(v);
           ctx.fillRect(x, y, boxw, boxh);
         }
       }
@@ -252,7 +252,7 @@ export class TilesheetEditor {
    *   g: 5     6      7
    *   b:     6      7
    */
-  colorForTableValue(v) {
+  static colorForTableValue(v) {
     let r=0, g=0, b=0;
     if (v & 0x01) r |= 0x80;
     if (v & 0x02) g |= 0x80;
