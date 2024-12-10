@@ -4,5 +4,5 @@
 
 image image:bgtiles
 door (u8:eggStyle)scrambled *
-door @3,1 map:brand_new @5,6
-door @3,0 map:2 @11,18
+door @3,1 map:brand_new @5,6 0x0000
+door @3,0 map:2 @11,18 0x0000

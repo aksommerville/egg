@@ -114,7 +114,8 @@ static int eggdev_command_arg_compile(
           fprintf(stderr,"%s:%d: Resource '%.*s' not found\n",refname,lineno,srcc,src);
           return -2;
         }
-        if (sr_encode_intbe(dst,res->rid,2)<0) return -1;
+        // If there's a language, remove it from the emitted ID.
+        if (sr_encode_intbe(dst,res->rid-(res->lang<<6),2)<0) return -1;
         return 0;
       }
     }
