@@ -7,7 +7,7 @@ ifneq (,$(strip $(filter clean,$(MAKECMDGOALS))))
 clean:;rm -rf mid out
 else
 
-OPT_ENABLE:=stdlib graf text rom 
+OPT_ENABLE:=stdlib graf text rom
 
 ifndef EGG_SDK
   EGG_SDK:=../egg
@@ -38,7 +38,7 @@ $(WEB_LIB):$(WEB_OFILES);$(PRECMD) $(WEB_LD) -o$@ $(WEB_OFILES) $(WEB_LDPOST)
 
 ROM:=out/game.egg
 all:$(ROM)
-$(ROM):$(WEB_LIB) $(DATAFILES);$(PRECMD) $(EGG_SDK)/out/eggdev pack -o$@ $(WEB_LIB) src/data
+$(ROM):$(WEB_LIB) $(DATAFILES);$(PRECMD) $(EGG_SDK)/out/eggdev pack -o$@ $(WEB_LIB) src/data --schema=src/game/shared_symbols.h
 
 HTML:=out/game.html
 all:$(HTML)
@@ -67,7 +67,13 @@ AUDIO_DRIVERS:=$(strip $(filter pulse asound alsafd macaudio msaudio,$(patsubst 
 EDIT_AUDIO_ARGS:=--audio=$(subst $(SPACE),$(COMMA),$(AUDIO_DRIVERS)) --audio-rate=44100 --audio-chanc=2
 # If you prefer web audio only, enable this:
 EDIT_AUDIO_ARGS:=
-edit:;$(EGG_SDK)/out/eggdev serve --htdocs=rt:$(EGG_SDK)/src/www --htdocs=$(EGG_SDK)/src/editor --htdocs=src/editor --htdocs=src --write=src $(EDIT_AUDIO_ARGS)
+edit:;$(EGG_SDK)/out/eggdev serve \
+  --htdocs=rt:$(EGG_SDK)/src/www \
+  --htdocs=$(EGG_SDK)/src/editor \
+  --htdocs=src/editor \
+  --htdocs=src \
+  --schema=src/game/shared_symbols.h \
+  --write=src $(EDIT_AUDIO_ARGS)
 
 web-run:$(ROM);$(EGG_SDK)/out/eggdev serve --htdocs=$(EGG_SDK)/src/www --htdocs=out --default-rom=/$(notdir $(ROM))
 

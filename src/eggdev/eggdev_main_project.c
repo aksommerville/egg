@@ -241,6 +241,42 @@ static int eggdev_project_generate_main(struct eggdev_project_context *ctx) {
   return 0;
 }
 
+/* Generate src/game/shared_symbols.h
+ * Overwrites (ctx->scratch).
+ */
+ 
+static int eggdev_project_generate_shared_symbols(struct eggdev_project_context *ctx) {
+  ctx->scratch.c=0;
+  if (sr_encode_raw(&ctx->scratch,
+    "/* shared_symbols.h\n"
+    " * Consumed by both the game and the tools.\n"
+    " */\n"
+    "\n"
+    "#ifndef SHARED_SYMBOLS_H\n"
+    "#define SHARED_SYMBOLS_H\n"
+    "\n"
+    "#define NS_sys_tilesize 16\n"
+    "#define NS_sys_mapw 20\n"
+    "#define NS_sys_maph 15\n"
+    "\n"
+    "#define CMD_map_image     0x20 /* u16:imageid */\n"
+    "#define CMD_map_neighbors 0x60 /* u16:left u16:right u16:up u16:down */\n"
+    "#define CMD_map_sprite    0x61 /* u16:pos u16:spriteid u32:reserved */\n"
+    "#define CMD_map_door      0x62 /* u16:pos u16:mapid u16:dstpos u16:reserved */\n"
+    "\n"
+    "#define CMD_sprite_image  0x20 /* u16:imageid */\n"
+    "#define CMD_sprite_tile   0x21 /* u8:tileid u8:xform */\n"
+    "\n"
+    "#define NS_tilesheet_physics     1\n"
+    "#define NS_tilesheet_neighbors   0\n"
+    "#define NS_tilesheet_family      0\n"
+    "#define NS_tilesheet_weight      0\n"
+    "\n"
+    "#endif\n"
+  ,-1)<0) return -1;
+  return 0;
+}
+
 /* Copy a few static resources from the Egg demo project.
  * Fonts, maybe other stuff?
  * This does not populate ctx->scratch; everything gets done immediately.
@@ -267,15 +303,13 @@ static int eggdev_project_copy_res(struct eggdev_project_context *ctx,const char
  
 static int eggdev_project_copy_resources(struct eggdev_project_context *ctx) {
   int err;
-  // Copying all the fonts is probably overkill. font9 yes, but font6, cursive, and witchy are just me screwing around.
+  // There are more fonts we could copy if we felt like it, and more pages for font9. Usually I end up deleting them, so just sticking to the basics here.
   if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/2-font9_0020.a1.rlead.png","src/data/image/1-font9_0020.a1.rlead.png"))<0) return err;
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/3-font9_00a1.a1.rlead.png","src/data/image/2-font9_00a1.a1.rlead.png"))<0) return err;
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/4-font9_0400.a1.rlead.png","src/data/image/3-font9_0400.a1.rlead.png"))<0) return err;
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/8-font6_0020.a1.rlead.png","src/data/image/4-font6_0020.a1.rlead.png"))<0) return err;
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/9-cursive_0020.a1.rlead.png","src/data/image/5-cursive_0020.a1.rlead.png"))<0) return err;
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/10-witchy_0020.a1.rlead.png","src/data/image/6-witchy_0020.a1.rlead.png"))<0) return err;
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/instruments","src/data/instruments"))<0) return err;
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/sounds/1-gm_drums.msf","src/data/sounds/1-gm_drums.msf"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/3-font9_00a1.a1.rlead.png","src/data/image/2-font9_00a1.a1.rlead.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/4-font9_0400.a1.rlead.png","src/data/image/3-font9_0400.a1.rlead.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/8-font6_0020.a1.rlead.png","src/data/image/4-font6_0020.a1.rlead.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/9-cursive_0020.a1.rlead.png","src/data/image/5-cursive_0020.a1.rlead.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/10-witchy_0020.a1.rlead.png","src/data/image/6-witchy_0020.a1.rlead.png"))<0) return err;
   if ((err=eggdev_project_copy_res(ctx,"src/editor/override/Custom.js","src/editor/override/Custom.js"))<0) return err;
   return 0;
 }
@@ -299,7 +333,6 @@ static int eggdev_project_in_dir(struct eggdev_project_context *ctx) {
   if (dir_mkdir("src/opt")<0) return -1;
   if (dir_mkdir("src/editor")<0) return -1;
   if (dir_mkdir("src/editor/override")<0) return -1;
-  if (file_write("src/data/manifest",0,0)<0) return -1;
   if (file_write("src/editor/override/editor.css",0,0)<0) return -1;
   
   if (
@@ -347,6 +380,14 @@ static int eggdev_project_in_dir(struct eggdev_project_context *ctx) {
     ((err=file_write("src/game/main.c",ctx->scratch.v,ctx->scratch.c))<0)
   ) {
     if (err!=-2) fprintf(stderr,"%s/src/game/main.c: Failed to generate.\n",ctx->projname);
+    return -2;
+  }
+  
+  if (
+    ((err=eggdev_project_generate_shared_symbols(ctx))<0)||
+    ((err=file_write("src/game/shared_symbols.h",ctx->scratch.v,ctx->scratch.c))<0)
+  ) {
+    if (err!=-2) fprintf(stderr,"%s/src/game/shared_symbols.h: Failed to generate.\n",ctx->projname);
     return -2;
   }
   

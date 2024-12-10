@@ -3,6 +3,7 @@
 #include "opt/graf/graf.h"
 #include "opt/text/text.h"
 #include "egg_rom_toc.h"
+#include "shared_symbols.h"
 
 static void *rom=0;
 static int romc=0;
@@ -32,9 +33,6 @@ int egg_client_init() {
   
   if (!(font=font_new())) return -1;
   if (font_add_image_resource(font,0x0020,RID_image_font9_0020)<0) return -1;
-  if (font_add_image_resource(font,0x00a1,RID_image_font9_00a1)<0) return -1;
-  if (font_add_image_resource(font,0x0400,RID_image_font9_0400)<0) return -1;
-  // Also supplied by default: font6_0020, cursive_0020, witchy_0020
   if ((texid_message=font_tex_oneline(font,"Game is running!",-1,200,0xffffffff))<0) return -1;
   egg_texture_get_status(&messagew,&messageh,texid_message);
   
