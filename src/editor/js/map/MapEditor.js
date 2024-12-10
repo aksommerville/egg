@@ -35,6 +35,17 @@ export class MapEditor {
     this.keyListener = e => this.onKey(e);
     this.window.addEventListener("keydown", this.keyListener);
     this.window.addEventListener("keyup", this.keyListener);
+    
+    try {
+      this.workbenchState = JSON.parse(this.window.localStorage.getItem("MapEditorState"));
+      if (!this.workbenchState || (typeof(this.workbenchState) !== "object")) throw null;
+    } catch (e) {
+      this.workbenchState = {};
+    }
+    if (!this.workbenchState.tool) this.workbenchState.tool = "rainbow";
+    if (!this.workbenchState.tile) this.workbenchState.tile = 0;
+    if (!this.workbenchState.visibility) this.workbenchState.visibility = ["image", "grid", "poi", "regions"];
+    if (!this.workbenchState.zoom) this.workbenchState.zoom = 4;
   }
   
   onRemoveFromDom() {
@@ -87,6 +98,10 @@ export class MapEditor {
   refreshAnnotations() {
     this.annotations = this.mapStore.generateAnnotations(this.map);
     this.mapCanvas.renderSoon();
+  }
+  
+  workbenchStateDirty() {
+    this.window.localStorage.setItem("MapEditorState", JSON.stringify(this.workbenchState));
   }
   
   onKey(event) {

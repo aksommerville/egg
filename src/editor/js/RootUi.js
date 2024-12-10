@@ -50,16 +50,16 @@ export class RootUi {
     const workspace = this.element.querySelector(".workspace");
     workspace.innerHTML = "";
     this.editor = null;
-    let arg = "";
+    let arg = [];
     const qp = path.indexOf("?");
     if (qp >= 0) {
-      arg = path.substring(qp + 1);
+      arg = path.substring(qp + 1).split(',');
       path = path.substring(0, qp);
     }
     const res = this.data.resv.find(r => r.path === path);
     if (!res) return;
     this.sidebar.setHighlight(path);
-    const clazz = this.actions.editorByName(arg) || this.actions.getEditor(res);
+    const clazz = this.actions.editorByName(arg[0]) || this.actions.getEditor(res);
     this.editor = this.dom.spawnController(workspace, clazz);
     this.editor.setup(res);
   }

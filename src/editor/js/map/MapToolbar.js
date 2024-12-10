@@ -21,9 +21,9 @@ export class MapToolbar {
     this.nonce = nonce;
     this.data = data;
     
-    this.selectedTileid = 0;
+    this.selectedTileid = this.mapEditor.workbenchState.tile;
     this.image = null;
-    this.manualTool = "rainbow"; // Initial selection, and then the last one clicked on. Not necessarily the effective one.
+    this.manualTool = this.mapEditor.workbenchState.tool;
     this.shiftKey = false;
     this.controlKey = false;
     
@@ -56,6 +56,8 @@ export class MapToolbar {
   selectTile(tileid) {
     this.selectedTileid = tileid;
     this.renderPalette();
+    this.mapEditor.workbenchState.tile = tileid;
+    this.mapEditor.workbenchStateDirty();
   }
   
   selectToolIndex(p) {
@@ -152,8 +154,9 @@ export class MapToolbar {
       this.dom.spawn(visibility, "INPUT", { id, type: "checkbox", name: k });
       this.dom.spawn(visibility, "LABEL", { for: id }, k);
     }
-    for (const k of ["image", "grid", "poi", "regions"]) { // Initially-enabled visibility.
-      visibility.querySelector(`input[name='${k}']`).checked = true;
+    for (const k of this.mapEditor.workbenchState.visibility) {
+      const toggle = visibility.querySelector(`input[name='${k}']`);
+      if (toggle) toggle.checked = true;
     }
     const actions = this.dom.spawn(va, "SELECT", { name: "actions", "on-change": () => this.onSelectAction() },
       this.dom.spawn(null, "OPTION", { value: "", disabled: "disabled" }, "Actions...")
@@ -192,6 +195,8 @@ export class MapToolbar {
       if (typeof(result) === "number") {
         this.selectedTileid = result;
         this.renderPalette();
+        this.mapEditor.workbenchState.tile = result;
+        this.mapEditor.workbenchStateDirty();
       }
     }).catch(e => this.dom.modalError(e));
   }
@@ -215,10 +220,14 @@ export class MapToolbar {
     if (!newSelection) return;
     this.manualTool = newSelection;
     this.mapEditor.mapPaint.onToolChanged(this.manualTool);
+    this.mapEditor.workbenchState.tool = this.manualTool;
+    this.mapEditor.workbenchStateDirty();
   }
   
   onVisibilityChanged() {
     this.mapEditor.mapCanvas.renderSoon();
+    this.mapEditor.workbenchState.visibility = this.getVisibility();
+    this.mapEditor.workbenchStateDirty();
   }
   
   onSelectAction() {

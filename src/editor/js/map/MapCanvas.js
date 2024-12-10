@@ -23,7 +23,7 @@ export class MapCanvas {
     this.mouseListener = null;
     this.originx = 0; // Where the top-left corner of cell (0,0) goes, in canvas coordinates. Often negative, and can be positive for small maps.
     this.originy = 0;
-    this.zoom = 4; // Larger means bigger tiles.
+    this.zoom = this.mapEditor.workbenchState.zoom; // Larger means bigger tiles.
     this.tilesize = Math.round(this.mapEditor.tilesize * this.zoom); // For display. Natural tilesize in the source image is (this.mapEditor.tilesize) always.
     this.image = null;
     this.icons = null;
@@ -427,6 +427,8 @@ export class MapCanvas {
       const base = 1.25;
       if ((event.deltaY > 0) && (this.zoom > 0.25)) this.zoom /= base;
       else if ((event.deltaY < 0) && (this.zoom < 32)) this.zoom *= base;
+      this.mapEditor.workbenchState.zoom = this.zoom;
+      this.mapEditor.workbenchStateDirty();
       this.tilesize = Math.max(1, Math.round(this.mapEditor.tilesize * this.zoom));
       this.recalculateSize();
       // Now scroll to try to keep the cursor pointing at the same map position. It's not perfect, hopefully close enough to be useful.
