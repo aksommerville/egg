@@ -65,16 +65,20 @@ export class MapCanvas {
   
   loadImage() {
     const name = this.mapEditor.map.getFirstCommand("image");
-    this.data.getImageAsync(name).then(img => {
-      this.image = img;
-      this.renderSoon();
-    }).catch(e => {
-      console.log(`MapCanvas failed to acquire image ${JSON.stringify(name)}`, e);
-    });
+    if (name) {
+      this.data.getImageAsync(name).then(img => {
+        this.image = img;
+        this.renderSoon();
+      }).catch(e => {
+        console.log(`MapCanvas failed to acquire image ${JSON.stringify(name)}`, e);
+      });
+    }
     // Unrelated, but same idea: Load the icons image.
-    const img = new Image();
-    img.addEventListener("load", () => { this.icons = img; this.renderSoon(); }, { once: true });
-    img.src = "/egg-editor-icons.png";
+    if (!this.icons) {
+      const img = new Image();
+      img.addEventListener("load", () => { this.icons = img; this.renderSoon(); }, { once: true });
+      img.src = "/egg-editor-icons.png";
+    }
   }
   
   /* Populates (originx,originy) based on inputs, (this.tilesize), and sizer bounds (ie visible map size).
@@ -366,7 +370,6 @@ export class MapCanvas {
   
   onMouseUpOrMove(event) {
     const [col, row] = this.mapPositionFromEvent(event); // NB (col,row) are fractional
-    if ((col < 0) || (row < 0) || (col >= this.mapEditor.map.w) || (row >= this.mapEditor.map.h)) return;
     if (event.type === "mouseup") {
       this.window.removeEventListener("mousemove", this.mouseListener);
       this.window.removeEventListener("mouseup", this.mouseListener);
@@ -374,6 +377,7 @@ export class MapCanvas {
       this.mapEditor.mapPaint.mouseUp(Math.floor(col), Math.floor(row));
       return;
     }
+    if ((col < 0) || (row < 0) || (col >= this.mapEditor.map.w) || (row >= this.mapEditor.map.h)) return;
     this.mapEditor.mapPaint.mouseMove(Math.floor(col), Math.floor(row));
   }
   

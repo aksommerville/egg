@@ -9,6 +9,7 @@ import { Data } from "../Data.js";
 import { Namespaces } from "../Namespaces.js";
 import { MapRes } from "./MapRes.js";
 import { CommandListEditor } from "./CommandListEditor.js";
+import { Encoder } from "../Encoder.js";
 
 export class MapStore {
   static getDependencies() {
@@ -173,14 +174,43 @@ export class MapStore {
    ****************************************************************************************/
   
   /* Drop the entire state and rebuild synchronously from Data.
-   * This happens at construction, and shouldn't be necessary any time else.
+   * This happens at construction, and also on relevant TOC changes.
    */
   refresh() {
     this.maps = [];
     for (const res of this.data.resv) {
       if (res.type !== "map") continue;
+      if (!res.serial?.length) res.serial = this.generateDefaultMap();
       this.maps.push(new MapRes(res));
     }
+  }
+  
+  /* Empty is legal but weird.
+   * When we find something empty, generate a sensible default instead.
+   * Returns Uint8Array.
+   */
+  generateDefaultMap() {
+    let mapw = this.namespaces.idFromName("NS", "sys", "mapw");
+    let maph = this.namespaces.idFromName("NS", "sys", "maph");
+    if ((mapw < 1) || (maph < 1)) {
+      mapw = 20;
+      maph = 15;
+    }
+    const dst = new Encoder();
+    for (let yi=maph; yi-->0; ) {
+      for (let xi=mapw*2; xi-->0; ) {
+        dst.u8(0x30);
+      }
+      dst.u8(0x0a);
+    }
+    dst.u8(0x0a);
+    if (this.namespaces.nameExists("CMD", "map", "image")) {
+      const anyTilesheet = this.data.resv.find(r => r.type === "tilesheet");
+      if (anyTilesheet) {
+        dst.raw(`image image:${anyTilesheet.rid}\n`);
+      }
+    }
+    return dst.finish();
   }
   
   myTocDisagreesWithDatas() {

@@ -8,6 +8,8 @@
 /* Namespace "sys" is for loose constants that the editor needs.
  */
 #define NS_sys_tilesize 8 /* pixels */
+#define NS_sys_mapw 20 /* cells. If set, this is the initial size of new maps. */
+#define NS_sys_maph 10 /* '' */
 
 /* Commands for "map" resource.
  * A few are used by the editor if you define them: image, door, sprite, neighbors

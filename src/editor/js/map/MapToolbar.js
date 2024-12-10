@@ -175,6 +175,7 @@ export class MapToolbar {
     const srcy = (this.selectedTileid >> 4) * ts;
     const canvas = this.element.querySelector(".palette > canvas");
     const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(this.image, srcx, srcy, ts, ts, 0, 0, ts, ts);
   }
   
@@ -208,8 +209,9 @@ export class MapToolbar {
       if (!result) return;
       this.mapEditor.map.replaceCommands(result);
       this.mapEditor.dirty();
-      this.mapEditor.mapCanvas.renderSoon();
+      this.mapEditor.mapCanvas.loadImage();
       this.mapEditor.refreshAnnotations();
+      this.setup(); // Forces reload of image
     }).catch(e => this.dom.modalError(e));
   }
   
