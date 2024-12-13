@@ -53,6 +53,73 @@ static int eggdev_command_arg_compile(
     return 0;
   }
   
+  /* "(bSIZE:NAMESPACE)(TOKEN,TOKEN...)" for bitmaps.
+   */
+  if ((srcc>=2)&&(src[0]=='(')&&(src[1]=='b')) {
+    int srcp=2,size=0;
+    while ((srcp<srcc)&&(src[srcp]!=':')) {
+      char ch=src[srcp++];
+      if ((ch<'0')||(ch>'9')) {
+        fprintf(stderr,"%s:%d: Expected ':NAMESPACE' after bitmap size.\n",refname,lineno);
+        return -2;
+      }
+      size*=10;
+      size+=ch-'0';
+      if (size>999) {
+        fprintf(stderr,"%s:%d: Unreasonable bitmap size.\n",refname,lineno);
+        return -2;
+      }
+    }
+    if ((srcp>=srcc)||(src[srcp++]!=':')) {
+      fprintf(stderr,"%s:%d: Expected ':NAMESPACE' after bitmap size.\n",refname,lineno);
+      return -2;
+    }
+    switch (size) {
+      case 8: case 16: case 24: case 32: break;
+      default: {
+          fprintf(stderr,"%s:%d: Bitmap size must be 8, 16, 24, or 32. Found %d.\n",refname,lineno,size);
+          return -2;
+        }
+    }
+    const char *nsname=src+srcp;
+    int nsnamec=0;
+    while ((srcp<srcc)&&(src[srcp++]!=')')) nsnamec++;
+    if ((srcp>=srcc)||(src[srcp++]!='(')) {
+      fprintf(stderr,"%s:%d: Expected '(TOKENS,...)' after bitmap introducer.\n",refname,lineno);
+      return -2;
+    }
+    uint32_t v=0;
+    for (;;) {
+      if (srcp>=srcc) {
+        fprintf(stderr,"%s:%d: Unclosed bitmap\n",refname,lineno);
+        return -2;
+      }
+      if (src[srcp]==')') {
+        srcp++;
+        break;
+      }
+      if (src[srcp]==',') {
+        srcp++;
+        continue;
+      }
+      const char *bitname=src+srcp;
+      int bitnamec=0;
+      while ((srcp<srcc)&&(src[srcp]!=')')&&(src[srcp]!=',')) { srcp++; bitnamec++; }
+      int bitix=0;
+      if (eggdev_lookup_value_from_name(&bitix,EGGDEV_NS_MODE_NS,nsname,nsnamec,bitname,bitnamec)<0) {
+        fprintf(stderr,"%s:%d: Failed to evaluate '%.*s' in namespace '%.*s'\n",refname,lineno,bitnamec,bitname,nsnamec,nsname);
+        return -2;
+      }
+      if ((bitix<0)||(bitix>=size)) {
+        fprintf(stderr,"%s:%d: Illegal bit index %d ('%.*s') for %d-bit integer.\n",refname,lineno,bitix,bitnamec,bitname,size);
+        return -2;
+      }
+      v|=1<<bitix;
+    }
+    if (sr_encode_intbe(dst,v,size>>3)<0) return -1;
+    return 0;
+  }
+  
   /* "(uSIZE)INT" or "(uSIZE:NAMESPACE)IDENTIFIER" for general integers.
    */
   if (src[0]=='(') {

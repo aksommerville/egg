@@ -49,7 +49,10 @@ Argument formats:
  - `TYPE:NAME`: Resource ID in 2 bytes. Resource must exist.
  - `(uL:N)V`: Big-endian integer of length `L` (8,16,24,32), by resolving token `V` in namespace `N`.
  - - For extending the editor with your custom namespaces. eg `(u16:flag)blue_door_unlocked` or `(u8:sprite_type)dragon`
+ - `(bL:N)(A,B...)` Big-endian integer as bitmap where `A` and `B` are the little-endian bit index eg 0..31. Value out of range for `L` is a compile error.
  - `*` as the last argument only, indicating compiler should pad with zeroes to the required length.
+ 
+Whitespace is *not* permitted in any expression except strings. Our tokenizers for the most part depend on whitespace as a delimiter.
  
 So, reading between the lines, a command list in text format can be basically a hex dump:
 ```
