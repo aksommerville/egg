@@ -48,8 +48,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] MacOS: WABT, WAMR, and clang. Trouble is brewing here... Can we get all three tools to run on the old MacBook?
 - [ ] Web runner.
 - - [ ] Input config.
-- [ ] Rich set of client-side helper libraries.
-- - [ ] State engine and persistence.
+- [x] Rich set of client-side helper libraries.
+- - [x] State engine and persistence.
 - [ ] MapEditor: Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.
 - [ ] MapEditor: Neighbor maps.
 - [ ] SpriteEditor: Conveniences for image and tile.

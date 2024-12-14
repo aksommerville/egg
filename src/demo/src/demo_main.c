@@ -175,6 +175,56 @@ static void dump_new_standard_resources() {
   }
 }
 
+/* Password.
+ ********************************************************/
+ 
+#include "opt/password/password.h"
+
+struct tiny_state { uint8_t v; };
+struct realistic_state { int hp,xp,gold; char name[16]; uint8_t flags[9]; };
+
+static void play_with_password() {
+
+  {
+    struct tiny_state before={.v=123};
+    PASSWORD_ENCODE(before)
+    if (passwordc<0) {
+      fprintf(stderr,"!!! Failed to encode tiny_state\n");
+    } else {
+      struct tiny_state after={0};
+      PASSWORD_DECODE(after,password,passwordc)
+      if (!decode_ok) {
+        fprintf(stderr,"!!! Failed to decode tiny_state. Encoded: %.*s\n",passwordc,password);
+      } else {
+        fprintf(stderr,"tiny_state: {%d} => %.*s => {%d}\n",before.v,passwordc,password,after.v);
+      }
+    }
+  }
+  
+  {
+    struct realistic_state before={.hp=123,.xp=44123321,.gold=43215,.name="Galahad",.flags={1,2,3,4,5}};
+    PASSWORD_ENCODE(before)
+    if (passwordc<0) {
+      fprintf(stderr,"!!! Failed to encode realistic_state\n");
+    } else {
+      struct realistic_state after={0};
+      PASSWORD_DECODE(after,password,passwordc)
+      if (!decode_ok) {
+        fprintf(stderr,"!!! Failed to decode realistic_state. Encoded: %.*s\n",passwordc,password);
+      } else {
+        const char *alert=memcmp(&before,&after,sizeof(struct realistic_state))?"!!! MISMATCH !!!":"";
+        fprintf(stderr,
+          "realistic: {%d,%d,%d,'%.16s',[%d,%d,%d,%d,%d,%d,%d,%d]} => %.*s => {%d,%d,%d,'%.16s',[%d,%d,%d,%d,%d,%d,%d,%d]} %s\n",
+          before.hp,before.xp,before.gold,before.name,before.flags[0],before.flags[1],before.flags[2],before.flags[3],before.flags[4],before.flags[5],before.flags[6],before.flags[7],
+          passwordc,password,
+          after.hp,after.xp,after.gold,after.name,after.flags[0],after.flags[1],after.flags[2],after.flags[3],after.flags[4],after.flags[5],after.flags[6],after.flags[7],
+          alert
+        );
+      }
+    }
+  }
+}
+
 /* Entry points.
  **************************************************************/
 
@@ -184,9 +234,14 @@ void egg_client_quit(int status) {
 
 int egg_client_init() {
 
-  if (1) {
+  if (0) {
     dump_new_standard_resources();
     fprintf(stderr,"%s aborting, we're just dumping the new resources\n",__func__);
+    return -1;
+  }
+  if (0) {
+    play_with_password();
+    fprintf(stderr,"%s aborting, we're just testing passwords\n",__func__);
     return -1;
   }
 
