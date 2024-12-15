@@ -10,6 +10,21 @@ static int eggdev_res_cmp(const void *a,const void *b) {
   return 0;
 }
 
+/* Compile a generic command-list resource.
+ */
+ 
+static int eggdev_pack_command_list(struct eggdev_res *res,struct eggdev_ns *ns) {
+  struct sr_encoder dst={0};
+  int err=eggdev_command_list_compile(&dst,res->serial,res->serialc,res->path,1,ns);
+  if (err<0) {
+    if (err!=-2) fprintf(stderr,"%s: Unspecified error compiling command-list resource.\n",res->path);
+    sr_encoder_cleanup(&dst);
+    return -2;
+  }
+  eggdev_res_handoff_serial(res,dst.v,dst.c);
+  return 0;
+}
+
 /* pack, compile resources.
  */
  
@@ -27,6 +42,12 @@ static int eggdev_pack_convert(struct eggdev_rom *rom) {
       #define _(tag) case EGG_TID_##tag: err=eggdev_compile_##tag(res); break;
       EGG_TID_FOR_EACH
       #undef _
+      default: {
+          struct eggdev_ns *ns=eggdev_ns_by_tid(res->tid);
+          if (ns) {
+            err=eggdev_pack_command_list(res,ns);
+          }
+        }
     }
     if (err<0) {
       if (err!=-2) fprintf(stderr,"%s:%d: Failed to compile resource\n",eggdev_tid_repr(res->tid),res->rid);

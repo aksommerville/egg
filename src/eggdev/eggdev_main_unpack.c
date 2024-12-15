@@ -1,5 +1,20 @@
 #include "eggdev_internal.h"
 
+/* Uncompile a generic command-list resource.
+ */
+ 
+static int eggdev_unpack_command_list(struct eggdev_res *res,struct eggdev_ns *ns) {
+  struct sr_encoder dst={0};
+  int err=eggdev_command_list_uncompile(&dst,res->serial,res->serialc,res->path,ns);
+  if (err<0) {
+    if (err!=-2) fprintf(stderr,"%s:%d: Unspecified error uncompiling command-list resource.\n",eggdev_tid_repr(res->tid),res->rid);
+    sr_encoder_cleanup(&dst);
+    return -2;
+  }
+  eggdev_res_handoff_serial(res,dst.v,dst.c);
+  return 0;
+}
+
 /* unpack, convert resources.
  */
  
@@ -13,6 +28,12 @@ static int eggdev_unpack_convert(struct eggdev_rom *rom,const char *srcpath) {
       #define _(tag) case EGG_TID_##tag: err=eggdev_uncompile_##tag(res); break;
       EGG_TID_FOR_EACH
       #undef _
+      default: {
+          struct eggdev_ns *ns=eggdev_ns_by_tid(res->tid);
+          if (ns) {
+            err=eggdev_unpack_command_list(res,ns);
+          }
+        }
     }
     if (err<0) {
       if (err!=-2) fprintf(stderr,"%s:%d: Failed to convert resource\n",eggdev_tid_repr(res->tid),res->rid);

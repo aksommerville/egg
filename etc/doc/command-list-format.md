@@ -71,6 +71,8 @@ songid song:seven_hundred_seventy_two
 You should provide one or more schema files to `eggdev pack` when command-list resources are involved.
 These are C header files, and we extract certain defines from them.
 
+By virtue of defining any `CMD_{type}_{name}` symbols, eggdev will automatically compile those resources as command list with no signature.
+
 `#define CMD_{type}_{name} {opcode} /* {args} */`: Define a command. Type's name can't contain an underscore.
 
 `#define NS_{name}_{key} {value} /* IGNORED */`: Define a symbol (key) in namespace (name). The namespace's name can't contain an underscore.
