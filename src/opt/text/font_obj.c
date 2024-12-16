@@ -231,16 +231,6 @@ int font_add_image_resource(struct font *font,int codepoint,int imageid) {
          if (id<q) hi=ck;
     else if (id>q) lo=ck;
     else {
-      #if 0
-        struct image *image=image_decode(strings.resv[ck].v,strings.resv[ck].c);
-        if (!image) break;
-        int err=image_reformat_in_place(image,1,0,0,0,0);
-        if (err>=0) {
-          err=font_add_image(font,codepoint,image->v,image->w,image->h,image->stride);
-        }
-        image_del(image);
-        return err;
-      #endif
       const void *src=strings.resv[ck].v;
       int srcc=strings.resv[ck].c;
       int w=0,h=0,pixelsize=0,pixlen;
@@ -260,17 +250,6 @@ int font_add_image_resource(struct font *font,int codepoint,int imageid) {
     }
   }
   return -1;
-}
-
-/* Character properties.
- */
- 
-static int font_codepoint_is_breakable(int codepoint) {
-  if ((codepoint>='0')&&(codepoint<='9')) return 0;
-  if ((codepoint>='a')&&(codepoint<='z')) return 0;
-  if ((codepoint>='A')&&(codepoint<='Z')) return 0;
-  // Non-ASCII letters are all breaking points but really shouldn't be. TODO?
-  return 1;
 }
 
 /* Measure glyph.
@@ -293,11 +272,138 @@ int font_measure_line(const struct font *font,const char *src,int srcc) {
   int srcp=0,w=0;
   while (srcp<srcc) {
     int seqlen,codepoint;
-    if ((seqlen=text_utf8_decode(&codepoint,src+srcp,srcc-srcp))<1) break;
+    if ((seqlen=text_utf8_decode(&codepoint,src+srcp,srcc-srcp))<1) { codepoint=(unsigned char)src[srcp]; seqlen=1; }
     srcp+=seqlen;
     w+=font_measure_glyph(font,codepoint);
   }
   return w;
+}
+
+/* Classify codepoint as letter, punctuation, or space, for line-breaking purposes.
+ */
+ 
+#define FONT_CHAR_SPACE 0
+#define FONT_CHAR_LETTER 1
+#define FONT_CHAR_PUNCT 2
+
+static int font_classify_char(int ch) {
+  if (ch<=0x20) return FONT_CHAR_SPACE;
+  
+  /* High code points are debatable.
+   * I'm calling them letter because I reckon most punctuation is within G0, even for non-Roman languages.
+   * Detailed classification of all of Unicode is I think out of the question.
+   */
+  if (ch>=0x80) return FONT_CHAR_LETTER;
+  
+  if ((ch>='a')&&(ch<='z')) return FONT_CHAR_LETTER;
+  if ((ch>='A')&&(ch<='Z')) return FONT_CHAR_LETTER;
+  if ((ch>='0')&&(ch<='9')) return FONT_CHAR_LETTER;
+  if (ch=='_') return FONT_CHAR_LETTER; // Debatable.
+  
+  return FONT_CHAR_PUNCT;
+}
+
+/* Measure a token for line-breaking purposes.
+ * Tokens consist of zero or more letters followed by zero or more punctuation.
+ * This is 100% text, we're not measuring the glyphs' width.
+ */
+ 
+static int font_measure_token(const char *src,int srcc) {
+  int srcp=0;
+  int expect=FONT_CHAR_LETTER;
+  while (srcp<srcc) {
+    int ch,seqlen;
+    if ((seqlen=text_utf8_decode(&ch,src+srcp,srcc-srcp))<1) { ch=(unsigned char)src[srcp]; seqlen=1; }
+    int chcls=font_classify_char(ch);
+    if (chcls!=expect) {
+      if ((expect==FONT_CHAR_LETTER)&&(chcls==FONT_CHAR_PUNCT)) {
+        expect=FONT_CHAR_PUNCT;
+      } else {
+        break;
+      }
+    }
+    srcp+=seqlen;
+  }
+  return srcp;
+}
+
+/* Given a token (or whatever) too long for (wlimit), return the maximum length we can fit.
+ * Implies that we are now breaking willy-nilly between any characters.
+ * We may return something longer than (wlimit) only if it's a single glyph.
+ */
+
+static int font_break_token(int *tokenw,const struct font *font,const char *src,int srcc,int wlimit) {
+  int srcp=0;
+  *tokenw=0;
+  while (srcp<srcc) {
+    int ch,seqlen;
+    if ((seqlen=text_utf8_decode(&ch,src+srcp,srcc-srcp))<1) { ch=(unsigned char)src[srcp]; seqlen=1; }
+    int glyphw=font_measure_glyph(font,ch);
+    if (!srcp||((*tokenw)+glyphw<=wlimit)) {
+      srcp+=seqlen;
+      (*tokenw)+=glyphw;
+    } else {
+      break;
+    }
+  }
+  return srcp;
+}
+
+/* Break one line.
+ * Returns the advancement in (src). >=*linec, but advancement includes trailing whitespace where linec and linew do not.
+ * Returns <1 only when input is empty.
+ */
+ 
+static int font_break_line(int *linec,int *linew,const struct font *font,const char *src,int srcc,int wlimit) {
+  int srcp=0;
+  *linec=*linew=0;
+  
+  while (srcp<srcc) {
+    int prelinec=*linec,prelinew=*linew,ch,seqlen,lf=0;
+  
+    // Consume whitespace even if it exceeds the limit, but stop after LF.
+    while (srcp<srcc) {
+      if ((seqlen=text_utf8_decode(&ch,src+srcp,srcc-srcp))<1) { ch=(unsigned char)src[srcp]; seqlen=1; }
+      if (font_classify_char(ch)!=FONT_CHAR_SPACE) break;
+      srcp+=seqlen;
+      (*linec)+=seqlen;
+      (*linew)+=font_measure_glyph(font,ch);
+      if (ch==0x0a) { lf=1; break; }
+    }
+    
+    // If we ate an LF or the whitespace crossed our width limit, strike the last spaces from the reported line and finish.
+    if (lf||(srcp>=srcc)||(*linew>=wlimit)) {
+      *linec=prelinec;
+      *linew=prelinew;
+      return srcp;
+    }
+  
+    // Measure the next non-space token.
+    int tokenc=font_measure_token(src+srcp,srcc-srcp);
+    if (tokenc<1) tokenc=1; // ...it can't be empty but let's be sure.
+    int tokenw=font_measure_line(font,src+srcp,tokenc);
+    
+    // If the token fits, keep it and proceed.
+    if ((*linew)+tokenw<=wlimit) {
+      srcp+=tokenc;
+      (*linec)+=tokenc;
+      (*linew)+=tokenw;
+      continue;
+    }
+    
+    // If we've consumed something already, even leading space, ignore the next token and stop here.
+    if (srcp) break;
+    
+    // We have a token too long to fit on one line. Re-measure and break anywhere.
+    // If the very first glyph is wider than the limit, report it as such. That's the only time we violate the limit.
+    tokenc=font_break_token(&tokenw,font,src+srcp,tokenc,wlimit);
+    srcp+=tokenc;
+    (*linec)+=tokenc;
+    (*linew)+=tokenw;
+    break;
+  }
+  
+  return srcp;
 }
 
 /* Break lines.
@@ -309,59 +415,16 @@ int font_break_lines(struct font_line *dst,int dsta,const struct font *font,cons
   if (srcc<0) { srcc=0; while (src[srcc]) srcc++; }
   int dstc=0,srcp=0;
   while (srcp<srcc) {
-    const char *line=src+srcp;
-    int linec=0;
-    int linea=srcc-srcp;
-    int linew=0;
-    
-    // If there's an explicit LF in the future, that's our limit (inclusive).
-    int i=0; for (;i<linea;i++) {
-      if (line[i]==0x0a) {
-        linea=i+1;
-        break;
-      }
-    }
-    
-    /* Consume free space and atoms until the line with the next atom would be too long.
-     * When that's found, break between the free space and atom.
-     * If the atom is at the line's start, repeat the process one codepoint at a time.
-     */
-    while (linec<linea) {
-      int freec=0;
-      while ((linec+freec<linea)&&((unsigned char)line[linec+freec]<=0x20)) freec++;
-      int freew=font_measure_line(font,line+linec,freec);
-      linec+=freec;
-      linew+=freew;
-      if (linew>=wlimit) break;
-      const char *atom=line+linec;
-      int atomc=0,atomw=0;
-      while (linec+atomc<linea) {
-        int seqlen,codepoint;
-        if ((seqlen=text_utf8_decode(&codepoint,line+linec+atomc,linea-atomc-linec))<1) {
-          srcc=srcp+linec+atomc;
-          break;
-        }
-        if (atomc&&font_codepoint_is_breakable(codepoint)) break;
-        atomc+=seqlen;
-        atomw+=font_measure_glyph(font,codepoint);
-      }
-      if (linew&&(linew+atomw>wlimit)) break; // reject atom, pick it up next line.
-      linec+=atomc;
-      linew+=atomw;
-    }
-    
-    // (linec) should be nonzero by this point. Might be zero due to a misencode or something? Stop then.
-    if (!linec) break;
-    
-    // Advance (srcp), then trim trailing whitespace, then record the line.
-    srcp+=linec;
-    while (linec&&((unsigned char)line[linec-1]<=0x20)) linec--;
+    int advc,linec,linew;
+    if ((advc=font_break_line(&linec,&linew,font,src+srcp,srcc-srcp,wlimit))<1) return -1;
     if (dstc<dsta) {
-      dst[dstc].v=line;
-      dst[dstc].c=linec;
-      dst[dstc].w=linew;
+      struct font_line *line=dst+dstc;
+      line->v=src+srcp;
+      line->c=linec;
+      line->w=linew;
     }
     dstc++;
+    srcp+=advc;
   }
   return dstc;
 }

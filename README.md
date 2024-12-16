@@ -55,8 +55,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] SpriteEditor: Conveniences for image and tile.
 - [ ] MapStore: Custom POI icons supplied by game.
 - [x] Command list is going to need general schema for bitmaps. Maybe "(b32:NAMESPACE)(FIRST,SECOND,...)" where FIRST and SECOND are in 0..31?
-- [ ] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama?
-- [ ] text breaking: Also, we're inappropriately breaking before punctuation. eg if "willy-nilly" is too long, it should be ("willy-","nilly"), not ("willy","-","nilly")
+- [x] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama? ...made all >G0 chars "letter", and that feels right.
+- [x] text breaking: Also, we're inappropriately breaking before punctuation. eg if "willy-nilly" is too long, it should be ("willy-","nilly"), not ("willy","-","nilly")
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.
 - [ ] Validate eject.
