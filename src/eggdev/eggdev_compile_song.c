@@ -384,6 +384,22 @@ int eggdev_song_midi_from_egs(struct sr_encoder *dst,const void *src,int srcc,co
   return 0;
 }
 
+/* WAV for silence.
+ */
+
+static int eggdev_song_compile_silence(struct sr_encoder *dst) {
+  return sr_encode_raw(dst,
+    "RIFF\x26\0\0\0WAVE" // [4..7] file length
+    "fmt \x10\0\0\0"
+      "\1\0\1\0" // format, chanc
+      "\x44\xac\x00\x00" // [24..27] rate = 44100
+      "\x88\x58\x01\x00" // [28..31] byte rate (rate*2) = 88200
+      "\2\0\x10\0" // framesize, samplesize
+    "data\2\0\0\0" // [40..43] data length
+      "\0\0" // PCM
+  ,46);
+}
+
 /* WAV from WAV, sanitizing.
  */
  
@@ -578,6 +594,11 @@ int eggdev_compile_sound(struct eggdev_res *res) {
   // WAV is fine, but we have to sanitize it.
   } else if ((res->serialc>=4)&&!memcmp(res->serial,"RIFF",4)) {
     err=eggdev_song_sanitize_wav(&dst,res->serial,res->serialc,res->path);
+    eggdev_res_set_format(res,"wav",3);
+    
+  // Empty is ok, produce a WAV with one sample of silence.
+  } else if (!res->serialc) {
+    err=eggdev_song_compile_silence(&dst);
     eggdev_res_set_format(res,"wav",3);
     
   // Nothing else is allowed.

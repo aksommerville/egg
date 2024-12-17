@@ -327,7 +327,7 @@ static int eggdev_project_in_dir(struct eggdev_project_context *ctx) {
   if (dir_mkdir("src/data")<0) return -1;
   if (dir_mkdir("src/data/image")<0) return -1;
   if (dir_mkdir("src/data/strings")<0) return -1;
-  if (dir_mkdir("src/data/sounds")<0) return -1;
+  if (dir_mkdir("src/data/sound")<0) return -1;
   if (dir_mkdir("src/data/song")<0) return -1;
   if (dir_mkdir("src/game")<0) return -1;
   if (dir_mkdir("src/opt")<0) return -1;
