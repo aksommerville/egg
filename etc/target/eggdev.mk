@@ -29,10 +29,11 @@ $(eggdev_MIDDIR)/eggdev/eggdev_buildcfg.o:src/eggdev/eggdev_buildcfg.c;$(PRECMD)
   -DEGGDEV_WAMR_SDK="\"$(abspath $(WAMR_SDK))\""
   
 # Libraries we will use at runtime. They don't actually need to exist for us to build, but it's a good time to check.
+# Mind that these are conditional to WAMR and WABT. Native-only installations won't build or use them.
 eggdev_RTLIBS:= \
   out/$(NATIVE_TARGET)/libegg-true.a \
-  out/$(NATIVE_TARGET)/libegg-fake.a \
-  out/$(NATIVE_TARGET)/libegg-recom.a
+  $(if $(WAMR_SDK),out/$(NATIVE_TARGET)/libegg-fake.a) \
+  $(if $(WABT_SDK),out/$(NATIVE_TARGET)/libegg-recom.a)
 
 $(eggdev_EXE):$(eggdev_OFILES) $(eggdev_RTLIBS);$(PRECMD) $(eggdev_LD) -o$@ $^ $(eggdev_LDPOST)
 eggdev-all:$(eggdev_EXE)

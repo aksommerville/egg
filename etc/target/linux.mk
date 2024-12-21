@@ -61,11 +61,14 @@ ifneq (,$(strip $(WABT_SDK)))
   linux-all:$(linux_LIB_RECOM)
 endif
 
-linux_EXE:=$(linux_OUTDIR)/egg
-linux_OFILES_EXE:=$(linux_OFILES) \
-  $(linux_MIDDIR)/eggrt/eggrt_romsrc_external.o \
-  $(linux_MIDDIR)/eggrt/eggrt_exec_wasm.o
-$(linux_EXE):$(linux_OFILES_EXE);$(PRECMD) $(linux_LD) -o$@ $^ $(linux_LDPOST) $(WAMR_SDK)/build/libvmlib.a
-linux-all:$(linux_EXE)
+# ROMless executable only if we have WAMR.
+ifneq (,$(strip $(WAMR_SDK)))
+  linux_EXE:=$(linux_OUTDIR)/egg
+  linux_OFILES_EXE:=$(linux_OFILES) \
+    $(linux_MIDDIR)/eggrt/eggrt_romsrc_external.o \
+    $(linux_MIDDIR)/eggrt/eggrt_exec_wasm.o
+  $(linux_EXE):$(linux_OFILES_EXE);$(PRECMD) $(linux_LD) -o$@ $^ $(linux_LDPOST) $(WAMR_SDK)/build/libvmlib.a
+  linux-all:$(linux_EXE)
+endif
 
 linux-run:$(linux_EXE) $(demo_ROM);$(linux_EXE) $(demo_ROM) $(linux_RUN_ARGS)

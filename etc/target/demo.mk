@@ -43,9 +43,13 @@ demo_DATAFILES:=$(filter src/demo/data/%,$(SRCFILES)) $(demo_CODE1)
 $(demo_ROM):$(demo_DATAFILES) $(eggdev_EXE);$(PRECMD) $(eggdev_EXE) pack -o$@ src/demo/data $(demo_EXTRA_DATA) --schema=src/demo/src/demo_symbols.h
 
 # Blank any of these if you don't want them. You do want HTML.
-demo_EXE_FAKE:=$(demo_OUTDIR)/demo.fake
-demo_EXE_RECOM:=$(demo_OUTDIR)/demo.recom
-demo_HTML:=$(demo_OUTDIR)/demo.html
+ifneq (,$(strip $(WAMR_SDK)))
+  demo_EXE_FAKE:=$(demo_OUTDIR)/demo.fake
+  demo_HTML:=$(demo_OUTDIR)/demo.html
+endif
+ifneq (,$(strip $(WABT_SDK)))
+  demo_EXE_RECOM:=$(demo_OUTDIR)/demo.recom
+endif
 
 COMMA:=,
 EMPTY:=
