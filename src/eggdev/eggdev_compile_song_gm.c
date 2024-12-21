@@ -319,7 +319,7 @@ int eggdev_encode_gm_drums(struct sr_encoder *dst,const uint8_t *notebits/*16*/)
   for (;noteid_major<16;noteid_major++) {
     if (!notebits[noteid_major]) continue;
     int noteid_minor=0,mask=1;
-    for (;noteid_minor<8;noteid_minor++,mask<<1) {
+    for (;noteid_minor<8;noteid_minor++,mask<<=1) {
       if (!(notebits[noteid_major]&mask)) continue;
       if (eggdev_encode_gm_drum(dst,(noteid_major<<3)|noteid_minor)<0) return -1;
     }

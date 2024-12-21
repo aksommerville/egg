@@ -31,6 +31,7 @@ $(linux_MIDDIR)/eggrt/eggrt_exec_wasm.o:src/eggrt/eggrt_exec.c;$(PRECMD) $(linux
 $(linux_MIDDIR)/eggrt/eggrt_exec_recom.o:src/eggrt/eggrt_exec.c;$(PRECMD) $(linux_CC) -o$@ $< -DEXECFMT=RECOM -I$(WABT_SDK)/wasm2c
 $(linux_MIDDIR)/eggrt/%.o:$(WABT_SDK)/wasm2c/%.c;$(PRECMD) $(linux_CC) -o$@ $< -I$(WABT_SDK)/wasm2c -I$(WABT_SDK)/third_party/wasm-c-api/include
 
+# libegg-true is always an option, no reason not to build it.
 linux_LIB_TRUE:=$(linux_OUTDIR)/libegg-true.a
 linux_OFILES_LIB_TRUE:=$(linux_OFILES) \
   $(linux_MIDDIR)/eggrt/eggrt_romsrc_embedded.o \
@@ -38,21 +39,27 @@ linux_OFILES_LIB_TRUE:=$(linux_OFILES) \
 $(linux_LIB_TRUE):$(linux_OFILES_LIB_TRUE);$(PRECMD) $(linux_AR) rc $@ $^
 linux-all:$(linux_LIB_TRUE)
 
-linux_LIB_FAKE:=$(linux_OUTDIR)/libegg-fake.a
-linux_OFILES_LIB_FAKE:=$(linux_OFILES) \
-  $(linux_MIDDIR)/eggrt/eggrt_romsrc_embedded.o \
-  $(linux_MIDDIR)/eggrt/eggrt_exec_wasm.o
-$(linux_LIB_FAKE):$(linux_OFILES_LIB_FAKE);$(PRECMD) $(linux_AR) rc $@ $^
-linux-all:$(linux_LIB_FAKE)
+# libegg-fake only if we have WAMR.
+ifneq (,$(strip $(WAMR_SDK)))
+  linux_LIB_FAKE:=$(linux_OUTDIR)/libegg-fake.a
+  linux_OFILES_LIB_FAKE:=$(linux_OFILES) \
+    $(linux_MIDDIR)/eggrt/eggrt_romsrc_embedded.o \
+    $(linux_MIDDIR)/eggrt/eggrt_exec_wasm.o
+  $(linux_LIB_FAKE):$(linux_OFILES_LIB_FAKE);$(PRECMD) $(linux_AR) rc $@ $^
+  linux-all:$(linux_LIB_FAKE)
+endif
 
-linux_LIB_RECOM:=$(linux_OUTDIR)/libegg-recom.a
-linux_OFILES_LIB_RECOM:=$(linux_OFILES) \
-  $(linux_MIDDIR)/eggrt/eggrt_romsrc_embedded.o \
-  $(linux_MIDDIR)/eggrt/eggrt_exec_recom.o \
-  $(linux_MIDDIR)/eggrt/wasm-rt-impl.o \
-  $(linux_MIDDIR)/eggrt/wasm-rt-mem-impl.o
-$(linux_LIB_RECOM):$(linux_OFILES_LIB_RECOM);$(PRECMD) $(linux_AR) rc $@ $^
-linux-all:$(linux_LIB_RECOM)
+# libegg-recom only if we have WABT
+ifneq (,$(strip $(WABT_SDK)))
+  linux_LIB_RECOM:=$(linux_OUTDIR)/libegg-recom.a
+  linux_OFILES_LIB_RECOM:=$(linux_OFILES) \
+    $(linux_MIDDIR)/eggrt/eggrt_romsrc_embedded.o \
+    $(linux_MIDDIR)/eggrt/eggrt_exec_recom.o \
+    $(linux_MIDDIR)/eggrt/wasm-rt-impl.o \
+    $(linux_MIDDIR)/eggrt/wasm-rt-mem-impl.o
+  $(linux_LIB_RECOM):$(linux_OFILES_LIB_RECOM);$(PRECMD) $(linux_AR) rc $@ $^
+  linux-all:$(linux_LIB_RECOM)
+endif
 
 linux_EXE:=$(linux_OUTDIR)/egg
 linux_OFILES_EXE:=$(linux_OFILES) \

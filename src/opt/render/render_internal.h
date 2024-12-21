@@ -9,7 +9,12 @@
 #include <stdarg.h>
 #include "egg/egg.h"
 #include "opt/image/image.h"
-#include "GLES2/gl2.h"
+
+#if USE_macos
+  #include <OpenGL/gl.h>
+#else
+  #include "GLES2/gl2.h"
+#endif
 
 struct render_vertex_raw {
   GLshort x,y;
