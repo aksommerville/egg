@@ -153,31 +153,63 @@ static int eggrt_update() {
   return 0;
 }
 
+/* Main callbacks for MacOS, because we want to participate in their silly IoC regime.
+ */
+#if USE_macos
+
+#include "opt/macos/macos.h"
+
+static void eggrt_macos_quit(void *userdata) {
+  eggrt_quit();
+}
+
+static int eggrt_macos_init(void *userdata) {
+  return eggrt_init();
+}
+
+static void eggrt_macos_update(void *userdata) {
+  if (eggrt_update()<0) {
+    fprintf(stderr,"%s: Runtime error.\n",eggrt.exename);
+    macioc_terminate(1);
+  }
+}
+
+#endif
+
 /* Main.
  */
  
 int main(int argc,char **argv) {
   int err;
+
+  #if USE_macos
+    argc=macos_prerun_argv(argc,argv);
+  #endif
   
   if ((err=eggrt_configure(argc,argv))<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error acquiring configuration.\n",eggrt.exename);
     return 1;
   }
   if (eggrt.terminate) return eggrt.exitstatus; // eg --help
+
+  #if USE_macos
+    return macos_main(argc,argv,eggrt_macos_quit,eggrt_macos_init,eggrt_macos_update,0);
+  #else
   
-  if ((err=eggrt_init())<0) {
-    if (err!=-2) fprintf(stderr,"%s: Unspecified error starting up.\n",eggrt.exename);
-    return 1;
-  }
-  
-  while (!eggrt.terminate) {
-    if ((err=eggrt_update())<0) {
-      if (err!=-2) fprintf(stderr,"%s: Unspecified runtime error.\n",eggrt.exename);
-      if (!eggrt.exitstatus) eggrt.exitstatus=1;
-      break;
+    if ((err=eggrt_init())<0) {
+      if (err!=-2) fprintf(stderr,"%s: Unspecified error starting up.\n",eggrt.exename);
+      return 1;
     }
-  }
   
-  eggrt_quit();
-  return eggrt.exitstatus;
+    while (!eggrt.terminate) {
+      if ((err=eggrt_update())<0) {
+        if (err!=-2) fprintf(stderr,"%s: Unspecified runtime error.\n",eggrt.exename);
+        if (!eggrt.exitstatus) eggrt.exitstatus=1;
+        break;
+      }
+    }
+  
+    eggrt_quit();
+    return eggrt.exitstatus;
+  #endif
 }

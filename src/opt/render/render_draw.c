@@ -5,8 +5,6 @@
  */
  
 static const char render_raw_vsrc[]=
-  "#version 100\n"
-  "precision mediump float;\n"
   "uniform vec2 screensize;\n"
   "uniform vec4 tint;\n"
   "uniform float alpha;\n"
@@ -21,8 +19,6 @@ static const char render_raw_vsrc[]=
 "";
 
 static const char render_raw_fsrc[]=
-  "#version 100\n"
-  "precision mediump float;\n"
   "varying vec4 vcolor;\n"
   "void main() {\n"
     "gl_FragColor=vcolor;\n"
@@ -33,8 +29,6 @@ static const char render_raw_fsrc[]=
  */
  
 static const char render_decal_vsrc[]=
-  "#version 100\n"
-  "precision mediump float;\n"
   "uniform vec2 screensize;\n"
   "attribute vec2 apos;\n"
   "attribute vec2 atexcoord;\n"
@@ -47,8 +41,6 @@ static const char render_decal_vsrc[]=
 "";
 
 static const char render_decal_fsrc[]=
-  "#version 100\n"
-  "precision mediump float;\n"
   "uniform sampler2D sampler;\n"
   "uniform float alpha;\n"
   "uniform vec4 texlimit;\n" // For mode7, establish firm boundaries in texture space.
@@ -68,8 +60,6 @@ static const char render_decal_fsrc[]=
  */
  
 static const char render_tile_vsrc[]=
-  "#version 100\n"
-  "precision mediump float;\n"
   "uniform vec2 screensize;\n"
   "uniform float pointsize;\n"
   "attribute vec2 apos;\n"
@@ -98,8 +88,6 @@ static const char render_tile_vsrc[]=
 "";
 
 static const char render_tile_fsrc[]=
-  "#version 100\n"
-  "precision mediump float;\n"
   "uniform sampler2D sampler;\n"
   "uniform float alpha;\n"
   "uniform vec4 tint;\n"
@@ -122,7 +110,24 @@ static const char render_tile_fsrc[]=
 static int render_program_compile(struct render *render,const char *name,int pid,int type,const GLchar *src,GLint srcc) {
   GLint sid=glCreateShader(type);
   if (!sid) return -1;
-  glShaderSource(sid,1,&src,&srcc);
+
+  GLchar preamble[256];
+  GLint preamblec=0;
+  #define VERBATIM(v) { memcpy(preamble+preamblec,v,sizeof(v)-1); preamblec+=sizeof(v)-1; }
+  VERBATIM("#version ")
+  preamble[preamblec++]='0'+(EGG_GLSL_VERSION/100)%10;
+  preamble[preamblec++]='0'+(EGG_GLSL_VERSION/10 )%10;
+  preamble[preamblec++]='0'+(EGG_GLSL_VERSION    )%10;
+  #if USE_macos
+    VERBATIM("\n")
+  #else
+    VERBATIM("\nprecision mediump float;\n")
+  #endif
+  #undef VERBATIM
+  const GLchar *srcv[2]={preamble,src};
+  GLint srccv[2]={preamblec,srcc};
+  glShaderSource(sid,2,srcv,srccv);
+  
   glCompileShader(sid);
   GLint status=0;
   glGetShaderiv(sid,GL_COMPILE_STATUS,&status);

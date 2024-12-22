@@ -123,11 +123,20 @@ static int eggdev_bundle_generate_asm(struct eggdev_bundle_context *ctx) {
   const char *rompath=ctx->modrompath?ctx->modrompath:ctx->rompath;
   ctx->scratch.c=0;
   if (sr_encode_fmt(&ctx->scratch,
-    ".globl egg_embedded_rom,egg_embedded_rom_size\n"
-    "egg_embedded_rom:\n"
-    ".incbin \"%s\"\n"
-    "egg_embedded_rom_size:\n"
-    ".int (egg_embedded_rom_size-egg_embedded_rom)\n"
+    #if USE_macos
+      // Apparently MacOS ld needs a leading underscore to find these.
+      ".globl _egg_embedded_rom,_egg_embedded_rom_size\n"
+      "_egg_embedded_rom:\n"
+      ".incbin \"%s\"\n"
+      "_egg_embedded_rom_size:\n"
+      ".int (_egg_embedded_rom_size-_egg_embedded_rom)\n"
+    #else
+      ".globl egg_embedded_rom,egg_embedded_rom_size\n"
+      "egg_embedded_rom:\n"
+      ".incbin \"%s\"\n"
+      "egg_embedded_rom_size:\n"
+      ".int (egg_embedded_rom_size-egg_embedded_rom)\n"
+    #endif
   ,rompath)<0) return -1;
   if (file_write(ctx->asmpath,ctx->scratch.v,ctx->scratch.c)<0) {
     fprintf(stderr,"%s: Failed to write intermediate assembly file, %d bytes\n",ctx->asmpath,ctx->scratch.c);
@@ -186,12 +195,17 @@ static int eggdev_bundle_true(struct eggdev_bundle_context *ctx) {
   if ((err=eggdev_bundle_generate_asm(ctx))<0) return err;
   if ((err=eggdev_bundle_assemble(ctx))<0) return err;
   if ((err=eggdev_run_shell(
-    "%s -o%s -Wl,--start-group %s/out/%s/libegg-true.a %s %s -Wl,--end-group %s",
+    #if USE_macos
+      // MacOS ld doesn't have --start-group.
+      "%s -ObjC -o%s %s %s/out/%s/libegg-true.a %s %s",
+    #else
+      "%s -o%s -Wl,--start-group %s %s/out/%s/libegg-true.a %s -Wl,--end-group %s",
+    #endif
     eggdev_buildcfg.LD,
     ctx->dstpath,
+    ctx->objpath,
     eggdev_buildcfg.EGG_SDK,
     eggdev_buildcfg.NATIVE_TARGET,
-    ctx->objpath,
     ctx->clientlibpath,
     eggdev_buildcfg.LDPOST
   ))<0) return err;

@@ -269,7 +269,7 @@ int egg_client_init() {
   //if ((texid_label=font_texres_oneline(font,1,5,200,0xffffffff))<0) return -1;
   if ((texid_label=font_texres_multiline(font,1,10,200,200,0xffffffff))<0) return -1;
   egg_texture_get_status(&labelw,&labelh,texid_label);
-  
+
   return 0;
 }
 

@@ -90,3 +90,17 @@ ifneq (,$(demo_HTML))
   demo-all:$(demo_HTML)
   $(demo_HTML):$(demo_ROM) $(eggdev_EXE);$(PRECMD) $(eggdev_EXE) bundle -o$@ $(demo_ROM)
 endif
+
+# Well, actually *5* other forms: For MacOS, we have to wrap the executable in an Application Bundle.
+ifeq ($(NATIVE_TARGET),macos)
+  #TODO We should orchestrate this via eggdev.
+  demo_BUNDLE:=$(demo_OUTDIR)/demo.app
+  demo_BUNDLE_EXE:=$(demo_BUNDLE)/Contents/MacOS/demo
+  demo_BUNDLE_PLIST:=$(demo_BUNDLE)/Contents/Info.plist
+  demo_BUNDLE_NIB:=$(demo_BUNDLE)/Contents/Resources/Main.nib
+  #TODO icons
+  $(demo_BUNDLE_EXE):$(demo_EXE_TRUE);$(PRECMD) cp $< $@
+  $(demo_BUNDLE_PLIST):src/opt/macos/Info.plist etc/tool/plist.sh;$(PRECMD) etc/tool/plist.sh src/opt/macos/Info.plist src/demo/data/metadata demo com.aksommerville.egg.demo > $@
+  $(demo_BUNDLE_NIB):src/opt/macos/Main.xib;$(PRECMD) ibtool --compile $@ $<
+  demo-all:$(demo_BUNDLE_EXE) $(demo_BUNDLE_PLIST) $(demo_BUNDLE_NIB)
+endif

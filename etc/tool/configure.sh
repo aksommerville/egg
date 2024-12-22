@@ -163,7 +163,7 @@ case "$NATIVE_TARGET" in
   ;;
   
   macos)
-    NATIVE_OPT_ENABLE="macos macwm machid"
+    NATIVE_OPT_ENABLE="macos macwm machid macaudio"
   ;;
   
   mswin)

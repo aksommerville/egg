@@ -42,7 +42,7 @@ static int _macwm_init(struct hostio_video *driver,const struct hostio_video_set
   // We have to intercept resize, in order to retain its value.
   struct macwm_delegate delegate={
     .userdata=driver,
-    .close=(void*)driver->delegate.cb_close,
+    //.close=(void*)driver->delegate.cb_close,
     .resize=_macwm_cb_resize,
     .key=(void*)driver->delegate.cb_key,
     .text=(void*)driver->delegate.cb_text,

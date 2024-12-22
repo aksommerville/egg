@@ -84,9 +84,11 @@
   self.contentView.frame=NSMakeRect(0.0f,0.0f,macwm->w,macwm->h);
 }
 
+/* We used to do this, but don't: The application delegate takes care of it first.
 -(void)windowWillClose:(NSWindow*)window {
   if (macwm->delegate.close) macwm->delegate.close(macwm->delegate.userdata);
 }
+*/
 
 -(void)windowDidResignKey:(NSWindow*)window {
   macwm_release_keys(macwm);

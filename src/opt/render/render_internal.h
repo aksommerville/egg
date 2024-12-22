@@ -16,6 +16,10 @@
   #include "GLES2/gl2.h"
 #endif
 
+#ifndef EGG_GLSL_VERSION
+  #define EGG_GLSL_VERSION 100
+#endif
+
 struct render_vertex_raw {
   GLshort x,y;
   GLubyte r,g,b,a;

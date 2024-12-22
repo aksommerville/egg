@@ -37,7 +37,7 @@
 	<string>10.0.0</string>
 
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2024 AK Sommerville. All rights reserved.</string>
+	<string>Copyright © PUBYEAR AUTHOR. All rights reserved.</string>
 
 	<key>NSMainNibFile</key>
 	<string>Main</string>

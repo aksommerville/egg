@@ -46,6 +46,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] MacOS drivers
 - - [ ] Windows drivers
 - - [ ] MacOS: WABT, WAMR, and clang. Trouble is brewing here... Can we get all three tools to run on the old MacBook?
+- [ ] MacOS bundle orchestration via eggdev. For now, the game's Makefile is responsible.
 - [ ] Web runner.
 - - [ ] Input config.
 - [x] Rich set of client-side helper libraries.
