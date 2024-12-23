@@ -84,7 +84,7 @@ ifneq (,$(strip $(NATIVE_TARGET)))
       $(PRECMD) $(EGG_SDK)/etc/tool/plist.sh $(EGG_SDK)/src/opt/macos/Info.plist src/data/metadata $(PROJNAME) $(PROJRDNS) > $@
     $(BUNDLE_NIB):$(EGG_SDK)/src/opt/macos/Main.xib;$(PRECMD) ibtool --compile $@ $<
     all:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB)
-    run:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB);open -W $(BUNDLE) --args --reopen-tty=$(tty)
+    run:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB);open -W $(BUNDLE) --args --reopen-tty=$(shell tty)
   else
     run:$(NATIVE_EXE);$(NATIVE_EXE)
   endif

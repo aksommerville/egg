@@ -507,10 +507,19 @@ static char *eggrt_configure_default_input() {
 /* List languages supported by the user, in consultation with OS.
  * Never returns >dsta.
  */
- 
+
+#if USE_macos
+  #include "opt/macos/macos.h"
+#endif
+
 static int eggrt_get_user_languages(int *dstv,int dsta) {
   if (dsta<1) return 0;
   int dstc=0;
+
+  #if USE_macos
+    if ((dstc=macos_get_preferred_languages(dstv,dsta))>0) return dstc;
+  #endif
+  //TODO Preferred language in Windows, however they do that.
   
   /* POSIX systems typically have LANG as the single preferred locale, which starts with a language code.
    * There can also be LANGUAGE, which is multiple language codes separated by colons.
@@ -536,8 +545,6 @@ static int eggrt_get_user_languages(int *dstv,int dsta) {
       }
     }
   }
-  
-  //TODO I'm sure there are other mechanisms for MacOS and Windows. Find those.
   
   return dstc;
 }

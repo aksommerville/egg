@@ -70,4 +70,4 @@ ifneq (,$(strip $(WAMR_SDK)))
   macos-all:$(macos_EXE)
 endif
 
-macos-run:$(macos_EXE) $(demo_ROM);$(macos_EXE) $(demo_ROM) $(macos_RUN_ARGS)
+macos-run:$(demo_BUNDLE_BITS);open -W $(demo_BUNDLE) --args --reopen-tty=$(shell tty)

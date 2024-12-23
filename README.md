@@ -47,30 +47,23 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 ## TODO
 
 - [ ] Native runner.
-- - [ ] User's language for MacOS and Windows.
+- - [ ] User's language for Windows.
 - - [ ] Home directory for MacOS and Windows.
-- - [x] MacOS drivers
 - - [ ] Windows drivers
 - - [ ] MacOS: WABT, WAMR, and clang. Trouble is brewing here... Can we get all three tools to run on the old MacBook?
-- [x] MacOS bundle orchestration via eggdev. For now, the game's Makefile is responsible. ...implemented in common makefile, not eggdev exactly
 - [ ] MacOS generate icons (etc/tool/common.mk)
+- [ ] MacOS: Set CFBundleLocalizations in Info.plist, per strings resources.
 - [ ] Web runner.
 - - [ ] Input config.
-- [x] Rich set of client-side helper libraries.
-- - [x] State engine and persistence.
 - [ ] MapEditor: Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.
 - [ ] MapEditor: Neighbor maps.
 - [ ] SpriteEditor: Conveniences for image and tile.
 - [ ] MapStore: Custom POI icons supplied by game.
-- [x] Command list is going to need general schema for bitmaps. Maybe "(b32:NAMESPACE)(FIRST,SECOND,...)" where FIRST and SECOND are in 0..31?
-- [x] text: What would it take to break words correctly re high code points? Can we do it without a ton of drama? ...made all >G0 chars "letter", and that feels right.
-- [x] text breaking: Also, we're inappropriately breaking before punctuation. eg if "willy-nilly" is too long, it should be ("willy-","nilly"), not ("willy","-","nilly")
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Example projects.
 - [ ] Validate eject.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
 - [ ] native: Neuter synth when dummy output.
-- [ ] Standard map and sprite support. Prove it out further in Spelling Bee, then migrate here.
 - [ ] Editor: Live feedback of synth playhead, via WebSocket.
 - [ ] Editor: Adjust synth config real time.
 - [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
