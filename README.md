@@ -38,15 +38,22 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - Portable. Build self-contained executables for web and any native platform where you can run eggdev.
 - Easy eject. If a project outgrows Egg, you have the source. You can drop the Egg Runtime source in your project and season to taste, if need be.
 
+## Examples
+
+- [Season of Penance](https://github.com/aksommerville/penance)
+- [Spelling Bee](https://github.com/aksommerville/spellingbee)
+- [The Secret of the Seven Sauces](https://github.com/aksommerville/sevensauces)
+
 ## TODO
 
 - [ ] Native runner.
 - - [ ] User's language for MacOS and Windows.
 - - [ ] Home directory for MacOS and Windows.
-- - [ ] MacOS drivers
+- - [x] MacOS drivers
 - - [ ] Windows drivers
 - - [ ] MacOS: WABT, WAMR, and clang. Trouble is brewing here... Can we get all three tools to run on the old MacBook?
-- [ ] MacOS bundle orchestration via eggdev. For now, the game's Makefile is responsible.
+- [x] MacOS bundle orchestration via eggdev. For now, the game's Makefile is responsible. ...implemented in common makefile, not eggdev exactly
+- [ ] MacOS generate icons (etc/tool/common.mk)
 - [ ] Web runner.
 - - [ ] Input config.
 - [x] Rich set of client-side helper libraries.

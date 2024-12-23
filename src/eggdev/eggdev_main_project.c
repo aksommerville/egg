@@ -78,41 +78,39 @@ static int eggdev_project_generate_gitignore(struct eggdev_project_context *ctx)
 
 /* Generate Makefile.
  * Overwrites (ctx->scratch).
+ * The projects' Makefiles call out to egg/etc/tool/common.mk for the real work.
  */
  
 static int eggdev_project_generate_makefile(struct eggdev_project_context *ctx) {
   ctx->scratch.c=0;
-  
-  /* Makefile is by far the largest and most complex thing we generate.
-   * So we're going to cheat a little: The Egg SDK has an example Makefile at etc/tool/game.mk.
-   * We can copy that, just changing a few instances of "game" into (ctx->projname).
-   */
-  char path[1024];
-  int pathc=snprintf(path,sizeof(path),"%s/etc/tool/game.mk",eggdev_buildcfg.EGG_SDK);
-  if ((pathc<1)||(pathc>=sizeof(path))) return -1;
-  char *src=0;
-  int srcc=file_read(&src,path);
-  if (srcc<0) {
-    fprintf(stderr,"%s: Failed to read Makefile template.\n",path);
-    return -2;
-  }
-  
-  struct sr_decoder decoder={.v=src,.c=srcc};
-  const char *line;
-  int linec,lineno=1,err;
-  for (;(linec=sr_decode_line(&line,&decoder))>0;lineno++) {
-    if ((linec>=5)&&!memcmp(line,"ROM:=",5)) {
-      if (sr_encode_fmt(&ctx->scratch,"ROM:=out/%s.egg\n",ctx->projname)<0) { free(src); return -1; }
-    } else if ((linec>=6)&&!memcmp(line,"HTML:=",6)) {
-      if (sr_encode_fmt(&ctx->scratch,"HTML:=out/%s.html\n",ctx->projname)<0) { free(src); return -1; }
-    } else if ((linec>=14)&&!memcmp(line,"  NATIVE_EXE:=",14)) {
-      if (sr_encode_fmt(&ctx->scratch,"  NATIVE_EXE:=out/%s.$(NATIVE_TARGET)\n",ctx->projname)<0) { free(src); return -1; }
-    } else {
-      if (sr_encode_raw(&ctx->scratch,line,linec)<0) { free(src); return -1; }
-    }
-  }
-  
-  free(src);
+  if (sr_encode_raw(&ctx->scratch,
+    ".SILENT:\n"
+    ".SECONDARY:\n"
+    "PRECMD=echo \"  $@\" ; mkdir -p \"$(@D)\" ;\n"
+    "\n"
+    "ifneq (,$(strip $(filter clean,$(MAKECMDGOALS))))\n"
+    "clean:;rm -rf mid out\n"
+    "else\n"
+    "\n"
+  ,-1)<0) return -1;
+
+  // Some project fields that aren't necessarily the same every time.
+  // We haven't asked for reverse-DNS, and it would be silly to, so I'll let you borrow a subdomain of aksommerville.com for it.
+  if (sr_encode_raw(&ctx->scratch,"OPT_ENABLE:=stdlib graf text rom\n",-1)<0) return -1;
+  if (sr_encode_fmt(&ctx->scratch,"PROJNAME:=%s\n",ctx->projname)<0) return -1;
+  if (sr_encode_fmt(&ctx->scratch,"PROJRDNS:=com.aksommerville.egggame.%s\n",ctx->projname)<0) return -1;
+  if (sr_encode_raw(&ctx->scratch,"ENABLE_SERVER_AUDIO:=\n",-1)<0) return -1;
+  if (sr_encode_raw(&ctx->scratch,"BUILDABLE_DATA_TYPES:=\n",-1)<0) return -1;
+
+  if (sr_encode_raw(&ctx->scratch,
+    "ifndef EGG_SDK\n"
+    "  EGG_SDK:=../egg\n"
+    "endif\n"
+    "\n"
+    "include $(EGG_SDK)/etc/tool/common.mk\n"
+    "\n"
+    "endif\n"
+  ,-1)<0) return -1;
   return 0;
 }
 
