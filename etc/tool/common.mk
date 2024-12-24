@@ -8,6 +8,7 @@
 #  - Declare PROJNAME and PROJRDNS.
 #  - Declare ENABLE_SERVER_AUDIO: Empty for WebAudio only, nonempty for server-side audio too. (for `make edit`)
 #  - Declare BUILDABLE_DATA_TYPES, for resource types that you will compile. And define your rules for that.
+#  - Declare EXTRA_MAC_ICONS, with paths to PNG files, if you want more than the ROM's iconImage for a MacOS bundle's icons.
 
 # Cache `eggdev config`; all the little particulars of each host's build environment are Egg's problem, not the games'.
 include mid/eggcfg
@@ -78,13 +79,14 @@ ifneq (,$(strip $(NATIVE_TARGET)))
     BUNDLE_EXE:=$(BUNDLE)/Contents/MacOS/$(PROJNAME)
     BUNDLE_PLIST:=$(BUNDLE)/Contents/Info.plist
     BUNDLE_NIB:=$(BUNDLE)/Contents/Resources/Main.nib
-    #TODO icons
+    BUNDLE_ICONS:=$(BUNDLE)/Contents/Resources/appicon.icns
     $(BUNDLE_EXE):$(NATIVE_EXE);$(PRECMD) cp $< $@
     $(BUNDLE_PLIST):$(EGG_SDK)/src/opt/macos/Info.plist $(EGG_SDK)/etc/tool/plist.sh; \
       $(PRECMD) $(EGG_SDK)/etc/tool/plist.sh $(EGG_SDK)/src/opt/macos/Info.plist src/data/metadata $(PROJNAME) $(PROJRDNS) > $@
     $(BUNDLE_NIB):$(EGG_SDK)/src/opt/macos/Main.xib;$(PRECMD) ibtool --compile $@ $<
-    all:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB)
-    run:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB);open -W $(BUNDLE) --args --reopen-tty=$(shell tty)
+    $(BUNDLE_ICONS):$(BUNDLE_EXE);$(PRECMD) $(EGG_SDK)/out/eggdev macicon -o$@ $< $(EXTRA_MAC_ICONS)
+    all:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB) $(BUNDLE_ICONS)
+    run:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB) $(BUNDLE_ICONS);open -W $(BUNDLE) --args --reopen-tty=$(shell tty)
   else
     run:$(NATIVE_EXE);$(NATIVE_EXE)
   endif

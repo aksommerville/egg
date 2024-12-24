@@ -12,6 +12,7 @@ Linkage to the outside world is controlled entirely by the Egg Platform, and we'
 - - Current recommendation is to build with interpretter only. I'll examine the JIT and AOT options in more detail later.
 - WABT
 - - https://github.com/WebAssembly/wabt
+- ...but it is possible to build without WAMR or WABT; you'll only be able to build native executables.
 - I/O drivers, varies by platform.
 
 ## Limits
@@ -50,8 +51,11 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] User's language for Windows.
 - - [ ] Home directory for MacOS and Windows.
 - - [ ] Windows drivers
-- - [ ] MacOS: WABT, WAMR, and clang. Trouble is brewing here... Can we get all three tools to run on the old MacBook?
-- [ ] MacOS generate icons (etc/tool/common.mk)
+- - [x] MacOS: WABT, WAMR, and clang. Trouble is brewing here... Can we get all three tools to run on the old MacBook?
+- - - I guess we need to compile our own clang? ...not going there
+- - - LLVM 19 has Mac binaries, but it doesn't run on my MacBook: dyld: cannot load 'clang' (load command 0x80000034 is unknown)
+- - - I don't think this is winnable. Let's allow that web builds have to be made on a modern machine.
+- [x] MacOS generate icons (etc/tool/common.mk)
 - [ ] MacOS: Set CFBundleLocalizations in Info.plist, per strings resources.
 - [ ] Web runner.
 - - [ ] Input config.

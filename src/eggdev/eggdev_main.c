@@ -24,6 +24,7 @@ int main(int argc,char **argv) {
   _(project)
   _(metadata)
   _(sound)
+  _(macicon)
   #undef _
   else {
     fprintf(stderr,"%s: Unknown command '%s'\n",eggdev.exename,eggdev.command);

@@ -123,6 +123,14 @@ int eggdev_uncompile_metadata(struct eggdev_res *res) {
  */
  
 int eggdev_metadata_get(void *dstpp,const void *src,int srcc,const char *k,int kc) {
+  if (!src&&!srcc&&eggdev.rom) {
+    int p=eggdev_rom_search(eggdev.rom,EGG_TID_metadata,1);
+    if (p>=0) {
+      const struct eggdev_res *res=eggdev.rom->resv+p;
+      src=res->serial;
+      srcc=res->serialc;
+    }
+  }
   if (!src||(srcc<4)||memcmp(src,"\0EM\xff",4)) return 0;
   if (!k) return 0;
   if (kc<0) { kc=0; while (k[kc]) kc++; }

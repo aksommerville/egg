@@ -179,6 +179,20 @@ static void eggdev_print_help_sound() {
   );
 }
 
+/* --help=macicon
+ */
+
+static void eggdev_print_help_macicon() {
+  fprintf(stderr,"\nUsage: %s macicon -oICNS [ROM] [PNG...]\n\n",eggdev.exename);
+  fprintf(stderr,
+    "Generate a MacOS 'icns' file from PNG files.\n"
+    "Our standard plist names a file BUNDLE/Contents/Resources/appicon.icns, which you should generate with this command.\n"
+    "We can extract iconImage from a ROM if present, or use loose PNG files.\n"
+    "This calls out to Xcode's 'iconutil' for the final conversion.\n"
+    "\n"
+  );
+}
+
 /* --help default
  */
  
@@ -197,6 +211,7 @@ static void eggdev_print_help_default() {
     "   project\n"
     "  metadata ROM [--lang=all|LANG] [--iconImage] [--posterImage]\n"
     "     sound [ROM TYPE:ID] [FILE] [-oPATH] [--audio=DRIVER] [--audio-rate=HZ] [--audio-chanc=1|2] [--audio-buffer=INT] [--audio-device=STRING] [--repeat]\n"
+    "   macicon -oICNS [ROM] [PNG...]\n"
     "\n"
   );
 }
@@ -218,6 +233,7 @@ void eggdev_print_help(const char *topic) {
   _(project)
   _(metadata)
   _(sound)
+  _(macicon)
   #undef _
   else eggdev_print_help_default();
 }

@@ -1,3 +1,7 @@
+# demo.mk
+# Egg games in real life should borrow etc/tool/common.mk; `make project` hooks that up for you.
+# We duplicate most of it here.
+
 demo_MIDDIR:=mid/demo
 demo_OUTDIR:=out
 
@@ -97,10 +101,11 @@ ifeq ($(NATIVE_TARGET),macos)
   demo_BUNDLE_EXE:=$(demo_BUNDLE)/Contents/MacOS/demo
   demo_BUNDLE_PLIST:=$(demo_BUNDLE)/Contents/Info.plist
   demo_BUNDLE_NIB:=$(demo_BUNDLE)/Contents/Resources/Main.nib
-  #TODO icons
+  demo_BUNDLE_ICONS:=$(demo_BUNDLE)/Contents/Resources/appicon.icns
   $(demo_BUNDLE_EXE):$(demo_EXE_TRUE);$(PRECMD) cp $< $@
   $(demo_BUNDLE_PLIST):src/opt/macos/Info.plist etc/tool/plist.sh;$(PRECMD) etc/tool/plist.sh src/opt/macos/Info.plist src/demo/data/metadata demo com.aksommerville.egg.demo > $@
   $(demo_BUNDLE_NIB):src/opt/macos/Main.xib;$(PRECMD) ibtool --compile $@ $<
-  demo_BUNDLE_BITS:=$(demo_BUNDLE_EXE) $(demo_BUNDLE_PLIST) $(demo_BUNDLE_NIB)
+  $(demo_BUNDLE_ICONS):$(demo_EXE_TRUE) $(eggdev_EXE);$(PRECMD) $(eggdev_EXE) macicon -o$@ $<
+  demo_BUNDLE_BITS:=$(demo_BUNDLE_EXE) $(demo_BUNDLE_PLIST) $(demo_BUNDLE_NIB) $(demo_BUNDLE_ICONS)
   demo-all:$(demo_BUNDLE_BITS)
 endif

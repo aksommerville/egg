@@ -75,6 +75,8 @@ extern struct eggdev {
   int ns_acquisition_in_progress;
   
   struct eggdev_rom *rom;
+
+  uint32_t macicon;
   
 } eggdev;
 
@@ -126,6 +128,7 @@ int eggdev_main_dump();
 int eggdev_main_project();
 int eggdev_main_metadata();
 int eggdev_main_sound();
+int eggdev_main_macicon();
 
 int eggdev_compile_metadata(struct eggdev_res *res);
 int eggdev_uncompile_metadata(struct eggdev_res *res);
@@ -156,6 +159,8 @@ int eggdev_cvta2a(
   const char *srcfmt,int srcfmtc
 );
 
+/* (src,srcc) zero to check the global rom if present.
+ */
 int eggdev_metadata_get(void *dstpp,const void *src,int srcc,const char *k,int kc);
 int eggdev_strings_get(void *dstpp,int rid,int index);
 
