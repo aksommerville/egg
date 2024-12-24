@@ -6,6 +6,11 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 
+	<key>CFBundleLocalizations</key>
+	<array>
+	  LANGS
+	</array>
+
 	<key>CFBundleExecutable</key>
 	<string>GAMEEXENAME</string>
 

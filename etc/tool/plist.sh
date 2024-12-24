@@ -12,12 +12,14 @@ REVDNS_IDENTIFIER="$4"
 GAMETITLE=
 PUBYEAR=
 AUTHOR=
+LANGS=
 
 while IFS== read K V ; do
   case "$K" in 
     title) GAMETITLE="$V" ;;
     author) AUTHOR="$V" ;;
     time) PUBYEAR="$V" ;;
+    lang) LANGS="$V" ;;
   esac
 done <$2
 
@@ -30,5 +32,8 @@ fi
 if [ -z "$AUTHOR" ] ; then
   AUTHOR="$USER"
 fi
+if [ -n "$LANGS" ] ; then
+  LANGS="<string>$(echo $LANGS | sed 's/\,/<\/string><string>/g')</string>"
+fi
 
-sed "s/GAMEEXENAME/$GAMEEXENAME/;s/REVDNS_IDENTIFIER/$REVDNS_IDENTIFIER/;s/GAMETITLE/$GAMETITLE/;s/PUBYEAR/$PUBYEAR/;s/AUTHOR/$AUTHOR/" $1
+sed "s/GAMEEXENAME/$GAMEEXENAME/;s/REVDNS_IDENTIFIER/$REVDNS_IDENTIFIER/;s/GAMETITLE/$GAMETITLE/;s/PUBYEAR/$PUBYEAR/;s/AUTHOR/$AUTHOR/;s,LANGS,$LANGS," $1
