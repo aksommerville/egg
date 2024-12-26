@@ -35,6 +35,9 @@ Our editor will look for certain commands in the text (it's not privy to the bin
 - `image`: u16 imageid
 - `door`: u16 xy, u16 mapid, u16 dstxy
 - `sprite`: u16 xy, u16 spriteid
-- `neighbors`: u16 west, u16 east, u16 north, u16 south (mapid)
+- `location`: u8 x, u8 y, [u8 z] -- Absolute position of map in world. Don't use with `neighbors`.
+- `neighbors`: u16 west, u16 east, u16 north, u16 south (mapid). Don't use with `location`.
 - Any other command with a `@X,Y` argument, editor should display as a Point Of Interest.
 - Any other command with a `@X,Y,W,H` argument, editor should display as a Region Of Interest.
+
+If you use `location` or `neighbors`, editor may assume that all maps are the same size.

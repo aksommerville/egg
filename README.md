@@ -47,25 +47,23 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
-- [ ] Native runner.
-- - [ ] User's language for Windows.
-- - [ ] Home directory for Windows.
-- - [ ] Windows drivers
-- [ ] Web runner.
+- [ ] Windows
+- - [ ] Drivers, build config
+- - [ ] Home path (eggrt_configure.c:eggrt_input_path_home_egg)
+- - [ ] Language (eggrt_configure.c:eggrt_get_user_languages)
+- [ ] Web runtime
 - - [ ] Input config.
-- [ ] MapEditor: Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.
-- [ ] MapEditor: Neighbor maps.
-- [ ] SpriteEditor: Conveniences for image and tile.
-- [ ] MapStore: Custom POI icons supplied by game.
-- [ ] Ship client libraries eg stdlib as static archives ready to link.
-- [ ] Example projects.
-- [ ] Validate eject.
-- [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
-- [ ] native: Neuter synth when dummy output.
-- [ ] Editor: Live feedback of synth playhead, via WebSocket.
-- [ ] Editor: Adjust synth config real time.
-- [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
-- [ ] Audio overhaul, merged 2024-11-08
+- [ ] Editor
+- - [x] MapEditor: Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.
+- - [x] MapEditor: Neighbor maps.
+- - [ ] MapEditor: Click OOB to create neighbor map, if configured for it. (MapCanvas.js:onMouseDownOob)
+- - [ ] SpriteEditor: Conveniences for image and tile.
+- - [ ] MapStore: Custom POI icons supplied by game.
+- [ ] Audio
+- - [ ] native: Neuter synth when dummy output.
+- - [ ] Editor: Live feedback of synth playhead, via WebSocket.
+- - [ ] Editor: Adjust synth config real time.
+- - [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
 - - [ ] Confirm we're ignoring ignorable things, for future-proofing.
 - - [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.
 - - [ ] DrumChannelModal.js: Similar canned drums.
@@ -81,6 +79,18 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Envelope editor: Don't create points on a single click. Require double-click or a modifier key.
 - - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
 - - [ ] Envelope editor: Option to sync time scale across all envelope editors.
+- [ ] Ship client libraries eg stdlib as static archives ready to link.
+- [ ] Eggsamples
+- - [ ] Carefully rename the old eggsamples repo from 202408.
+- - [ ] Shoot-em-up
+- - [ ] Formal RPG
+- - [ ] Adventure
+- - [ ] Platformer
+- - [ ] Something in WAT instead of C.
+- - [ ] Rhythm
+- [ ] Eggzotics: Build for Egg and eg TinyArcade, for platforms that can't run Egg properly.
+- [ ] Validate eject.
+- [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
 
 ## Third-Party Code
 

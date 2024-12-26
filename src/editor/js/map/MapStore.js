@@ -43,6 +43,123 @@ export class MapStore {
     // Allow an exception at encode time if we don't find the map or encode fails. Data knows what to do with it.
     this.data.dirty(path, () => this.maps.find(m => m.path === path).encode());
   }
+
+  /* Neighbors: Some games may have a sense of adjacent maps.
+   * This can be effected by either the `neighbors` or `location` command.
+   * If neighbors are in play, all maps should be the same size.
+   * Games should not mix `neighbors` and `location`. Pick one.
+   * We'll report neighbors as a packed array of { map, dx, dy } where (dx,dy) in (-1,0,1).
+   * In the `location` case, we are not keeping a master map, we look it all up from scratch every time you ask, at terrible cost.
+   ***************************************************************************/
+
+  getNeighbors(map) {
+    let cmd, neighbor, neighbor2;
+    const neighbors = [];
+    
+    if (cmd = map.getFirstCommand("neighbors")) {
+      const tokens = CommandListEditor.splitCommand(cmd);
+      const lrid = +tokens[0];
+      const rrid = +tokens[1];
+      const urid = +tokens[2];
+      const drid = +tokens[3];
+      let nw=0, ne=0, sw=0, se=0;
+      if (lrid && (neighbor = this.getMapByRid(lrid))) {
+        neighbors.push({ map: neighbor, dx: -1, dy: 0 });
+        if (neighbor2 = this.getNeighbor(neighbor, 0, -1)) {
+          nw = 1;
+          neighbors.push({ map: neighbor2, dx: -1, dy: -1 });
+        }
+        if (neighbor2 = this.getNeighbor(neighbor, 0, 1)) {
+          sw = 1;
+          neighbors.push({ map: neighbor2, dx: -1, dy: 1 });
+        }
+      }
+      if (rrid && (neighbor = this.getMapByRid(rrid))) {
+        neighbors.push({ map: neighbor, dx: 1, dy: 0 });
+        if (neighbor2 = this.getNeighbor(neighbor, 0, -1)) {
+          ne = 1;
+          neighbors.push({ map: neighbor2, dx: 1, dy: -1 });
+        }
+        if (neighbor2 = this.getNeighbor(neighbor, 0, 1)) {
+          se = 1;
+          neighbors.push({ map: neighbor2, dx: 1, dy: 1 });
+        }
+      }
+      if (urid && (neighbor = this.getMapByRid(urid))) {
+        neighbors.push({ map: neighbor, dx: 0, dy: -1 });
+        if (!nw && (neighbor2 = this.getNeighbor(neighbor, -1, 0))) {
+          neighbors.push({ map: neighbor2, dx: -1, dy: -1 });
+        }
+        if (!ne && (neighbor2 = this.getNeighbor(neighbor, 1, 0))) {
+          neighbors.push({ map: neighbor2, dx: 1, dy: -1 });
+        }
+      }
+      if (drid && (neighbor = this.getMapByRid(drid))) {
+        neighbors.push({ map: neighbor, dx: 0, dy: 1 });
+        if (!sw && (neighbor2 = this.getNeighbor(neighbor, -1, 0))) {
+          neighbors.push({ map: neighbor2, dx: -1, dy: 1 });
+        }
+        if (!se && (neighbor2 = this.getNeighbor(neighbor, 1, 0))) {
+          neighbors.push({ map: neighbor2, dx: 1, dy: 1 });
+        }
+      }
+      return neighbors;
+    }
+
+    if (cmd = map.getFirstCommand("location")) {
+      const tokens = CommandListEditor.splitCommand(cmd);
+      const x = +tokens[0];
+      const y = +tokens[1];
+      const z = +tokens[2] || 0; // Careful, NaN!==NaN and this Z is optional.
+      for (const q of this.maps) {
+        if (q === map) continue;
+        const qtokens = CommandListEditor.splitCommand(q.getFirstCommand("location"));
+        const qx = +qtokens[0];
+        const qy = +qtokens[1];
+        const qz = +qtokens[2] || 0;
+        if (qz !== z) continue;
+        const dx = qx - x;
+        const dy = qy - y;
+        if ((dx < -1) || (dx > 1) || (dy < -1) || (dy > 1)) continue;
+        neighbors.push({ map: q, dx, dy });
+      }
+      return neighbors;
+    }
+
+    return neighbors;
+  }
+
+  // One of (dx,dy) must be zero and the other -1 or 1.
+  getNeighbor(map, dx, dy) {
+    let cmd;    
+    if (cmd = map.getFirstCommand("neighbors")) {
+      const tokens = CommandListEditor.splitCommand(cmd);
+      if (dx < 0) return this.getMapByRid(+tokens[0]);
+      if (dx > 0) return this.getMapByRid(+tokens[1]);
+      if (dy < 0) return this.getMapByRid(+tokens[2]);
+      if (dy > 0) return this.getMapByRid(+tokens[3]);
+      return null;
+    }
+    if (cmd = map.getFirstCommand("location")) {
+      const tokens = CommandListEditor.splitCommand(cmd);
+      const x = +tokens[0];
+      const y = +tokens[1];
+      const z = +tokens[2] || 0;
+      for (const q of this.maps) {
+        if (q === map) continue;
+        const qtokens = CommandListEditor.splitCommand(q.getFirstCommand("location"));
+        const qx = +qtokens[0];
+        const qy = +qtokens[1];
+        const qz = +qtokens[2] || 0;
+        if (qx !== x + dx) continue;
+        if (qy !== y + dy) continue;
+        if (qz !== z) continue;
+        return q;
+      }
+      return null;
+    }
+    return null;
+  }
   
   /* Annotations: Points and regions of interest for the editor, based on map commands.
    * Basically, any command with a "@X,Y" or "@X,Y,W,H" argument becomes an annotation.

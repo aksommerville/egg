@@ -10,14 +10,15 @@ import { TilesheetEditor } from "./TilesheetEditor.js";
 
 export class MapCanvas {
   static getDependencies() {
-    return [HTMLElement, Dom, MapEditor, Window, Data];
+    return [HTMLElement, Dom, MapEditor, Window, Data, Document];
   }
-  constructor(element, dom, mapEditor, window, data) {
+  constructor(element, dom, mapEditor, window, data, document) {
     this.element = element;
     this.dom = dom;
     this.mapEditor = mapEditor;
     this.window = window;
     this.data = data;
+    this.document = document;
     
     this.renderTimeout = null;
     this.mouseListener = null;
@@ -25,10 +26,12 @@ export class MapCanvas {
     this.originy = 0;
     this.zoom = this.mapEditor.workbenchState.zoom; // Larger means bigger tiles.
     this.tilesize = Math.round(this.mapEditor.tilesize * this.zoom); // For display. Natural tilesize in the source image is (this.mapEditor.tilesize) always.
+    this.neighbors = []; // [NW,N,NE,W,null,E,SW,S,SE]; null or { image, path }
     this.image = null;
     this.icons = null;
     this.hoverAnnotation = null;
     this.loadImage();
+    this.refreshNeighbors();
     
     // Placement of the mousedown listener is fragile: Can't use canvas because it's pointer-events:none, and can't use sizer because it might be short.
     const scroller = this.dom.spawn(this.element, "DIV", ["scroller"], {
@@ -78,6 +81,60 @@ export class MapCanvas {
       const img = new Image();
       img.addEventListener("load", () => { this.icons = img; this.renderSoon(); }, { once: true });
       img.src = "/egg-editor-icons.png";
+    }
+  }
+
+  refreshNeighbors() {
+    this.neighbors = [];
+    const nv = this.mapEditor.mapStore.getNeighbors(this.mapEditor.map);
+    for (const { map, dx, dy } of nv) {
+      const p = (dy + 1) * 3 + dx + 1;
+      if ((p < 0) || (p > 8)) continue;
+      if (this.neighbors[p]) continue;
+      this.neighbors[p] = { path: map.path, image: this.composeNeighborImage(map, dx, dy) };
+    }
+  }
+
+  composeNeighborImage(map, dx, dy) {
+    const nw = 4; // Show the nearest columns or rows, so many.
+    let cola, rowa, colc=nw, rowc=nw;
+    if (dx < 0) cola = map.w - colc;
+    else if (dx > 0) cola = 0;
+    else { cola = 0; colc = map.w; }
+    if (dy < 0) rowa = map.h - rowc;
+    else if (dy > 0) rowa = 0;
+    else { rowa = 0; rowc = map.h; }
+    const canvas = this.document.createElement("CANVAS");
+    canvas.width = colc * this.mapEditor.tilesize;
+    canvas.height = rowc * this.mapEditor.tilesize;
+    const ctx = canvas.getContext("2d");
+    const imageName = map.getFirstCommand("image");
+    this.data.getImageAsync(imageName).then(src => {
+      this.drawSubMap(ctx, map, cola, rowa, colc, rowc, src);
+      let xa=canvas.width/2, ya=canvas.height/2;
+      let xz=xa, yz=ya;
+      if (dx < 0) { xa = canvas.width; xz = 0; } else if (dx > 0) { xa = 0; xz = canvas.width; }
+      if (dy < 0) { ya = canvas.height; yz = 0; } else if (dy > 0) { ya = 0; yz = canvas.height; }
+      const gradient = ctx.createLinearGradient(xa, ya, xz, yz);
+      gradient.addColorStop(0.000, "#4448");
+      if (dx && dy) gradient.addColorStop(0.400, "#4448");
+      else gradient.addColorStop(0.750, "#4448");
+      gradient.addColorStop(1.000, "#444f");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }).catch(() => {});
+    return canvas;
+  }
+
+  drawSubMap(ctx, map, cola, rowa, colc, rowc, src) {
+    const tilesize = src.naturalWidth >> 4;
+    for (let dsty=0, rowi=rowc, row=rowa; rowi-->0; dsty+=tilesize, row++) {
+      for (let dstx=0, coli=colc, p=row*map.w+cola; coli-->0; dstx+=tilesize, p++) {
+        const tileid = map.v[p] || 0;
+        const srcx = (tileid & 15) * tilesize;
+        const srcy = (tileid >> 4) * tilesize;
+        ctx.drawImage(src, srcx, srcy, tilesize, tilesize, dstx, dsty, tilesize, tilesize);
+      }
     }
   }
   
@@ -292,6 +349,24 @@ export class MapCanvas {
       ctx.strokeStyle = "#0f0";
       ctx.stroke();
     }
+
+    /* Neighbor previews.
+     */
+    const NMARGIN = 10;
+    const NSCALE = this.tilesize / this.mapEditor.tilesize;
+    for (let np=0, ny=-1; ny<=1; ny++) {
+      for (let nx=-1; nx<=1; nx++, np++) {
+        const neighbor = this.neighbors[np];
+        if (!neighbor) continue;
+        let dstx=this.originx, dsty=this.originy;
+        let dstw=neighbor.image.width*NSCALE, dsth=neighbor.image.height*NSCALE;
+             if (nx < 0) dstx -= dstw + NMARGIN;
+        else if (nx > 0) dstx += this.mapEditor.map.w * this.tilesize + NMARGIN;
+             if (ny < 0) dsty -= dsth + NMARGIN;
+        else if (ny > 0) dsty += this.mapEditor.map.h * this.tilesize + NMARGIN;
+        ctx.drawImage(neighbor.image, 0, 0, neighbor.image.width, neighbor.image.height, dstx, dsty, dstw, dsth);
+      }
+    }
   }
   
   // Render one POI annotation, with (vx,vy) already established.
@@ -356,11 +431,26 @@ export class MapCanvas {
       (event.y - bounds.y - this.originy) / this.tilesize,
     ];
   }
+
+  onMouseDownOob(event, col, row) {
+    let np = (row < 0) ? 0 : (row < this.mapEditor.map.h) ? 3 : 6;
+    if (col < 0) ;
+    else if (col < this.mapEditor.map.w) np += 1;
+    else np += 2;
+    const neighbor = this.neighbors[np];
+    if (neighbor) {
+      this.window.location = "#" + neighbor.path;
+    } else {
+      //TODO Should we prompt to create a neighbor? Hard to be certain of which neighbor regime is in play.
+    }
+  }
   
   onMouseDown(event) {
     if (this.mouseListener) return;
     const [col, row] = this.mapPositionFromEvent(event); // NB (col,row) are fractional
-    if ((col < 0) || (row < 0) || (col >= this.mapEditor.map.w) || (row >= this.mapEditor.map.h)) return;
+    if ((col < 0) || (row < 0) || (col >= this.mapEditor.map.w) || (row >= this.mapEditor.map.h)) {
+      return this.onMouseDownOob(event, col, row);
+    }
     if (this.mapEditor.mapPaint.mouseDown(Math.floor(col), Math.floor(row))) {
       this.mouseListener = e => this.onMouseUpOrMove(e);
       this.window.addEventListener("mousemove", this.mouseListener);
@@ -393,6 +483,7 @@ export class MapCanvas {
       }
     } else {
       const [x, y] = this.mapPositionFromEvent(event);
+      let note = "";
     
       /* Check if we're hovering over an annotation.
        */
@@ -412,9 +503,33 @@ export class MapCanvas {
         this.hoverAnnotation = nextAnnotation;
         const tool = this.mapEditor.mapToolbar.getToolName();
         if ((tool === "poimove") || (tool === "poiedit") || (tool === "door")) {
-          this.mapEditor.mapToolbar.setNote(this.hoverAnnotation?.desc || "");
+          note = this.hoverAnnotation?.desc || "";
         }
       }
+
+      /* If we're OOB and there's a neighbor in that direction, report it.
+       */
+      if (!note) {
+        let neighbor = null;
+        if (y < 0) {
+          if (x < 0) neighbor = this.neighbors[0];
+          else if (x < this.mapEditor.map.w) neighbor = this.neighbors[1];
+          else neighbor = this.neighbors[2];
+        } else if (y < this.mapEditor.map.h) {
+          if (x < 0) neighbor = this.neighbors[3];
+          else if (x < this.mapEditor.map.w) ;
+          else neighbor = this.neighbors[5];
+        } else {
+          if (x < 0) neighbor = this.neighbors[6];
+          else if (x < this.mapEditor.map.w) neighbor = this.neighbors[7];
+          else neighbor = this.neighbors[8];
+        }
+        if (neighbor) {
+          note = neighbor.path;
+        }
+      }
+
+      this.mapEditor.mapToolbar.setNote(note);
       
       /* Update cell coords tattle.
        */
