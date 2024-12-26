@@ -52,7 +52,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Home directory for MacOS and Windows.
 - - [ ] Windows drivers
 - [x] MacOS: Initial window size seems off. Should be a multiple of framebuffer.
-- [ ] MacOS: I might have broken termination. Is game-initiated termination still possible?
+- [x] MacOS: I might have broken termination. Is game-initiated termination still possible? ...nope i broke it
 - [ ] Web runner.
 - - [ ] Input config.
 - [ ] MapEditor: Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.

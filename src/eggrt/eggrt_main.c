@@ -171,6 +171,11 @@ static void eggrt_macos_update(void *userdata) {
   if (eggrt_update()<0) {
     fprintf(stderr,"%s: Runtime error.\n",eggrt.exename);
     macioc_terminate(1);
+    return;
+  }
+  if (eggrt.terminate) {
+    macioc_terminate(eggrt.exitstatus);
+    return;
   }
 }
 

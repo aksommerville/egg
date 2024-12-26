@@ -305,6 +305,7 @@ void egg_client_update(double elapsed) {
     _(CD)
     #undef _
     fprintf(stderr,"%.*s\n",msgc,msg);
+    if ((instate&EGG_BTN_AUX3)&&!(pvinstate&EGG_BTN_AUX3)) egg_terminate(0);
     if ((instate&EGG_BTN_SOUTH)&&!(pvinstate&EGG_BTN_SOUTH)) egg_play_sound(1);
     if ((instate&EGG_BTN_EAST)&&!(pvinstate&EGG_BTN_EAST)) egg_play_sound(2);
     if ((instate&EGG_BTN_WEST)&&!(pvinstate&EGG_BTN_WEST)) {
