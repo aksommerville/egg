@@ -55,6 +55,8 @@ static int _macwm_init(struct hostio_video *driver,const struct hostio_video_set
     .h=config->w,
     .fullscreen=config->fullscreen,
     .title=config->title,
+    .fbw=config->fbw,
+    .fbh=config->fbh,
     .rendermode=MACWM_RENDERMODE_OPENGL,
   };
 

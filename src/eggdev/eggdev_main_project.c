@@ -84,6 +84,7 @@ static int eggdev_project_generate_gitignore(struct eggdev_project_context *ctx)
 static int eggdev_project_generate_makefile(struct eggdev_project_context *ctx) {
   ctx->scratch.c=0;
   if (sr_encode_raw(&ctx->scratch,
+    "all:\n"
     ".SILENT:\n"
     ".SECONDARY:\n"
     "PRECMD=echo \"  $@\" ; mkdir -p \"$(@D)\" ;\n"
