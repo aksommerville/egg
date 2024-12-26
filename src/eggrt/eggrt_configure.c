@@ -454,13 +454,20 @@ static int eggrt_input_path_home_egg(char *dst,int dsta) {
   
   const char *USER=getenv("USER");
   if (USER&&USER[0]) {
-    //TODO Linux, MacOS, or Windows? They all structure it differently.
     int userc=0; while (USER[userc]) userc++;
-    dstc=6+userc+11;
+    #if USE_macos
+      const char prefix[]="/Users/";
+    #elif USE_mswin
+      what is the windows home directory these days? //TODO
+    #else
+      const char prefix[]="/home/";
+    #endif
+    int prefixc=sizeof(prefix)-1;
+    dstc=prefixc+userc+11;
     if (dstc>=dsta) return -1;
-    memcpy(dst,"/home/",6);
-    memcpy(dst+6,USER,userc);
-    memcpy(dst+6+userc,"/.egg/input",11);
+    memcpy(dst,prefix,prefixc);
+    memcpy(dst+prefixc,USER,userc);
+    memcpy(dst+prefixc+userc,"/.egg/input",11);
     dst[dstc]=0;
     return dstc;
   }
