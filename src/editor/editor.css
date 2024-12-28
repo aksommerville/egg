@@ -605,3 +605,23 @@ body {
 .PoiModal > input[type='button'] {
   width: 100px;
 }
+
+.SpriteEditor .preview {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+}
+
+.ImagePickerModal {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow-y: scroll;
+  max-height: 90vh;
+}
+.ImagePickerModal button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}

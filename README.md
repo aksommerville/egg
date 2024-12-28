@@ -57,7 +57,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [x] MapEditor: Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.
 - - [x] MapEditor: Neighbor maps.
 - - [x] MapEditor: Click OOB to create neighbor map, if configured for it. (MapCanvas.js:onMouseDownOob)
-- - [ ] SpriteEditor: Conveniences for image and tile.
+- - [x] SpriteEditor: Conveniences for image and tile.
 - - [ ] MapStore: Custom POI icons supplied by game.
 - [ ] Audio
 - - [ ] native: Neuter synth when dummy output.

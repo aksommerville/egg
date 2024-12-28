@@ -18,10 +18,12 @@ export class CommandListEditor {
     this.data = data;
     
     this.clientValidate = null; // (words) => errorMessage | null
-    this.clientAssist = null; // (words) => void. Pop up a modal or something, it's all yours.
+    this.clientAssist = null; // (rowid, words) => void. Pop up a modal or something, it's all yours. Call setValue(rowid, newValue) to commit a change.
+    this.clientChange = null; // (rowid, words) => void.
     this.onDirty = null; // Notify of dirty, only with setupLoose(). You can call encodeFromUi() to get a Uint8Array of the new content.
     
     this.res = null;
+    this.nextRowid = 1;
   }
   
   static checkResource(res) {
@@ -47,6 +49,50 @@ export class CommandListEditor {
     this.populateUi(this.forceString(src));
   }
   
+  /* (rowid) may be false to find the row by (value)'s keyword, or add it.
+   * Or "new" to always create a new row.
+   * (value) may be a string or array of strings, including the keyword.
+   */
+  setValue(rowid, value) {
+    if (value instanceof Array) value = value.join(" ");
+    if (!value) value = "";
+    if (rowid === "new") {
+      this.addUiField(this.element.querySelector(".fields"), value);
+      this.dirty();
+    } else {
+      if (!rowid) {
+        const kw = CommandListEditor.splitCommand(value)[0] || "";
+        for (const row of this.element.querySelectorAll(".fields > .row")) {
+          const qcmd = row.querySelector("input.command")?.value || "";
+          const tokens = CommandListEditor.splitCommand(qcmd);
+          if (tokens[0] !== kw) continue;
+          rowid = +row.getAttribute("data-rowid");
+          break;
+        }
+      }
+      if (!rowid) {
+        this.addUiField(this.element.querySelector(".fields"), value);
+        this.dirty();
+      } else {
+        const row = this.element.querySelector(`.fields .row[data-rowid='${rowid}']`);
+        const input = row?.querySelector("input.command");
+        if (!input) throw new Error(`row '${rowid}' not found`);
+        input.value = value;
+        this.onChange(row);
+      }
+    }
+  }
+  
+  // Find a command beginning (kw) and simulate clicking its Assist button.
+  assist(kw) {
+    for (const row of this.element.querySelectorAll(".fields .row")) {
+      const input = row.querySelector("input.command");
+      if (!input.value.startsWith(kw)) continue;
+      row.querySelector("input[value='?']").click();
+      return;
+    }
+  }
+  
   forceString(src) {
     if (!src) return "";
     if (typeof(src) === "string") return src;
@@ -68,6 +114,15 @@ export class CommandListEditor {
       dst.push(CommandListEditor.splitCommand(input.value || ""));
     }
     return dst;
+  }
+  
+  getFirstParams(kw) {
+    for (const input of this.element.querySelectorAll(".fields .command")) {
+      const words = CommandListEditor.splitCommand(input.value || "");
+      if (words[0] !== kw) continue;
+      return words.slice(1).join(" ");
+    }
+    return "";
   }
   
   buildUi() {
@@ -94,7 +149,7 @@ export class CommandListEditor {
   }
   
   addFieldUi(parent, src) {
-    const row = this.dom.spawn(parent, "DIV", ["row"]);
+    const row = this.dom.spawn(parent, "DIV", ["row"], { "data-rowid": this.nextRowid++ });
     this.dom.spawn(row, "INPUT", { type: "button", value: "x", "on-click": () => this.onDeleteRow(row) });
     this.dom.spawn(row, "INPUT", { type: "button", value: "^", "on-click": () => this.onMoveRow(row, -1) });
     this.dom.spawn(row, "INPUT", { type: "button", value: "v", "on-click": () => this.onMoveRow(row, 1) });
@@ -158,6 +213,9 @@ export class CommandListEditor {
   onChange(row) {
     this.validateRow(row);
     this.dirty();
+    if (this.clientChange) {
+      this.clientChange(+row.getAttribute("data-rowid"), CommandListEditor.splitCommand(row.querySelector("input.command").value));
+    }
   }
   
   onAddField() {
@@ -171,7 +229,7 @@ export class CommandListEditor {
     if (!this.clientAssist) return;
     const text = row.querySelector("input.command")?.value || "";
     const words = CommandListEditor.splitCommand(text);
-    this.clientAssist(words);
+    this.clientAssist(+row.getAttribute("data-rowid"), words);
   }
   
   validateText(src) {
