@@ -209,6 +209,8 @@ export class MapToolbar {
       if (!result) return;
       this.mapEditor.map.replaceCommands(result);
       this.mapEditor.dirty();
+      this.mapEditor.mapStore.neighborsDirty();
+      this.mapEditor.mapCanvas.refreshNeighbors();
       this.mapEditor.mapCanvas.loadImage();
       this.mapEditor.refreshAnnotations();
       this.setup(); // Forces reload of image

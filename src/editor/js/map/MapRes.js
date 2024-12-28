@@ -132,6 +132,16 @@ export class MapRes {
     }
     return "";
   }
+  
+  /* First command with opcode (kw), array of tokens including the keyword.
+   */
+  getFirstCommandTokens(kw) {
+    for (const command of this.commands) {
+      if (command.tokens[0] !== kw) continue;
+      return command.tokens;
+    }
+    return [];
+  }
 }
 
 export class MapCommand {
@@ -140,6 +150,7 @@ export class MapCommand {
     if (!src) return;
     if (src instanceof MapCommand) this._copy(src);
     else if (typeof(src) === "string") this.decode(src);
+    else if (src instanceof Array) this.tokens = src.map(t => t.toString());
     else throw new Error(`Inappropriate input to MapCommand ctor`);
   }
   

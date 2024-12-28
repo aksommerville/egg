@@ -39,5 +39,6 @@ Our editor will look for certain commands in the text (it's not privy to the bin
 - `neighbors`: u16 west, u16 east, u16 north, u16 south (mapid). Don't use with `location`.
 - Any other command with a `@X,Y` argument, editor should display as a Point Of Interest.
 - Any other command with a `@X,Y,W,H` argument, editor should display as a Region Of Interest.
+- `song`: We don't care about the payload, but we copy when creating a neighbor map.
 
 If you use `location` or `neighbors`, editor may assume that all maps are the same size.

@@ -188,4 +188,73 @@ export class MapEditor {
       this.mapCanvas.renderSoon();
     }
   }
+  
+  action_validateWorld(arg) {
+    if (arg === "label") return "Validate All Neighbors";
+    this.mapStore.requireNeighbors();
+    if (this.mapStore.neighborRegime === "none") {
+      this.dom.modalMessage("No neighboring regime in use. Manually add a command 'neighbors L R U D' or 'location X Y [Z]' to any map to use this feature.");
+      return;
+    }
+    let errors = [];
+    
+    // Both "neighbors" and "location" require all maps to be the same size.
+    // The developer might have extra maps that aren't part of the proper world or something, that's up to them. But we'll report it as an error.
+    const countBySize = {};
+    for (const map of this.mapStore.maps) {
+      const k = `w${map.w}h${map.h}`;
+      countBySize[k] = (countBySize[k] || 0) + 1;
+    }
+    if (Object.keys(countBySize) > 1) {
+      errors.push(`Maps should all be the same size. Found multiple: ${JSON.stringify(countBySize)}`);
+    }
+    
+    // In "neighbors" regime, we can laboriously check each expected and actual relationship.
+    if (this.mapStore.neighborRegime === "neighbors") {
+      for (const plane of this.mapStore.planes) {
+        for (let p=0, suby=0; suby<plane.h; suby++) {
+          for (let subx=0; subx<plane.w; subx++, p++) {
+            const map = plane.v[p];
+            if (!map) continue;
+            const actualTokens = map.getFirstCommandTokens("neighbors");
+            const al = +actualTokens[1] || 0;
+            const ar = +actualTokens[2] || 0;
+            const au = +actualTokens[3] || 0;
+            const ad = +actualTokens[4] || 0;
+            const el = (subx > 0) ? (plane.v[p - 1]?.rid || 0) : 0;
+            const er = (subx < plane.w - 1) ? (plane.v[p + 1]?.rid || 0) : 0;
+            const eu = (suby > 0) ? (plane.v[p - plane.w]?.rid || 0) : 0;
+            const ed = (suby < plane.h - 1) ? (plane.v[p + plane.w]?.rid || 0) : 0;
+            if (al !== el) errors.push(`${map.path} LEFT should be ${el} but says ${al}`);
+            if (ar !== er) errors.push(`${map.path} RIGHT should be ${er} but says ${ar}`);
+            if (au !== eu) errors.push(`${map.path} UP should be ${eu} but says ${au}`);
+            if (ad !== ed) errors.push(`${map.path} DOWN should be ${ed} but says ${ad}`);
+          }
+        }
+      }
+    }
+    
+    // It's an error to use both "neighbors" and "location" in the same ROM.
+    const invalidKeyword = (this.mapStore.neighborRegime === "neighbors") ? "location" : "neighbors";
+    for (const plane of this.mapStore.planes) {
+      for (const map of plane.v) {
+        if (!map) continue;
+        if (map.getFirstCommandTokens(invalidKeyword).length) {
+          errors.push(`${map.path} contains a ${JSON.stringify(invalidKeyword)} command but we're using ${JSON.stringify(this.mapStore.neighborRegime)}`);
+        }
+      }
+    }
+    
+    if (errors.length) {
+      const limit = 10;
+      if (errors.length > limit) {
+        const dropc = errors.length - limit + 1;
+        errors = errors.slice(0, limit - 1);
+        errors.push(`...${dropc} more omitted`);
+      }
+      this.dom.modalMessage(errors.join("\n"));
+    } else {
+      this.dom.modalMessage(`All neighbor relationships look valid.`);
+    }
+  }
 }

@@ -31,7 +31,9 @@ struct render *render_new() {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
   glEnable(0x8642); // GL_PROGRAM_POINT_SIZE, on my Mac it's required but not declared.
-  glEnable(GL_POINT_SPRITE);
+  #ifdef GL_POINT_SPRITE
+    glEnable(GL_POINT_SPRITE);
+  #endif
   
   if (render_init_programs(render)<0) {
     render_del(render);

@@ -189,7 +189,7 @@ export class Data {
   
   // Syncs to backend but assumes that will succeed. Returns resv entry.
   newResourceSync(path, serial) {
-    if (!path || this.resv.find(r => r.path === path)) return Promise.reject("Invalid path");
+    if (!path || this.resv.find(r => r.path === path)) throw new Error("Invalid path");
     if (!serial) serial = new Uint8Array(0);
     const res = { ...this.parsePath(path), serial };
     this.resv.push(res);
@@ -266,6 +266,17 @@ export class Data {
       image.addEventListener("load", () => resolve(image), { once: true });
       image.addEventListener("error", e => reject(e), { once: true });
     });
+  }
+  
+  unusedRid(type) {
+    const inuse = new Set();
+    for (const res of this.resv) {
+      if (res.type !== type) continue;
+      inuse.add(res.rid);
+    }
+    for (let rid=1; ; rid++) {
+      if (!inuse.has(rid)) return rid;
+    }
   }
 }
 

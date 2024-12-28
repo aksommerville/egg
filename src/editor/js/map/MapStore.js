@@ -7,7 +7,7 @@
  
 import { Data } from "../Data.js";
 import { Namespaces } from "../Namespaces.js";
-import { MapRes } from "./MapRes.js";
+import { MapRes, MapCommand } from "./MapRes.js";
 import { CommandListEditor } from "./CommandListEditor.js";
 import { Encoder } from "../Encoder.js";
 
@@ -21,6 +21,8 @@ export class MapStore {
     
     this.maps = [];
     this.tocListener = this.data.listenToc(e => this.onTocChange(e));
+    this.neighborRegime = ""; // "", "none", "neighbors", "location". Empty string means not yet determined.
+    this.planes = []; // { z, x, y, w, h, v:MapRes[] }
     
     this.refresh();
   }
@@ -43,122 +45,271 @@ export class MapStore {
     // Allow an exception at encode time if we don't find the map or encode fails. Data knows what to do with it.
     this.data.dirty(path, () => this.maps.find(m => m.path === path).encode());
   }
-
-  /* Neighbors: Some games may have a sense of adjacent maps.
-   * This can be effected by either the `neighbors` or `location` command.
-   * If neighbors are in play, all maps should be the same size.
-   * Games should not mix `neighbors` and `location`. Pick one.
-   * We'll report neighbors as a packed array of { map, dx, dy } where (dx,dy) in (-1,0,1).
-   * In the `location` case, we are not keeping a master map, we look it all up from scratch every time you ask, at terrible cost.
-   ***************************************************************************/
-
-  getNeighbors(map) {
-    let cmd, neighbor, neighbor2;
-    const neighbors = [];
-    
-    if (cmd = map.getFirstCommand("neighbors")) {
-      const tokens = CommandListEditor.splitCommand(cmd);
-      const lrid = +tokens[0];
-      const rrid = +tokens[1];
-      const urid = +tokens[2];
-      const drid = +tokens[3];
-      let nw=0, ne=0, sw=0, se=0;
-      if (lrid && (neighbor = this.getMapByRid(lrid))) {
-        neighbors.push({ map: neighbor, dx: -1, dy: 0 });
-        if (neighbor2 = this.getNeighbor(neighbor, 0, -1)) {
-          nw = 1;
-          neighbors.push({ map: neighbor2, dx: -1, dy: -1 });
-        }
-        if (neighbor2 = this.getNeighbor(neighbor, 0, 1)) {
-          sw = 1;
-          neighbors.push({ map: neighbor2, dx: -1, dy: 1 });
-        }
-      }
-      if (rrid && (neighbor = this.getMapByRid(rrid))) {
-        neighbors.push({ map: neighbor, dx: 1, dy: 0 });
-        if (neighbor2 = this.getNeighbor(neighbor, 0, -1)) {
-          ne = 1;
-          neighbors.push({ map: neighbor2, dx: 1, dy: -1 });
-        }
-        if (neighbor2 = this.getNeighbor(neighbor, 0, 1)) {
-          se = 1;
-          neighbors.push({ map: neighbor2, dx: 1, dy: 1 });
-        }
-      }
-      if (urid && (neighbor = this.getMapByRid(urid))) {
-        neighbors.push({ map: neighbor, dx: 0, dy: -1 });
-        if (!nw && (neighbor2 = this.getNeighbor(neighbor, -1, 0))) {
-          neighbors.push({ map: neighbor2, dx: -1, dy: -1 });
-        }
-        if (!ne && (neighbor2 = this.getNeighbor(neighbor, 1, 0))) {
-          neighbors.push({ map: neighbor2, dx: 1, dy: -1 });
-        }
-      }
-      if (drid && (neighbor = this.getMapByRid(drid))) {
-        neighbors.push({ map: neighbor, dx: 0, dy: 1 });
-        if (!sw && (neighbor2 = this.getNeighbor(neighbor, -1, 0))) {
-          neighbors.push({ map: neighbor2, dx: -1, dy: 1 });
-        }
-        if (!se && (neighbor2 = this.getNeighbor(neighbor, 1, 0))) {
-          neighbors.push({ map: neighbor2, dx: 1, dy: 1 });
-        }
-      }
-      return neighbors;
-    }
-
-    if (cmd = map.getFirstCommand("location")) {
-      const tokens = CommandListEditor.splitCommand(cmd);
-      const x = +tokens[0];
-      const y = +tokens[1];
-      const z = +tokens[2] || 0; // Careful, NaN!==NaN and this Z is optional.
-      for (const q of this.maps) {
-        if (q === map) continue;
-        const qtokens = CommandListEditor.splitCommand(q.getFirstCommand("location"));
-        const qx = +qtokens[0];
-        const qy = +qtokens[1];
-        const qz = +qtokens[2] || 0;
-        if (qz !== z) continue;
-        const dx = qx - x;
-        const dy = qy - y;
-        if ((dx < -1) || (dx > 1) || (dy < -1) || (dy > 1)) continue;
-        neighbors.push({ map: q, dx, dy });
-      }
-      return neighbors;
-    }
-
-    return neighbors;
+  
+  /* Neighbors.
+   * Games may track map neighbor relationships either by the `neighbors` command or the `location` command.
+   * These two commands must not be mixed.
+   * We store maps in a separate list `planes` where those neighbor relationships are baked in.
+   *****************************************************************************/
+  
+  /* Call any time a 'neighbors' or 'location' command might have changed.
+   * We'll rebuild the planes from scratch next time we need them.
+   */
+  neighborsDirty() {
+    this.planes = [];
+    this.neighborRegime = "";
   }
-
-  // One of (dx,dy) must be zero and the other -1 or 1.
-  getNeighbor(map, dx, dy) {
-    let cmd;    
-    if (cmd = map.getFirstCommand("neighbors")) {
-      const tokens = CommandListEditor.splitCommand(cmd);
-      if (dx < 0) return this.getMapByRid(+tokens[0]);
-      if (dx > 0) return this.getMapByRid(+tokens[1]);
-      if (dy < 0) return this.getMapByRid(+tokens[2]);
-      if (dy > 0) return this.getMapByRid(+tokens[3]);
-      return null;
+  
+  // Returns path or null, and may throw.
+  createNeighborMap(from, dx, dy) {
+    this.requireNeighbors();
+    if (this.neighborRegime === "none") {
+      // This is a little awkward. The very first neighbor relationship you create for a game, you have to enter the command manually.
+      throw new Error(`No neighbor regime has been established by 'neighbors' or 'location' commands.`);
     }
-    if (cmd = map.getFirstCommand("location")) {
-      const tokens = CommandListEditor.splitCommand(cmd);
-      const x = +tokens[0];
-      const y = +tokens[1];
-      const z = +tokens[2] || 0;
-      for (const q of this.maps) {
-        if (q === map) continue;
-        const qtokens = CommandListEditor.splitCommand(q.getFirstCommand("location"));
-        const qx = +qtokens[0];
-        const qy = +qtokens[1];
-        const qz = +qtokens[2] || 0;
-        if (qx !== x + dx) continue;
-        if (qy !== y + dy) continue;
-        if (qz !== z) continue;
-        return q;
+    for (const plane of this.planes) {
+      const p = plane.v.indexOf(from);
+      if (p < 0) continue;
+      const fromx = plane.x + p % plane.w;
+      const fromy = plane.y + Math.floor(p / plane.w);
+      const dstx = fromx + dx;
+      const dsty = fromy + dy;
+      while (dstx < plane.x) this.growPlane(plane, -1, 0);
+      while (dsty < plane.y) this.growPlane(plane, 0, -1);
+      while (dstx >= plane.x + plane.w) this.growPlane(plane, 1, 0);
+      while (dsty >= plane.y + plane.h) this.growPlane(plane, 0, 1);
+      const dstp = (dsty - plane.y) * plane.w + (dstx - plane.x);
+      if (plane.v[dstp]) throw new Error(`World position (${dstx},${dsty},${plane.z}) already occupied by ${plane.v[dstp].path}`);
+      
+      const to = new MapRes();
+      to.w = from.w;
+      to.h = from.h;
+      to.v = new Uint8Array(to.w * to.h);
+      to.rid = this.data.unusedRid("map");
+      to.path = `map/${to.rid}`;
+      
+      const commandsToCopy = ["image", "song"];
+      for (const cmd of from.commands) {
+        if (!commandsToCopy.includes(cmd.tokens[0])) continue;
+        to.commands.push(new MapCommand(cmd));
       }
-      return null;
+      
+      switch (this.neighborRegime) {
+
+        case "neighbors": {
+            const lmap = (dstx > plane.x) ? plane.v[dstp - 1] : null;
+            const rmap = (dstx < plane.x + plane.w - 1) ? plane.v[dstp + 1] : null;
+            const umap = (dsty > plane.y) ? plane.v[dstp - plane.w] : null;
+            const dmap = (dsty < plane.y + plane.h - 1) ? plane.v[dstp + plane.w] : null;
+            to.commands.push(new MapCommand(["neighbors", lmap?.rid || 0, rmap?.rid || 0, umap?.rid || 0, dmap?.rid || 0]));
+            this.setNeighbor(lmap, 1, to.rid);
+            this.setNeighbor(rmap, 0, to.rid);
+            this.setNeighbor(umap, 3, to.rid);
+            this.setNeighbor(dmap, 2, to.rid);
+          } break;
+          
+        case "location": {
+            to.commands.push(new MapCommand(`location ${dstx} ${dsty} ${plane.z.startsWith?.("orphan:") ? "" : plane.z}`));
+          } break;
+      }
+      this.maps.push(to);
+      plane.v[dstp] = to; // Doesn't actually matter; we're about to get notified of a TOC change, and rebuild the whole plane set.
+      this.data.newResourceSync(to.path, to.encode());
+      return to.path;
     }
     return null;
+  }
+  
+  // Returns array of { map, dx, dy }.
+  getNeighbors(from) {
+    this.requireNeighbors();
+    for (const plane of this.planes) {
+      const p = plane.v.indexOf(from);
+      if (p < 0) continue;
+      const neighbors = [];
+      const x = p % plane.w; // Normalized. (x - plane.x) is the logical value but we don't care about that.
+      const y = Math.floor(p / plane.w);
+      for (let dy=-1; dy<=1; dy++) {
+        const oy = y + dy;
+        if ((oy < 0) || (oy >= plane.h)) continue;
+        for (let dx=-1; dx<=1; dx++) {
+          if (!dx && !dy) continue;
+          const ox = x + dx;
+          if ((ox < 0) || (ox >= plane.w)) continue;
+          const map = plane.v[oy * plane.w + ox];
+          if (map) {
+            neighbors.push({ map, dx, dy });
+          }
+        }
+      }
+      return neighbors;
+    }
+    return [];
+  }
+  
+  /* Neighbors, private bits.
+   ******************************************************************************/
+  
+  requireNeighbors() {
+    if (this.neighborRegime) return;
+    switch (this.neighborRegime = this.selectNeighborRegime()) {
+      case "neighbors": this.rebuildPlanes_neighbors(); break;
+      case "location": this.rebuildPlanes_location(); break;
+    }
+  }
+  
+  selectNeighborRegime() {
+    let neighborsc=0, locationc=0;
+    let neighbors_any="", location_any="";
+    for (const map of this.maps) {
+      for (const cmd of map.commands) {
+        switch (cmd.tokens[0]) {
+          case "neighbors": neighborsc++; neighbors_any = map.path; break;
+          case "location": locationc++; location_any = map.path; break;
+        }
+      }
+    }
+    if (!neighborsc && !locationc) return "none";
+    if (neighborsc > locationc) {
+      if (locationc) console.warn(`Using 'neighbors' commands, but we also have ${locationc} 'location' commands, eg in ${JSON.stringify(location_any)}`);
+      return "neighbors";
+    } else {
+      if (neighborsc) console.warn(`Using 'location' commands, but we also have ${neighborsc} 'neighbors' commands, eg in ${JSON.stringify(neighbors_any)}`);
+      return "location";
+    }
+  }
+  
+  rebuildPlanes_neighbors() {
+    /* Building planes from 'neighbors' commands is complex.
+     * We pick any unplaced map, put in on a new plane, then recursively enter its neighbors, growing the plane as needed.
+     * It is easily possible for the commands to be inconsistent. We'll issue warnings when we detect that.
+     */
+    const unplaced = [...this.maps];
+    while (unplaced.length > 0) {
+      const map = unplaced[0];
+      unplaced.splice(0, 1);
+      const plane = { z: this.planes.length + 1, x: 0, y: 0, w: 1, h: 1, v: [map] };
+      this.planes.push(plane);
+      this.fillPlane_neighbors(plane, 0, 0, unplaced);
+    }
+  }
+  
+  fillPlane_neighbors(plane, x, y, unplaced) {
+    if ((x < plane.x) || (y < plane.w) || (x >= plane.x + plane.w) || (y >= plane.y + plane.h)) return;
+    const map = plane.v[(y - plane.y) * plane.w + (x - plane.x)];
+    if (!map) return;
+    const tokens = map.getFirstCommandTokens("neighbors");
+    if (!tokens.length) return;
+    const lrid = +tokens[1];
+    const rrid = +tokens[2];
+    const urid = +tokens[3];
+    const drid = +tokens[4];
+    // Get all growth cases out of the way first.
+    if (lrid && (x === plane.x)) this.growPlane(plane, -1, 0);
+    if (urid && (y === plane.y)) this.growPlane(plane, 0, -1);
+    if (rrid && (x >= plane.x + plane.w - 1)) this.growPlane(plane, 1, 0);
+    if (drid && (y >= plane.y + plane.h - 1)) this.growPlane(plane, 0, 1);
+    // Warn if a slot is already occupied, and recur where we place a new map.
+    const neighbor = (rid, dx, dy) => {
+      if (!rid) return;
+      const nx = x + dx;
+      const ny = y + dy;
+      const p = (ny - plane.y) * plane.w + (nx - plane.x);
+      let nmap = plane.v[p];
+      if (nmap) {
+        if (nmap.rid === rid) {
+          // Already visited, no problemo. This will happen often.
+        } else {
+          console.warn(`World map position claimed by both map:${nmap.rid} and map:${rid}. Dropping map:${rid} from the world map.`);
+        }
+      } else {
+        const upp = unplaced.findIndex(m => m.rid === rid);
+        if (upp < 0) {
+          console.warn(`map:${rid} not found, named as neighbor (${dx},${dy}) of map:${map.rid}`);
+        } else {
+          plane.v[p] = unplaced[upp];
+          unplaced.splice(upp, 1);
+          this.fillPlane_neighbors(plane, nx, ny, unplaced);
+        }
+      }
+    };
+    neighbor(lrid, -1, 0);
+    neighbor(rrid, 1, 0);
+    neighbor(urid, 0, -1);
+    neighbor(drid, 0, 1);
+  }
+  
+  rebuildPlanes_location() {
+    /* Compared to the "neighbors" regime, "location" is a breeze.
+     * Each map tells us exactly what we need to know.
+     */
+    for (const map of this.maps) {
+      const cmd = map.getFirstCommandTokens("location");
+      if (!cmd.length) { // No location. Give it a unique plane.
+        const z = `orphan:${this.planes.length}`;
+        const plane = { z, x: 0, y: 0, w: 1, h: 1, v: [map] };
+        this.planes.push(plane);
+      } else {
+        const x = +cmd[1];
+        const y = +cmd[2];
+        const z = +cmd[3] || 0; // z is optional. If omitted, all maps are on a single plane.
+        let plane = this.planes.find(p => p.z === z);
+        if (plane) {
+          while (x < plane.x) this.growPlane(plane, -1, 0);
+          while (y < plane.y) this.growPlane(plane, 0, -1);
+          while (x >= plane.x + plane.w) this.growPlane(plane, 1, 0);
+          while (y >= plane.y + plane.h) this.growPlane(plane, 0, 1);
+          const p = (y - plane.y) * plane.w + (x - plane.x);
+          if (plane[p]) {
+            console.warn(`World map position (${x},${y},${z}) claimed by both map:${map.rid} and ${plane[p].rid}. Dropping map:${map.rid} from the world map.`);
+          } else {
+            plane.v[p] = map;
+          }
+        } else {
+          plane = { z, x, y, w: 1, h: 1, v: [map] };
+          this.planes.push(plane);
+        }
+      }
+    }
+  }
+  
+  growPlane(plane, gx, gy) {
+    const increment = 4;
+    let nw = plane.w;
+    let nh = plane.h;
+    let dstx = 0;
+    let dsty = 0;
+    if (gx < 0) { nw += increment; dstx = increment; plane.x -= increment; }
+    else if (gx > 0) nw += increment;
+    if (gy < 0) { nh += increment; dsty = increment; plane.y -= increment; }
+    else if (gy > 0) nh += increment;
+    const nv = [];
+    for (let i=nw*nh; i-->0; ) nv.push(null);
+    this.copyPlane(nv, dstx, dsty, nw, plane.v, 0, 0, plane.w, plane.w, plane.h);
+    plane.v = nv;
+    plane.w = nw;
+    plane.h = nh;
+  }
+  
+  copyPlane(dst, dstx, dsty, dststride, src, srcx, srcy, srcstride, w, h) {
+    for (let dstrowp=dsty*dststride+dstx, srcrowp=srcy*srcstride+srcx, yi=h; yi-->0; dstrowp+=dststride, srcrowp+=srcstride) {
+      for (let dstp=dstrowp, srcp=srcrowp, xi=w; xi-->0; dstp++, srcp++) {
+        dst[dstp] = src[srcp];
+      }
+    }
+  }
+  
+  // Having just added a map, if this neighbor exists, update its "neighbors" command.
+  setNeighbor(map, np, nrid) {
+    if (!map) return;
+    let cmd = map.getFirstCommandTokens("neighbors");
+    if (!cmd) {
+      const co = new MapCommand("neighbors 0 0 0 0");
+      map.commands.push(co);
+      cmd = co.tokens;
+    }
+    cmd[1 + np] = nrid.toString();
+    this.dirty(map.path);
   }
   
   /* Annotations: Points and regions of interest for the editor, based on map commands.
@@ -294,11 +445,13 @@ export class MapStore {
    * This happens at construction, and also on relevant TOC changes.
    */
   refresh() {
+    this.neighborsDirty();
     this.maps = [];
     for (const res of this.data.resv) {
       if (res.type !== "map") continue;
       if (!res.serial?.length) res.serial = this.generateDefaultMap();
-      this.maps.push(new MapRes(res));
+      const map = new MapRes(res);
+      this.maps.push(map);
     }
   }
   

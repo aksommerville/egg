@@ -56,7 +56,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Editor
 - - [x] MapEditor: Should we accomodate absolute-positioned maps like Season of Penance uses? I expect to do that again in Fly By Night, or something like it.
 - - [x] MapEditor: Neighbor maps.
-- - [ ] MapEditor: Click OOB to create neighbor map, if configured for it. (MapCanvas.js:onMouseDownOob)
+- - [x] MapEditor: Click OOB to create neighbor map, if configured for it. (MapCanvas.js:onMouseDownOob)
 - - [ ] SpriteEditor: Conveniences for image and tile.
 - - [ ] MapStore: Custom POI icons supplied by game.
 - [ ] Audio
@@ -88,6 +88,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Platformer
 - - [ ] Something in WAT instead of C.
 - - [ ] Rhythm
+- - [ ] Beat-em-up with Paper Mario style graphics.
 - [ ] Eggzotics: Build for Egg and eg TinyArcade, for platforms that can't run Egg properly.
 - [ ] Validate eject.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.

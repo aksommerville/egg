@@ -441,7 +441,13 @@ export class MapCanvas {
     if (neighbor) {
       this.window.location = "#" + neighbor.path;
     } else {
-      //TODO Should we prompt to create a neighbor? Hard to be certain of which neighbor regime is in play.
+      const dx = (col < 0) ? -1 : (col >= this.mapEditor.map.w) ? 1 : 0;
+      const dy = (row < 0) ? -1 : (row >= this.mapEditor.map.h) ? 1 : 0;
+      this.dom.modalPickOne(["Create", "Cancel"], `Create map at ${dx},${dy} to this one?`).then(rsp => {
+        if (rsp !== "Create") return;
+        const path = this.mapEditor.mapStore.createNeighborMap(this.mapEditor.map, dx, dy);
+        if (path) this.window.location = "#" + path;
+      }).catch(e => this.dom.modalError(e));
     }
   }
   
