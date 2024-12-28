@@ -488,6 +488,7 @@ export class MapCanvas {
         }
       }
     } else {
+      if (this.mapEditor.mapPaint.pedometer) return;
       const [x, y] = this.mapPositionFromEvent(event);
       let note = "";
     
@@ -505,12 +506,10 @@ export class MapCanvas {
           nextAnnotation = an;
         }
       }
-      if (nextAnnotation !== this.hoverAnnotation) {
-        this.hoverAnnotation = nextAnnotation;
-        const tool = this.mapEditor.mapToolbar.getToolName();
-        if ((tool === "poimove") || (tool === "poiedit") || (tool === "door")) {
-          note = this.hoverAnnotation?.desc || "";
-        }
+      this.hoverAnnotation = nextAnnotation;
+      const tool = this.mapEditor.mapToolbar.getToolName();
+      if ((tool === "poimove") || (tool === "poiedit") || (tool === "door")) {
+        note = this.hoverAnnotation?.desc || "";
       }
 
       /* If we're OOB and there's a neighbor in that direction, report it.

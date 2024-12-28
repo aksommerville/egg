@@ -36,6 +36,14 @@ export class Custom {
   getEditors() {
     return [];
   }
+  
+  /* To get custom point commands appearing in MapEditor instead of the "?" tile,
+   * pick off your interesting annotations (usually by annotiation.opcode), and return a Canvas or Image.
+   * You can't override things the editor knows about: sprite, door, door:exit
+   */
+  renderMapEditorAnnotation(annotation, command, map) {
+    return null;
+  }
 }
 
 Custom.singleton = true;

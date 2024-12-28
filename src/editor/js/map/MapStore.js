@@ -10,14 +10,16 @@ import { Namespaces } from "../Namespaces.js";
 import { MapRes, MapCommand } from "./MapRes.js";
 import { CommandListEditor } from "./CommandListEditor.js";
 import { Encoder } from "../Encoder.js";
+import { Custom } from "../../override/Custom.js";
 
 export class MapStore {
   static getDependencies() {
-    return [Data, Namespaces];
+    return [Data, Namespaces, Custom];
   }
-  constructor(data, namespaces) {
+  constructor(data, namespaces, custom) {
     this.data = data;
     this.namespaces = namespaces;
+    this.custom = custom;
     
     this.maps = [];
     this.tocListener = this.data.listenToc(e => this.onTocChange(e));
@@ -364,7 +366,6 @@ export class MapStore {
   
   /* Add (thumbnail) and (desc) in place where we can.
    * We might arrange for it to happen async, and for now there's no notification when that completes.
-   * TODO I'd like some means for the game's editor to insert overrides here and produce its own icons.
    */
   generateAnnotationThumbnails(annotations, map) {
     for (const an of annotations) {
@@ -408,6 +409,13 @@ export class MapStore {
           
         case "door:exit": {
             an.desc = `from ${an.map.path}`;
+          } break;
+          
+        default: {
+            if (this.custom.renderMapEditorAnnotation) {
+              const cmd = map.commands.find(c => c.mapCommandId === an.mapCommandId);
+              an.thumbnail = this.custom.renderMapEditorAnnotation(an, cmd, map);
+            }
           } break;
       }
     }
