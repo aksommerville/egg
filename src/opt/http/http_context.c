@@ -1,4 +1,46 @@
 #include "http_internal.h"
+
+#if USE_mswin
+double http_now() { return 0.0; }
+void http_context_del(struct http_context *ctx) {}
+struct http_context *http_context_new(const struct http_context_delegate *delegate) { return 0; }
+void http_context_get_limits(struct http_limits *limits,const struct http_context *ctx) {}
+int http_context_set_limits(struct http_context *ctx,const struct http_limits *limits) { return -1; }
+struct http_socket *http_context_socket_for_request(
+  const struct http_context *ctx,
+  const struct http_xfer *req
+) { return 0; }
+struct http_socket *http_context_socket_for_websocket(
+  const struct http_context *ctx,
+  const struct http_websocket *ws
+) { return 0; }
+int http_listen(struct http_context *ctx,int local_only,int port) { return -1; }
+int http_unlisten(struct http_context *ctx,int port) { return -1; }
+int http_update(struct http_context *ctx,int toms) { return -1; }
+int http_get_files(struct pollfd *dst,int dsta,struct http_context *ctx) { return -1; }
+int http_update_file(struct http_context *ctx,int fd) { return -1; }
+struct http_websocket *http_context_get_websocket_by_index(const struct http_context *ctx,int p) { return 0; }
+struct http_websocket *http_websocket_connect(
+  struct http_context *ctx,
+  const char *url,int urlc,
+  int (*cb)(struct http_websocket *ws,int opcode,const void *v,int c),
+  void *userdata
+) { return 0; }
+struct http_xfer *http_request(
+  struct http_context *ctx,
+  const char *method,
+  const char *url,int urlc,
+  int (*cb)(struct http_xfer *req,struct http_xfer *rsp),
+  void *userdata
+) { return 0; }
+struct http_socket *http_context_add_server_stream(
+  struct http_context *ctx,
+  int rfd,
+  const void *raddr,int raddrc,
+  struct http_socket *server
+) { return 0; }
+#else
+
 #include <sys/time.h>
 
 /* Current time.
@@ -402,3 +444,5 @@ struct http_socket *http_context_add_server_stream(
   ctx->socketv[ctx->socketc++]=sock;
   return sock;
 }
+
+#endif

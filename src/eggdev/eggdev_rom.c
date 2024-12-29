@@ -474,7 +474,7 @@ int eggdev_rom_parse_path(
   const char *base=path,*dir=0;
   int basec=0,dirc=0,pathc=0;
   for (;path[pathc];pathc++) {
-    if (path[pathc]=='/') {
+    if (path[pathc]==PATH_SEP_CHAR) {
       dir=base;
       dirc=basec;
       base=path+pathc+1;

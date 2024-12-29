@@ -3,6 +3,10 @@
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
+#if USE_mswin
+  #include <sys/time.h>
+  #include <Windows.h>
+#endif
 
 static struct sr_encoder capture={0};
 static int samplec=0;
@@ -25,9 +29,15 @@ static void eggdev_sound_rcvsig(int sigid) {
  */
  
 static double now_cpu() {
-  struct timespec tv={0};
-  clock_gettime(CLOCK_PROCESS_CPUTIME_ID,&tv);
-  return (double)tv.tv_sec+(double)tv.tv_nsec/1000000000.0;
+  #if USE_mswin
+    struct timeval tv={0};
+    gettimeofday(&tv,0);
+    return (double)tv.tv_sec+(double)tv.tv_usec/1000000.0;
+  #else
+    struct timespec tv={0};
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID,&tv);
+    return (double)tv.tv_sec+(double)tv.tv_nsec/1000000000.0;
+  #endif
 }
 
 /* Callback from audio driver. Also called manually with (driver) null, if we're running headless.
@@ -113,7 +123,11 @@ static int eggdev_sound_inner(const void *src,int srcc,const char *path) {
     while (!eggdev.terminate) {
       if (hostio_update(eggdev.hostio)<0) return -1;
       if (!synth_get_song(eggdev.synth)) break;
-      usleep(20000);
+      #if USE_mswin
+        Sleep(20);
+      #else
+        usleep(20000);
+      #endif
     }
     hostio_audio_play(eggdev.hostio,0);
     

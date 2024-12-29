@@ -1,5 +1,21 @@
 #include "http_internal.h"
 
+#if USE_mswin
+void http_websocket_del(struct http_websocket *ws) {}
+struct http_websocket *http_websocket_new(struct http_context *ctx) { return 0; }
+void http_websocket_disconnect(struct http_websocket *ws) {}
+int http_websocket_send(struct http_websocket *ws,int opcode,const void *v,int c) { return -1; }
+void *http_websocket_get_userdata(const struct http_websocket *ws) { return 0; }
+void http_websocket_set_userdata(struct http_websocket *ws,void *userdata) {}
+void http_websocket_set_callback(struct http_websocket *ws,int (*cb)(struct http_websocket *ws,int opcode,const void *v,int c)) {}
+int http_websocket_encode_upgrade_request(
+  struct sr_encoder *dst,
+  struct http_websocket *ws,
+  const char *url,int urlc
+) { return -1; }
+struct http_websocket *http_websocket_check_upgrade(struct http_xfer *req,struct http_xfer *rsp) { return 0; }
+#else
+
 /* Delete.
  */
  
@@ -152,3 +168,5 @@ struct http_websocket *http_websocket_check_upgrade(struct http_xfer *req,struct
   
   return sock->ws;
 }
+
+#endif

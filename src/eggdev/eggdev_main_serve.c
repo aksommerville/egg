@@ -270,6 +270,12 @@ static int eggdev_cb_delete(struct http_xfer *req,struct http_xfer *rsp) {
 
 /* GET /api/make/*
  */
+
+#if USE_mswin
+  // I guess the macros WIFEXITED and WEXITSTATUS don't exist in MinGW? Doesn't matter much; this isn't reachable in Windows anyway until we fix http.
+  static int WIFEXITED(int status) { return 0; }
+  static int WEXITSTATUS(int status) { return 1; }
+#endif
  
 static int eggdev_cb_get_api_make(struct http_xfer *req,struct http_xfer *rsp) {
   const char *rpath=0;

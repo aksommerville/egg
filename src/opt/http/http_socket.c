@@ -1,5 +1,19 @@
 #include "http_internal.h"
 
+#if USE_mswin
+void http_socket_del(struct http_socket *sock) {}
+struct http_socket *http_socket_new(struct http_context *ctx) { return 0; }
+struct http_socket *http_socket_new_handoff(struct http_context *ctx,int fd) { return 0; }
+int http_socket_configure_server(struct http_socket *sock,int local_only,int port) { return -1; }
+int http_socket_configure_server_stream(struct http_socket *sock) { return -1; }
+int http_socket_configure_client_stream(struct http_socket *sock,struct http_xfer *req,const char *url,int urlc) { return -1; }
+int http_socket_configure_websocket_client(struct http_socket *sock,const char *url,int urlc) { return -1; }
+int http_socket_is_defunct(const struct http_socket *sock,double now) { return -1; }
+void http_socket_force_defunct(struct http_socket *sock) {}
+int http_socket_preupdate(struct http_socket *sock) { return -1; }
+int http_socket_update(struct http_socket *sock) { return -1; }
+#else
+
 /* Delete.
  */
 
@@ -641,3 +655,5 @@ int http_socket_update(struct http_socket *sock) {
   }
   return 0;
 }
+
+#endif

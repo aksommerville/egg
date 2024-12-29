@@ -12,13 +12,13 @@
 #include <windows.h>
 
 // On my Nuc, this should not have the "ddk/" prefix. Dell, it should. No idea who is right.
-#include <hidsdi.h>
+#include <ddk/hidsdi.h>
 
 // Dell's headers don't have this. (though it should be supported since Vista, and this is 7).
 #ifndef RIDEV_DEVNOTIFY
   #define RIDEV_DEVNOTIFY 0x00002000
 #endif
-int HidD_GetProductString(HANDLE HIDHandle,char *buf,int bufc);
+//int HidD_GetProductString(HANDLE HIDHandle,char *buf,int bufc);
 
 #define MSHID_BUTTON_LIMIT 128
 

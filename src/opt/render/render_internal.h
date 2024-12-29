@@ -12,6 +12,10 @@
 
 #if USE_macos
   #include <OpenGL/gl.h>
+#elif USE_mswin
+  #define GL_GLEXT_PROTOTYPES 1
+  #include <GL/gl.h>
+  #include <GL/glext.h>
 #else
   #include "GLES2/gl2.h"
 #endif

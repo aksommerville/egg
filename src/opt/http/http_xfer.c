@@ -1,5 +1,48 @@
 #include "http_internal.h"
 
+#if USE_mswin
+void http_xfer_del(struct http_xfer *xfer) {}
+struct http_xfer *http_xfer_new(struct http_context *ctx) { return 0; }
+int http_xfer_configure_client_request(
+  struct http_xfer *xfer,
+  const char *method,
+  const char *url,int urlc,
+  int (*cb)(struct http_xfer *req,struct http_xfer *rsp),
+  void *userdata
+) { return -1; }
+void http_request_cancel(struct http_xfer *req) {}
+void *http_xfer_get_userdata(const struct http_xfer *xfer) { return 0; }
+void http_xfer_set_userdata(struct http_xfer *xfer,void *userdata) {}
+int http_xfer_get_topline(void *dstpp,const struct http_xfer *xfer) { return -1; }
+int http_xfer_set_topline(struct http_xfer *xfer,const char *src,int srcc) { return -1; }
+struct sr_encoder *http_xfer_get_body(struct http_xfer *xfer) { return 0; }
+int http_xfer_get_method(char *dst,int dsta,const struct http_xfer *xfer) { return -1; }
+int http_xfer_get_path(void *dstpp,const struct http_xfer *xfer) { return -1; }
+int http_xfer_get_query(void *dstpp,const struct http_xfer *xfer) { return -1; }
+int http_xfer_get_status(const struct http_xfer *xfer) { return -1; }
+int http_xfer_get_message(void *dstpp,const struct http_xfer *xfer) { return -1; }
+int http_xfer_set_status(struct http_xfer *xfer,int status,const char *fmt,...) { return -1; }
+int http_xfer_for_each_header(
+  const struct http_xfer *xfer,
+  int (*cb)(const char *k,int kc,const char *v,int vc,void *userdata),
+  void *userdata
+) { return -1; }
+int http_xfer_add_header(struct http_xfer *xfer,const char *k,int kc,const char *v,int vc) { return -1; }
+int http_xfer_set_header(struct http_xfer *xfer,const char *k,int kc,const char *v,int vc) { return -1; }
+int http_xfer_get_header(void *dstpp,const struct http_xfer *xfer,const char *k,int kc) { return -1; }
+int http_xfer_get_header_int(int *v,const struct http_xfer *xfer,const char *k,int kc) { return -1; }
+int http_xfer_for_each_param(
+  const struct http_xfer *xfer,
+  int (*cb)(const char *k,int kc,const char *v,int vc,void *userdata),
+  void *userdata
+) { return -1; }
+int http_xfer_get_param(char *dst,int dsta,const struct http_xfer *xfer,const char *k,int kc) { return -1; }
+int http_xfer_get_param_int(int *v,const struct http_xfer *xfer,const char *k,int kc) { return -1; }
+int http_xfer_encode(struct sr_encoder *dst,const struct http_xfer *xfer) { return -1; }
+int http_xfer_decode(struct http_xfer *xfer,const void *src,int srcc) { return -1; }
+int http_xfer_is_decoded(const struct http_xfer *xfer) { return 0; }
+#else
+
 /* Delete.
  */
  
@@ -416,3 +459,5 @@ int http_xfer_is_decoded(const struct http_xfer *xfer) {
   if (!xfer->toplinec) return 0;
   return 1;
 }
+
+#endif

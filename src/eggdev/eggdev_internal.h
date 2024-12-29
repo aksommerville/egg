@@ -15,6 +15,14 @@
 #include <limits.h>
 #include <stdio.h>
 
+#if USE_mswin
+  #define PATH_SEP_STR "\\"
+  #define PATH_SEP_CHAR '\\'
+#else
+  #define PATH_SEP_STR "/"
+  #define PATH_SEP_CHAR '/'
+#endif
+
 #define EGGDEV_NS_MODE_CMD 1 /* Command list opcodes, associated with one resource type. */
 #define EGGDEV_NS_MODE_NS  2 /* Arbitrary symbols. */
 

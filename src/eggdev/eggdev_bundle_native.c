@@ -123,7 +123,7 @@ static int eggdev_bundle_generate_asm(struct eggdev_bundle_context *ctx) {
   const char *rompath=ctx->modrompath?ctx->modrompath:ctx->rompath;
   ctx->scratch.c=0;
   if (sr_encode_fmt(&ctx->scratch,
-    #if USE_macos
+    #if USE_macos || USE_mswin
       // Apparently MacOS ld needs a leading underscore to find these.
       ".globl _egg_embedded_rom,_egg_embedded_rom_size\n"
       "_egg_embedded_rom:\n"

@@ -15,6 +15,14 @@
 #include <limits.h>
 #include <stdio.h>
 
+#if USE_mswin
+  #define PATH_SEP_STR "\\"
+  #define PATH_SEP_CHAR '\\'
+#else
+  #define PATH_SEP_STR "/"
+  #define PATH_SEP_CHAR '/'
+#endif
+
 extern struct eggrt {
 
   // Acquired at eggrt_configure():

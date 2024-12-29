@@ -9,6 +9,26 @@
 
 /* Primitives.
  */
+
+#if USE_mswin
+
+#include <Windows.h>
+
+double eggrt_now_real() {
+  struct timeval tv={0};
+  gettimeofday(&tv,0);
+  return (double)tv.tv_sec+(double)tv.tv_usec/1000000.0;
+}
+
+double eggrt_now_cpu() {
+  return eggrt_now_real(); // We're going to report 100% CPU usage, oh well.
+}
+
+void eggrt_sleep(double s) {
+  Sleep((int)(s*1000.0));
+}
+
+#else
  
 double eggrt_now_real() {
   struct timespec tv={0};
@@ -25,6 +45,8 @@ double eggrt_now_cpu() {
 void eggrt_sleep(double s) {
   usleep((int)(s*1000000.0));
 }
+
+#endif
 
 /* Init.
  */

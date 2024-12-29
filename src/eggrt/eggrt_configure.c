@@ -383,7 +383,7 @@ static int eggrt_configure_mainfile() {
   const char *path=getenv("EGG_CONFIG");
   if (path&&path[0]) return eggrt_configure_file(path);
   char tmp[1024];
-  int tmpc=eggrt_input_path_with_suffix(tmp,sizeof(tmp),getenv("HOME"),"/.egg/egg.cfg");
+  int tmpc=eggrt_input_path_with_suffix(tmp,sizeof(tmp),getenv("HOME"),PATH_SEP_STR ".egg" PATH_SEP_STR "egg.cfg");
   if (tmpc>0) return eggrt_configure_file(tmp);
   return 0;
 }
@@ -450,7 +450,7 @@ static int eggrt_input_path_home_egg(char *dst,int dsta) {
   int dstc;
 
   const char *HOME=getenv("HOME");
-  if ((dstc=eggrt_input_path_with_suffix(dst,dsta,HOME,"/.egg/input"))>0) return dstc;
+  if ((dstc=eggrt_input_path_with_suffix(dst,dsta,HOME,PATH_SEP_STR ".egg" PATH_SEP_STR "input"))>0) return dstc;
   
   const char *USER=getenv("USER");
   if (USER&&USER[0]) {
@@ -458,7 +458,7 @@ static int eggrt_input_path_home_egg(char *dst,int dsta) {
     #if USE_macos
       const char prefix[]="/Users/";
     #elif USE_mswin
-      what is the windows home directory these days? //TODO
+      const char prefix[]="C:\\Users\\";
     #else
       const char prefix[]="/home/";
     #endif
@@ -467,7 +467,7 @@ static int eggrt_input_path_home_egg(char *dst,int dsta) {
     if (dstc>=dsta) return -1;
     memcpy(dst,prefix,prefixc);
     memcpy(dst+prefixc,USER,userc);
-    memcpy(dst+prefixc+userc,"/.egg/input",11);
+    memcpy(dst+prefixc+userc,PATH_SEP_STR ".egg" PATH_SEP_STR "input",11);
     dst[dstc]=0;
     return dstc;
   }

@@ -48,9 +48,11 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 ## TODO
 
 - [ ] Windows
+- - [ ] Link is failing due to GL2 functions not found. I'm stumped.
 - - [ ] Drivers, build config
 - - [ ] Home path (eggrt_configure.c:eggrt_input_path_home_egg)
 - - [ ] Language (eggrt_configure.c:eggrt_get_user_languages)
+- - [ ] poll() substitute (http_internal.h). For now eggdev can't run a server.
 - [ ] Web runtime
 - - [ ] Input config.
 - [ ] Audio
