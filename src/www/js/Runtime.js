@@ -8,6 +8,7 @@ import { Video } from "./Video.js";
 import { Audio } from "./synth/Audio.js";
 import { Input } from "./Input.js";
 import { ImageDecoder } from "./ImageDecoder.js";
+import { Incfg } from "./Incfg.js";
 
 /* The ideal update interval is 1/60 seconds, about 0.017.
  * If they come in too fast, we skip some frames.
@@ -25,6 +26,7 @@ export class Runtime {
     this.audio = new Audio(this);
     this.input = new Input(this);
     this.imageDecoder = new ImageDecoder();
+    this.incfg = null; // Instance of Incfg if configuring.
     this.status = "new"; // "new" "loaded" "running" "stopped"
     this.exitStatus = 0;
     this.terminate = false;
@@ -63,6 +65,10 @@ export class Runtime {
   }
   
   stop() {
+    if (this.incfg) {
+      this.incfg.cancel();
+      this.incfg = null;
+    }
     if (this.pendingUpdate) {
       window.cancelAnimationFrame(this.pendingUpdate);
       this.pendingUpdate = null;
@@ -134,12 +140,19 @@ export class Runtime {
     }
     
     // Update all the things.
-    this.input.update();
-    this.exec.egg_client_update(elapsed);
-    if (this.terminate) return this.stop(); // Client-initiated termination. Don't bother rendering.
-    this.video.beginFrame();
-    this.exec.egg_client_render();
-    this.video.endFrame();
+    if (this.incfg) {
+      if (!this.incfg.update(elapsed)) {
+        this.incfg = null;
+        this.input.start();
+      }
+    } else {
+      this.input.update();
+      this.exec.egg_client_update(elapsed);
+      if (this.terminate) return this.stop(); // Client-initiated termination. Don't bother rendering.
+      this.video.beginFrame();
+      this.exec.egg_client_render();
+      this.video.endFrame();
+    }
     
     this.scheduleUpdate();
   }
@@ -286,8 +299,10 @@ export class Runtime {
   }
   
   egg_input_configure() {
-    console.log(`TODO Runtime.egg_input_configure`);
-    return -1;
+    if (this.incfg) return 0;
+    this.incfg = new Incfg(this);
+    this.input.stop();
+    return 0;
   }
   
   egg_image_decode_header(wp, hp, psp, srcp, srcc) {

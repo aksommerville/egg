@@ -314,6 +314,10 @@ void egg_client_update(double elapsed) {
       fprintf(stderr,"Play song %d...\n",songid);
       egg_play_song(songid,0,songid!=8);
     }
+    if ((instate&EGG_BTN_AUX1)&&!(pvinstate&EGG_BTN_AUX1)) {
+      fprintf(stderr,"BEGINNING INPUT CONFIG\n");
+      egg_input_configure();
+    }
     pvinstate=instate;
   }
 

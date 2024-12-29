@@ -53,8 +53,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Home path (eggrt_configure.c:eggrt_input_path_home_egg)
 - - [ ] Language (eggrt_configure.c:eggrt_get_user_languages)
 - - [ ] poll() substitute (http_internal.h). For now eggdev can't run a server.
-- [ ] Web runtime
-- - [ ] Input config.
 - [ ] Audio
 - - [ ] native: Neuter synth when dummy output.
 - - [ ] Editor: Live feedback of synth playhead, via WebSocket.
@@ -75,6 +73,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Envelope editor: Don't create points on a single click. Require double-click or a modifier key.
 - - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
 - - [ ] Envelope editor: Option to sync time scale across all envelope editors.
+- [ ] Clean up demo, make it a useful features test.
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Eggsamples
 - - [ ] Carefully rename the old eggsamples repo from 202408.

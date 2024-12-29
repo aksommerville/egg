@@ -27,6 +27,60 @@ export const
   EGG_SIGNAL_LOADSTATE       = 0x40000006,
   EGG_SIGNAL_SCREENCAP       = 0x40000007,
   EGG_SIGNAL_CONFIGIN        = 0x40000008;
+  
+const DEFAULT_KEY_MAP = {
+  Escape: EGG_SIGNAL_QUIT,
+  Pause: EGG_SIGNAL_PAUSE,
+  F1: EGG_SIGNAL_CONFIGIN,
+  F5: EGG_SIGNAL_PAUSE,
+  F7: EGG_SIGNAL_SCREENCAP,
+  F8: EGG_SIGNAL_LOADSTATE,
+  F9: EGG_SIGNAL_SAVESTATE,
+  F10: EGG_SIGNAL_STEP,
+  F11: EGG_SIGNAL_FULLSCREEN,
+  Tab: EGG_BTN_L1,
+  Backquote: EGG_BTN_L2,
+  Backslash: EGG_BTN_R1,
+  Backspace: EGG_BTN_R2,
+  Enter: EGG_BTN_AUX1,
+  BracketRight: EGG_BTN_AUX2,
+  BracketLeft: EGG_BTN_AUX3,
+  KeyW: EGG_BTN_UP,
+  KeyA: EGG_BTN_LEFT,
+  KeyS: EGG_BTN_DOWN,
+  KeyD: EGG_BTN_RIGHT,
+  Space: EGG_BTN_SOUTH,
+  Comma: EGG_BTN_WEST,
+  Period: EGG_BTN_EAST,
+  Slash: EGG_BTN_NORTH,
+  KeyQ: EGG_BTN_WEST,
+  KeyE: EGG_BTN_EAST,
+  KeyR: EGG_BTN_NORTH,
+  ArrowLeft: EGG_BTN_LEFT,
+  ArrowRight: EGG_BTN_RIGHT,
+  ArrowUp: EGG_BTN_UP,
+  ArrowDown: EGG_BTN_DOWN,
+  KeyZ: EGG_BTN_SOUTH,
+  KeyX: EGG_BTN_WEST,
+  KeyC: EGG_BTN_EAST,
+  KeyV: EGG_BTN_NORTH,
+  Numpad8: EGG_BTN_UP,
+  Numpad4: EGG_BTN_LEFT,
+  Numpad5: EGG_BTN_DOWN,
+  Numpad6: EGG_BTN_RIGHT,
+  Numpad2: EGG_BTN_DOWN,
+  Numpad7: EGG_BTN_L1,
+  Numpad9: EGG_BTN_R1,
+  Numpad1: EGG_BTN_L2,
+  Numpad3: EGG_BTN_R2,
+  Numpad0: EGG_BTN_SOUTH,
+  NumpadEnter: EGG_BTN_WEST,
+  NumpadAdd: EGG_BTN_EAST,
+  NumpadDecimal: EGG_BTN_NORTH,
+  NumpadDivide: EGG_BTN_AUX1,
+  NumpadMultiply: EGG_BTN_AUX2,
+  NumpadSubtract: EGG_BTN_AUX3,
+};
  
 export class Input {
   constructor(rt) {
@@ -34,59 +88,10 @@ export class Input {
     this.state = []; // Indexed by playerid, including zero.
     
     // [KeyEvent.code]: EGG_BTN_* or EGG_SIGNAL_*
-    this.keyMap = {
-      Escape: EGG_SIGNAL_QUIT,
-      Pause: EGG_SIGNAL_PAUSE,
-      F1: EGG_SIGNAL_CONFIGIN,
-      F5: EGG_SIGNAL_PAUSE,
-      F7: EGG_SIGNAL_SCREENCAP,
-      F8: EGG_SIGNAL_LOADSTATE,
-      F9: EGG_SIGNAL_SAVESTATE,
-      F10: EGG_SIGNAL_STEP,
-      F11: EGG_SIGNAL_FULLSCREEN,
-      Tab: EGG_BTN_L1,
-      Backquote: EGG_BTN_L2,
-      Backslash: EGG_BTN_R1,
-      Backspace: EGG_BTN_R2,
-      Enter: EGG_BTN_AUX1,
-      BracketRight: EGG_BTN_AUX2,
-      BracketLeft: EGG_BTN_AUX3,
-      KeyW: EGG_BTN_UP,
-      KeyA: EGG_BTN_LEFT,
-      KeyS: EGG_BTN_DOWN,
-      KeyD: EGG_BTN_RIGHT,
-      Space: EGG_BTN_SOUTH,
-      Comma: EGG_BTN_WEST,
-      Period: EGG_BTN_EAST,
-      Slash: EGG_BTN_NORTH,
-      KeyQ: EGG_BTN_WEST,
-      KeyE: EGG_BTN_EAST,
-      KeyR: EGG_BTN_NORTH,
-      ArrowLeft: EGG_BTN_LEFT,
-      ArrowRight: EGG_BTN_RIGHT,
-      ArrowUp: EGG_BTN_UP,
-      ArrowDown: EGG_BTN_DOWN,
-      KeyZ: EGG_BTN_SOUTH,
-      KeyX: EGG_BTN_WEST,
-      KeyC: EGG_BTN_EAST,
-      KeyV: EGG_BTN_NORTH,
-      Numpad8: EGG_BTN_UP,
-      Numpad4: EGG_BTN_LEFT,
-      Numpad5: EGG_BTN_DOWN,
-      Numpad6: EGG_BTN_RIGHT,
-      Numpad2: EGG_BTN_DOWN,
-      Numpad7: EGG_BTN_L1,
-      Numpad9: EGG_BTN_R1,
-      Numpad1: EGG_BTN_L2,
-      Numpad3: EGG_BTN_R2,
-      Numpad0: EGG_BTN_SOUTH,
-      NumpadEnter: EGG_BTN_WEST,
-      NumpadAdd: EGG_BTN_EAST,
-      NumpadDecimal: EGG_BTN_NORTH,
-      NumpadDivide: EGG_BTN_AUX1,
-      NumpadMultiply: EGG_BTN_AUX2,
-      NumpadSubtract: EGG_BTN_AUX3,
-    };
+    this.keyMap = this.loadKeyMap();
+    
+    // {[Gamepad.id]:{axes:[[lo,hi] | null],buttons:[EGG_BTN_* | 0]}}
+    this.gamepadMaps = this.loadGamepadMaps();
     
     this.gamepadStandardMapping = [
       EGG_BTN_SOUTH,
@@ -145,6 +150,73 @@ export class Input {
   
   update() {
     this.updateGamepads();
+  }
+  
+  // (map) is array of {dstbtnid:0..14,srcbtnid:KeyEvent.code}
+  setKeyMapButtonsOnly(map) {
+    const nmap = {};
+    for (const ok of Object.keys(this.keyMap)) {
+      const odstbtnid = this.keyMap[ok];
+      if (odstbtnid & ~0xffff) { // Signal, keep it.
+        nmap[ok] = odstbtnid;
+      }
+    }
+    for (const { dstbtnid, srcbtnid } of map) {
+      nmap[srcbtnid] = 1 << dstbtnid;
+    }
+    this.keyMap = nmap;
+    this.saveKeyMap(this.keyMap);
+  }
+  
+  // (id) straight off the device. (map) is array of {dstbtnid:0..14,srcbtnid:"aINDEX[+-]"|"bINDEX"}
+  setGamepadMap(id, map) {
+    const dstmap = { axes:[], buttons:[] };
+    for (const { dstbtnid, srcbtnid } of map) {
+      const match = srcbtnid.match(/^([ab])(\d+)([-+]?)$/);
+      if (!match) continue;
+      const ix = +match[2];
+      if (match[1] === 'a') {
+        while (dstmap.axes.length <= ix) dstmap.axes.push(null);
+        if (!dstmap.axes[ix]) dstmap.axes[ix] = [0, 0];
+        if (match[3] === '-') {
+          dstmap.axes[ix][0] = 1 << dstbtnid;
+        } else if (match[3] === '+') {
+          dstmap.axes[ix][1] = 1 << dstbtnid;
+        }
+      } else if (match[1] === 'b') {
+        while (dstmap.buttons.length <= ix) dstmap.buttons.push(0);
+        dstmap.buttons[ix] = 1 << dstbtnid;
+      }
+    }
+    this.gamepadMaps[id] = dstmap;
+    this.saveGamepadMaps(this.gamepadMaps);
+  }
+  
+  /* Map persistence.
+   ***************************************************************************/
+   
+  loadKeyMap() {
+    try {
+      const m = JSON.parse(localStorage.getItem("egg.keyMap"));
+      if (m && (typeof(m) === "object")) return m;
+    } catch (e) {}
+    return {...DEFAULT_KEY_MAP};
+  }
+   
+  saveKeyMap(map) {
+    localStorage.setItem("egg.keyMap", JSON.stringify(map));
+  }
+  
+  loadGamepadMaps() {
+    try {
+      const m = JSON.parse(localStorage.getItem("egg.gamepadMaps"));
+      if (m && (typeof(m) === "object")) return m;
+    } catch (e) {}
+    return {};
+  }
+  
+  saveGamepadMaps(maps) {
+    localStorage.setItem("egg.gamepadMaps", JSON.stringify(maps));
   }
   
   /* States and signals.
@@ -233,6 +305,7 @@ export class Input {
         buttons: event.gamepad.buttons.map(() => 0),
         playerid: this.selectPlayerid(),
         state: EGG_BTN_CD,
+        map: this.gamepadMaps[event.gamepad.id] || { axes:[], buttons:this.gamepadStandardMapping },
       };
       this.gamepads.push(gp);
       this.setPlayerButton(gp.playerid, EGG_BTN_CD, 1);
@@ -247,9 +320,20 @@ export class Input {
   }
   
   updateGamepads() {
-    if (this.gamepads.length < 1) return;
     if (!navigator?.getGamepads) return;
     const nstates = navigator.getGamepads();
+    
+    // Device present in nstates but not this.gamepads, we might have stopped and restarted. Simulate the connection.
+    for (const state of nstates) {
+      if (!state) continue;
+      if (!this.gamepads[state.index]) {
+        this.onGamepad({
+          type: "gamepadconnected",
+          gamepad: state,
+        });
+      }
+    }
+    
     for (let i=this.gamepads.length; i-->0; ) {
       const gp = this.gamepads[i];
       const nstate = nstates[gp.index];
@@ -260,18 +344,13 @@ export class Input {
       }
       
       for (let ai=0; ai<2; ai++) {
+        const dstbtnids = gp.map.axes[ai];
+        if (!dstbtnids) continue;
+        const [btnidlo, btnidhi] = dstbtnids;
         const thresh = 0.200;
         const pv = (gp.axes[ai] < -thresh) ? -1 : (gp.axes[ai] > thresh) ? 1 : 0;
         const nv = (nstate.axes[ai] < -thresh) ? -1 : (nstate.axes[ai] > thresh) ? 1 : 0;
         if (pv !== nv) {
-          let btnidlo, btnidhi;
-          if (ai) {
-            btnidlo = EGG_BTN_UP;
-            btnidhi = EGG_BTN_DOWN;
-          } else {
-            btnidlo = EGG_BTN_LEFT;
-            btnidhi = EGG_BTN_RIGHT;
-          }
           if (pv < 0) this.setPlayerButton(gp.playerid, btnidlo, 0);
           else if (pv > 0) this.setPlayerButton(gp.playerid, btnidhi, 0);
           if (nv < 0) this.setPlayerButton(gp.playerid, btnidlo, 1);
@@ -281,13 +360,13 @@ export class Input {
       }
       
       for (let bi=0; bi<gp.buttons.length; bi++) {
+        const dstbtnid = gp.map.buttons[bi];
+        if (!dstbtnid) continue;
         const pv = gp.buttons[bi];
         const nv = nstate.buttons[bi].value;
         if (pv === nv) continue;
         gp.buttons[bi] = nv;
-        const btnid = this.gamepadStandardMapping[bi];
-        if (!btnid) continue;
-        this.setPlayerButton(gp.playerid, btnid, nv);
+        this.setPlayerButton(gp.playerid, dstbtnid, nv);
       }
     }
   }
