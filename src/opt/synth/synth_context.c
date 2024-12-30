@@ -69,6 +69,10 @@ void synth_emit_full_volume(struct synth *synth) {
   synth->global_trim=1.0f;
 }
 
+void synth_neuter(struct synth *synth) {
+  synth->neuter=1;
+}
+
 /* End current song.
  */
  
@@ -244,11 +248,39 @@ static void synth_updatef_mono(float *v,int c,struct synth *synth) {
   synth->preprintc=0;
 }
 
+/* Update, neutered.
+ * We'll advance the song but will not generate a signal (duh: There's nowhere for you to receive it).
+ */
+ 
+static void synth_update_neuter(struct synth *synth,int framec) {
+  while (synth->printerc>0) {
+    struct synth_printer *printer=synth->printerv[--(synth->printerc)];
+    fprintf(stderr,"%s:%d:WARNING: Printer %p mysteriously appeared in neutered synth.\n",__FILE__,__LINE__,printer);
+    synth_printer_del(printer);
+  }
+  while (framec>1) {
+    int donec=synth_update_song(synth,framec);
+    framec-=donec;
+  }
+  int i=synth->voicec;
+  while (i-->0) {
+    struct synth_voice *voice=synth->voicev[i];
+    if (voice==synth->songvoice) continue; // This one is ok.
+    fprintf(stderr,"%s:%d:WARNING: Voice %p mysteriously appeared in neutered synth.\n",__FILE__,__LINE__,voice);
+    synth->voicec--;
+    memmove(synth->voicev+i,synth->voicev+i+1,sizeof(void*)*(synth->voicec-i));
+    synth_voice_del(voice);
+  }
+}
+
 /* Update, float, unbound, multi-channel.
  */
 
 void synth_updatef(float *v,int c,struct synth *synth) {
-  if (synth->chanc>1) {
+  if (synth->neuter) {
+    synth_update_neuter(synth,c/synth->chanc);
+    memset(v,0,sizeof(float)*c);
+  } else if (synth->chanc>1) {
     int framec=c/synth->chanc;
     synth_updatef_mono(v,framec,synth);
     const float *src=v+framec;
@@ -279,6 +311,11 @@ static void synth_quantize(int16_t *dst,const float *src,int c) {
  */
  
 void synth_updatei(int16_t *v,int c,struct synth *synth) {
+  if (synth->neuter) {
+    synth_update_neuter(synth,c/synth->chanc);
+    memset(v,0,c<<1);
+    return;
+  }
 
   /* Acquire qbuf if we don't have it yet.
    * Arbitrary size limit here, we can change to whatever but it must be a multiple of (chanc).
@@ -352,6 +389,7 @@ static struct synth_res *synth_resv_insert(struct synth *synth,int p,int tid,int
  */
 
 int synth_install_sound(struct synth *synth,int rid,const void *src,int srcc) {
+  if (synth->neuter) return 0;
   int p=synth_resv_search(synth,EGG_TID_sound,rid);
   if (p>=0) return -1;
   p=-p-1;
@@ -528,6 +566,7 @@ void synth_play_song_borrow(struct synth *synth,const void *src,int srcc,int rep
  */
  
 void synth_event(struct synth *synth,uint8_t chid,uint8_t opcode,uint8_t a,uint8_t b,int durms) {
+  if (synth->neuter) return;
   if (chid>=SYNTH_CHANNEL_COUNT) return;
   switch (opcode) {
     case 0x98: {

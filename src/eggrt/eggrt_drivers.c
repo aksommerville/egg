@@ -177,6 +177,8 @@ static int eggrt_drivers_init_video() {
 /* Init audio and synth.
  */
  
+extern const struct hostio_audio_type hostio_audio_type_dummy;
+ 
 static int eggrt_drivers_init_audio() {
   struct hostio_audio_setup setup={
     .rate=eggrt.audio_rate,
@@ -188,6 +190,11 @@ static int eggrt_drivers_init_audio() {
   if (!(eggrt.synth=synth_new(eggrt.hostio->audio->rate,eggrt.hostio->audio->chanc))) {
     fprintf(stderr,"%s: Failed to initialize synthesizer.\n",eggrt.exename);
     return -2;
+  }
+  
+  if (eggrt.hostio->audio->type==&hostio_audio_type_dummy) {
+    fprintf(stderr,"%s: Neutering synth due to dummy output.\n",eggrt.exename);
+    synth_neuter(eggrt.synth);
   }
   
   const struct rom_res *res=eggrt.resv;

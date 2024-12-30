@@ -17,6 +17,13 @@ struct synth *synth_new(int rate,int chanc);
  */
 void synth_emit_full_volume(struct synth *synth);
 
+/* Call once immediately after construction if you know the signal will always be discarded.
+ * Do not call after resources are installed or update has been called.
+ * We do still operate, we generate silence, and we keep accurate time against the song.
+ * This is for cases where the user has selected dummy output. No sense doing all the work of generating a proper signal then.
+ */
+void synth_neuter(struct synth *synth);
+
 /* (c) in samples -- not frames, not bytes.
  * Float is the more natural format for us. You can change formats any time.
  */

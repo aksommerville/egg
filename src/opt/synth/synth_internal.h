@@ -28,6 +28,7 @@ struct synth {
   int rate,chanc;
   double framesperms;
   float global_trim;
+  int neuter;
   
   float *qbuf;
   int qbufa;
@@ -61,7 +62,7 @@ struct synth {
   int songdelay; // frames
   int playhead; // frames
   void *songown; // free on song change
-  struct synth_voice *songvoice; // WEAK; owned by (voicev)
+  struct synth_voice *songvoice; // WEAK; owned by (voicev). For PCM songs only.
 };
 
 /* Decode PCM synchronously, or install a printer to do it.
