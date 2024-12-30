@@ -123,7 +123,7 @@ int eggdev_tid_eval(const char *src,int srcc);
 const char *eggdev_guess_mime_type(const char *path,const void *src,int srcc);
 int eggdev_lineno(const char *src,int srcc);
 
-int eggdev_require_rom();
+int eggdev_require_rom(const char *path);
 
 int eggdev_main_pack();
 int eggdev_main_unpack();

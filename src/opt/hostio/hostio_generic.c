@@ -85,7 +85,7 @@ static const struct hostio_input_type *hostio_input_typev[]={
 /* Type accessors, ctors, dtors, identical for the three types.
  */
  
-#define DRIVERTYPE(tag) \
+#define DRIVERTYPE(tag,init_extra) \
   const struct hostio_##tag##_type *hostio_##tag##_type_by_index(int p) { \
     if (p<0) return 0; \
     int c=sizeof(hostio_##tag##_typev)/sizeof(void*); \
@@ -118,6 +118,7 @@ static const struct hostio_input_type *hostio_input_typev[]={
     struct hostio_##tag *driver=calloc(1,type->objlen); \
     if (!driver) return 0; \
     driver->type=type; \
+    init_extra; \
     if (delegate) driver->delegate=*delegate; \
     if (type->init&&(type->init(driver,setup)<0)) { \
       hostio_##tag##_del(driver); \
@@ -126,9 +127,9 @@ static const struct hostio_input_type *hostio_input_typev[]={
     return driver; \
   }
   
-DRIVERTYPE(video)
-DRIVERTYPE(audio)
-DRIVERTYPE(input)
+DRIVERTYPE(video,{driver->viewscale=1;})
+DRIVERTYPE(audio,)
+DRIVERTYPE(input,)
 
 #undef DRIVERTYPE
 

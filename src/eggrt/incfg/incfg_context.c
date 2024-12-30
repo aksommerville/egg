@@ -851,6 +851,6 @@ int incfg_render(struct incfg *incfg) {
   }
   
   render_tint(eggrt.render,0);
-  render_draw_to_main(eggrt.render,eggrt.hostio->video->w,eggrt.hostio->video->h,incfg->texid_main);
+  render_draw_to_main(eggrt.render,eggrt.hostio->video->w*eggrt.hostio->video->viewscale,eggrt.hostio->video->h*eggrt.hostio->video->viewscale,incfg->texid_main);
   return 0;
 }

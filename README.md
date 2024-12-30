@@ -88,6 +88,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Validate eject.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
 - [ ] ImageEditor: Animation and composition previews, and save the settings to localStorage.
+- [ ] MacOS: Incorrect window title, and doesn't update on language change.
+- [ ] MacOS: Lots of initial settings were wrong, eg gcc warning flags
+- [ ] MacOS: Point-sprite culling. Visible in Spelling Bee, as you scroll around. (might only be on the iMac? I didn't notice on the MacBook)
+- [ ] MacOS: On the iMac, I get a warning about monitoring keyboard when not focussed. We don't need that, how to turn it off?
 
 ## Third-Party Code
 

@@ -33,9 +33,11 @@ ifneq (,$(strip $($(NATIVE_TARGET)_CC)))
 endif
 
 ifneq (,$(strip $(web_LD)))
-  demo_CODE1:=$(demo_MIDDIR)/data/code.wasm
-  $(demo_CODE1):$(demo_OFILES_WASM);$(PRECMD) $(web_LD) -o$@ $(demo_OFILES_WASM) $(web_LDPOST)
-  demo_EXTRA_DATA:=$(demo_MIDDIR)/data
+  ifeq (,$(strip $(WASMLESS_CLANG)))
+    demo_CODE1:=$(demo_MIDDIR)/data/code.wasm
+    $(demo_CODE1):$(demo_OFILES_WASM);$(PRECMD) $(web_LD) -o$@ $(demo_OFILES_WASM) $(web_LDPOST)
+    demo_EXTRA_DATA:=$(demo_MIDDIR)/data
+  endif
 endif
 
 ifneq (,$(strip $($(NATIVE_TARGET)_AR)))
@@ -48,11 +50,15 @@ $(demo_ROM):$(demo_DATAFILES) $(eggdev_EXE);$(PRECMD) $(eggdev_EXE) pack -o$@ sr
 
 # Blank any of these if you don't want them. You do want HTML.
 ifneq (,$(strip $(WAMR_SDK)))
-  demo_EXE_FAKE:=$(demo_OUTDIR)/demo.fake
-  demo_HTML:=$(demo_OUTDIR)/demo.html
+  ifeq (,$(strip $(WASMLESS_CLANG)))
+    demo_EXE_FAKE:=$(demo_OUTDIR)/demo.fake
+    demo_HTML:=$(demo_OUTDIR)/demo.html
+  endif
 endif
 ifneq (,$(strip $(WABT_SDK)))
-  demo_EXE_RECOM:=$(demo_OUTDIR)/demo.recom
+  ifeq (,$(strip $(WASMLESS_CLANG)))
+    demo_EXE_RECOM:=$(demo_OUTDIR)/demo.recom
+  endif
 endif
 
 COMMA:=,

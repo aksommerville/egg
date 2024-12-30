@@ -146,7 +146,7 @@ static int eggrt_update() {
       if (err!=-2) fprintf(stderr,"%s: Unspecified error rendering frame.\n",eggrt.rptname);
       return -2;
     }
-    render_draw_to_main(eggrt.render,eggrt.hostio->video->w,eggrt.hostio->video->h,1);
+    render_draw_to_main(eggrt.render,eggrt.hostio->video->w*eggrt.hostio->video->viewscale,eggrt.hostio->video->h*eggrt.hostio->video->viewscale,1);
   }
   if (eggrt.hostio->video->type->gx_end(eggrt.hostio->video)<0) return -1;
   

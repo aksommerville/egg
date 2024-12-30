@@ -65,7 +65,7 @@ static int _macwm_init(struct hostio_video *driver,const struct hostio_video_set
   macwm_get_size(&driver->w,&driver->h,DRIVER->macwm);
   driver->fullscreen=macwm_get_fullscreen(DRIVER->macwm);
   
-  //driver->viewscale=NSScreen_backingScale();
+  driver->viewscale=NSScreen_backingScale();
   
   return 0;
 }
