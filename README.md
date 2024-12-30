@@ -73,7 +73,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Envelope editor: Don't create points on a single click. Require double-click or a modifier key.
 - - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
 - - [ ] Envelope editor: Option to sync time scale across all envelope editors.
-- [ ] Clean up demo, make it a useful features test.
+- [x] Clean up demo, make it a useful features test.
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Eggsamples
 - - [ ] Carefully rename the old eggsamples repo from 202408.
@@ -87,6 +87,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Eggzotics: Build for Egg and eg TinyArcade, for platforms that can't run Egg properly.
 - [ ] Validate eject.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
+- [ ] ImageEditor: Animation and composition previews, and save the settings to localStorage.
 
 ## Third-Party Code
 

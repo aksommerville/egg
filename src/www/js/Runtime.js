@@ -293,7 +293,7 @@ export class Runtime {
       if (!k) return 0;
       if (!k.startsWith(this.storePrefix)) continue;
       if (p--) continue;
-      return this.exec.setString(kp, ka, k);
+      return this.exec.setString(kp, ka, k.substring(this.storePrefix.length));
     }
     return 0;
   }

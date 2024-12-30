@@ -8,7 +8,7 @@ demo_OUTDIR:=out
 demo_ROM:=$(demo_OUTDIR)/demo.egg
 demo-all:$(demo_ROM)
 
-demo_OPT_ENABLE:=stdlib text rom password
+demo_OPT_ENABLE:=stdlib text rom password graf
 demo_OPT_DEF:=$(foreach U,$(demo_OPT_ENABLE),-DUSE_$U=1)
 
 demo_TOC:=$(demo_MIDDIR)/egg_rom_toc.h

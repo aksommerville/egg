@@ -382,7 +382,6 @@ static int inmgr_tm_bodysnatch(struct inmgr_tm *dst,const struct inmgr_tm *src) 
   for (;;) {
     
     #define ADD { \
-      fprintf(stderr,"ADD at %d/%d from %d/%d\n",dstp,dst->buttonc,srcp,src->buttonc); \
       if (dst->buttonc>=dst->buttona) { \
         int na=dst->buttona+16; \
         if (na>INT_MAX/sizeof(struct inmgr_tm_button)) return -1; \
@@ -402,7 +401,6 @@ static int inmgr_tm_bodysnatch(struct inmgr_tm *dst,const struct inmgr_tm *src) 
     }
     
     #define REMOVE { \
-      fprintf(stderr,"REMOVE at %d/%d\n",dstp,dst->buttonc); \
       struct inmgr_tm_button *dstbtn=dst->buttonv+dstp; \
       dst->buttonc--; \
       memmove(dstbtn,dstbtn+1,sizeof(struct inmgr_tm_button)*(dst->buttonc-dstp)); \
@@ -410,13 +408,11 @@ static int inmgr_tm_bodysnatch(struct inmgr_tm *dst,const struct inmgr_tm *src) 
     }
     
     #define SKIPDST { \
-      fprintf(stderr,"SKIPDST at %d/%d\n",dstp,dst->buttonc); \
       dstp++; \
       continue; \
     }
     
     #define SKIPSRC { \
-      fprintf(stderr,"ADD at %d/%d\n",srcp,src->buttonc); \
       srcp++; \
       srcbtn++; \
       continue; \

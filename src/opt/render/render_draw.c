@@ -12,7 +12,7 @@ static const char render_raw_vsrc[]=
   "attribute vec4 acolor;\n"
   "varying vec4 vcolor;\n"
   "void main() {\n"
-    "vec2 npos=(apos*2.0)/screensize-1.0;\n"
+    "vec2 npos=((apos+0.25)*2.0)/screensize-1.0;\n"
     "gl_Position=vec4(npos,0.0,1.0);\n"
     "vcolor=vec4(mix(acolor.rgb,tint.rgb,tint.a),acolor.a*alpha);\n"
   "}\n"
