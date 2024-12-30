@@ -599,5 +599,41 @@ double synth_get_playhead(struct synth *synth) {
 }
 
 void synth_set_playhead(struct synth *synth,double s) {
-  fprintf(stderr,"TODO: %s s=%f\n",__func__,s);//TODO
+  if (!synth->songc) return;
+  int frames=s*(double)synth->rate;
+  if (frames<0) frames=0;
+  
+  /* If the song is sourced from PCM, that's nice and simple and we can move it exactly.
+   */
+  if (synth->songvoice) {
+    synth->playhead=synth_voice_pcm_set_position(synth->songvoice,frames);
+    return;
+  }
+  
+  /* Abbreviate any song voices currently playing.
+   */
+  int i=synth->voicec;
+  while (i-->0) {
+    struct synth_voice *voice=synth->voicev[i];
+    if (!voice->song) continue;
+    voice->release(voice);
+  }
+  
+  /* We're going to cheat a little:
+   * Pretend the synth is neutered, rewind to the start, then "play" it until we reach the desired playhead.
+   * This way, we can place it exactly, down to the frame.
+   * Notes started before the target frame will not play.
+   */
+  int pvneuter=synth->neuter;
+  synth->neuter=1;
+  synth->songp=0;
+  synth->songdelay=0;
+  synth->playhead=0;
+  int phhi=0; // For detecting loop (ie caller provided an OOB position)
+  while (synth->playhead<frames) {
+    int addc=synth_update_song(synth,frames-synth->playhead);
+    if (synth->playhead<phhi) break;
+    else phhi=synth->playhead;
+  }
+  synth->neuter=pvneuter;
 }

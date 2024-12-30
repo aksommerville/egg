@@ -70,6 +70,7 @@ struct synth_voice *synth_voice_wave_new(
 ) {
   struct synth_voice *voice=synth_voice_new(synth,sizeof(struct synth_voice_wave));
   if (!voice) return 0;
+  voice->magic='w';
   voice->del=_wave_del;
   voice->release=_wave_release;
   if (synth_wave_ref(wave)<0) {

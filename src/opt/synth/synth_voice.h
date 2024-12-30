@@ -12,6 +12,7 @@ struct synth_voice {
   struct synth *synth; // WEAK
   int finished; // Update must set nonzero when no more signal will be generated.
   int song; // Nonzero if we belong to the song -- will be released on a song change.
+  char magic; // [ pwfs]
   
   /* All hooks are required.
    * They'll be populated with dummies at allocation.
@@ -64,5 +65,7 @@ struct synth_voice *synth_voice_sub_new(
   int durframes,
   const struct synth_env_config *levelenv
 );
+
+int synth_voice_pcm_set_position(struct synth_voice *voice,int p);
 
 #endif

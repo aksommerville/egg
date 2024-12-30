@@ -54,13 +54,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Language (eggrt_configure.c:eggrt_get_user_languages)
 - - [ ] poll() substitute (http_internal.h). For now eggdev can't run a server.
 - [ ] Audio
-- - [x] native: Neuter synth when dummy output.
-- - - [x] Prepare for monitoring. ...good: Toggle `--audio=dummy` in local/config.mk:linux_RUN_ARGS, run the demo and play song:1, let it run 7 seconds or so. 1.2M frames if the synth is running.
-- - - [x] Signal neuterance from eggrt, where we know whether it's dummy or not.
-- - - [x] New update method in synth_context.c to only advance the song clock, and zero output.
-- - - [x] synth_context.c:synth_install_sound: No need to install. (but do install songs)
-- - - [x] synth_context.c:synth_event: Force noop.
-- - - ...I'm actually not seeing any impact to the bottom-line CPU consumption. Weird. But I'll assume that that only means our synth is extremely efficient to begin with.
 - - [ ] Editor: Live feedback of synth playhead, via WebSocket.
 - - [ ] Editor: Adjust synth config real time.
 - - [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
@@ -68,7 +61,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.
 - - [ ] DrumChannelModal.js: Similar canned drums.
 - - [ ] Doors Without Walls, the drum channel didn't play. Had GM and volume=128. Was it mistakenly flagged as ignore? Changing volume fixed it.
-- - [ ] demo: Show and modify playhead
+- - - This is proving difficult to reproduce.
+- - [x] demo: Show and modify playhead
 - - [ ] native: playhead for WAV songs
 - - [ ] web: playhead for both types
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
@@ -80,7 +74,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Envelope editor: Don't create points on a single click. Require double-click or a modifier key.
 - - [ ] Envelope editor: When dragging, keep tattle updating even when OOB.
 - - [ ] Envelope editor: Option to sync time scale across all envelope editors.
-- [x] Clean up demo, make it a useful features test.
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Eggsamples
 - - [ ] Carefully rename the old eggsamples repo from 202408.

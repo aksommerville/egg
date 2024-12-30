@@ -5,6 +5,7 @@
 #define OPTID_FORCE 2
 #define OPTID_REPEAT 3
 #define OPTID_SOUND 4
+#define OPTID_PLAYHEAD 5
 
 struct menu_audio {
   struct menu hdr;
@@ -13,6 +14,7 @@ struct menu_audio {
   int songidc,songida,soundidc,soundida;
   int songidp,soundidp;
   int force,repeat;
+  int playhead_input; // Egg takes it floating-point, but we prefer to present as int for input.
 };
 
 #define MENU ((struct menu_audio*)menu)
@@ -70,6 +72,15 @@ static void audio_adjust(struct menu *menu,int d) {
         audio_rewrite_song_label(menu);
       } break;
       
+    case OPTID_PLAYHEAD: {
+        MENU->playhead_input+=d;
+        if (MENU->playhead_input<0) MENU->playhead_input=0;
+        // No upper bound -- Egg doesn't tell us the length of songs (and it's complicated to figure out).
+        char tmp[64];
+        int tmpc=snprintf(tmp,sizeof(tmp),"Set Playhead: %d",MENU->playhead_input);
+        if ((tmpc>0)&&(tmpc<sizeof(tmp))) picklist_replace_label(MENU->picklist,OPTID_PLAYHEAD,tmp,tmpc);
+      } break;
+      
     case OPTID_SOUND: {
         if (MENU->soundidc<1) return;
         MENU->soundidp+=d;
@@ -97,8 +108,26 @@ static void _audio_update(struct menu *menu,double elapsed) {
 /* Render.
  */
  
+static void audio_render_string(struct menu *menu,int dstx,int dsty,int texid,const char *src,int srcc) {
+  for (;srcc-->0;src++,dstx+=8) {
+    int ch=*src;
+    if ((ch>=0x61)&&(ch<=0x7a)) ch-=0x20;
+    ch-=0x30;
+    if ((ch<0)||(ch>=0x30)) continue;
+    graf_draw_tile(&g.graf,texid,dstx,dsty,0xc0+ch,0);
+  }
+}
+ 
 static void _audio_render(struct menu *menu) {
   picklist_render(MENU->picklist);
+  
+  int texid=texcache_get_image(&g.texcache,RID_image_tiles8);
+  double ph=egg_audio_get_playhead();
+  char tmp[64];
+  int tmpc=snprintf(tmp,sizeof(tmp),"%f",ph);
+  if ((tmpc>0)&&(tmpc<sizeof(tmp))) {
+    audio_render_string(menu,8,g.fbh-8,texid,tmp,tmpc);
+  }
 }
 
 /* Read the ROM and populate (songidv,soundidv).
@@ -170,6 +199,11 @@ static void audio_cb_repeat(int optid,void *userdata) {
   MENU->repeat=MENU->repeat?0:1;
   picklist_replace_label(MENU->picklist,OPTID_REPEAT,MENU->repeat?"Repeat: YES":"Repeat: NO",-1);
 }
+
+static void audio_cb_playhead(int optid,void *userdata) {
+  struct menu *menu=userdata;
+  egg_audio_set_playhead(MENU->playhead_input);
+}
  
 static void audio_cb_sound(int optid,void *userdata) {
   struct menu *menu=userdata;
@@ -196,6 +230,7 @@ struct menu *menu_spawn_audio() {
     picklist_add_option(MENU->picklist,"",0,OPTID_SONG,menu,audio_cb_song);
     picklist_add_option(MENU->picklist,MENU->force?"Force: YES":"Force: NO",-1,OPTID_FORCE,menu,audio_cb_force);
     picklist_add_option(MENU->picklist,MENU->repeat?"Repeat: YES":"Repeat: NO",-1,OPTID_REPEAT,menu,audio_cb_repeat);
+    picklist_add_option(MENU->picklist,"Set Playhead: 0",-1,OPTID_PLAYHEAD,menu,audio_cb_playhead);
     audio_rewrite_song_label(menu);
   } else {
     picklist_add_option(MENU->picklist,"No songs!",-1,0,0,0);
@@ -206,8 +241,6 @@ struct menu *menu_spawn_audio() {
   } else {
     picklist_add_option(MENU->picklist,"No sounds!",-1,0,0,0);
   }
-  
-  //TODO Report and adjust playhead.
   
   return menu;
 }

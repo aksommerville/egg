@@ -89,6 +89,7 @@ struct synth_voice *synth_voice_fm_new(
 ) {
   struct synth_voice *voice=synth_voice_new(synth,sizeof(struct synth_voice_fm));
   if (!voice) return 0;
+  voice->magic='f';
   voice->del=_fm_del;
   voice->release=_fm_release;
   synth_env_init(&VOICE->levelenv,levelenv,velocity,durframes);

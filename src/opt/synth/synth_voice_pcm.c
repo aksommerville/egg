@@ -63,6 +63,7 @@ struct synth_voice *synth_voice_pcm_new(
 ) {
   struct synth_voice *voice=synth_voice_new(synth,sizeof(struct synth_voice_pcm));
   if (!voice) return 0;
+  voice->magic='p';
   voice->del=_pcm_del;
   if (trim>=1.0f) {
     voice->update=_pcm_update_1;
@@ -77,4 +78,15 @@ struct synth_voice *synth_voice_pcm_new(
   }
   VOICE->pcm=pcm;
   return voice;
+}
+
+/* Set playhead.
+ */
+ 
+int synth_voice_pcm_set_position(struct synth_voice *voice,int p) {
+  if (!voice||(voice->magic!='p')) return p;
+  if (p<0) p=0; else if (p>VOICE->pcm->c) p=VOICE->pcm->c;
+  VOICE->p=p;
+  voice->finished=0;
+  return p;
 }

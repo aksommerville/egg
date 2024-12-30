@@ -46,9 +46,13 @@ Modern hardware should have no problem rendering a thousand of any type.
 Play songs and sound effects.
 We read the ROM dynamically here -- you can add song or sound resources and rebuild.
 
+Playhead displays at the bottom. It must show real time (or hiccup, if audio output is interrupted), and must loop back to zero when the song repeats.
+
 Playing a song with "Force" must restart it when already playing; without Force it must not restart.
 
 Playing song zero must stop the current song.
+
+If you want to validate Repeat, use song:13, it's only 6 seconds long.
 
 ## Input
 

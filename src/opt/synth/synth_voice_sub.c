@@ -85,6 +85,7 @@ struct synth_voice *synth_voice_sub_new(
 ) {
   struct synth_voice *voice=synth_voice_new(synth,sizeof(struct synth_voice_sub));
   if (!voice) return 0;
+  voice->magic='s';
   voice->del=_sub_del;
   voice->update=_sub_update;
   voice->release=_sub_release;

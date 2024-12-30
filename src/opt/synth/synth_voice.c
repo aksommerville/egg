@@ -31,6 +31,7 @@ struct synth_voice *synth_voice_new(struct synth *synth,int objlen) {
   struct synth_voice *voice=calloc(1,objlen);
   if (!voice) return 0;
   voice->synth=synth;
+  voice->magic=' ';
   voice->del=_voice_del_dummy;
   voice->update=_voice_update_dummy;
   voice->release=_voice_release_dummy;
