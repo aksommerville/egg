@@ -19,6 +19,7 @@ export class Audio {
     this.pcmLimit = 0; // Maximum length of sound effect, gets populated during start().
     this.songid = 0;
     this.song = null;
+    this.songNode = null; // GainNode, if current song is PCM.
     this.globalTrim = 0.333;
     
     /* (sounds) is populated lazy, as sound effects get asked for.
@@ -62,6 +63,11 @@ export class Audio {
     if (!this.ctx) return;
     if (this.song) {
       this.song.update(this.ctx, this.ctx.currentTime + AUDIO_FUTURE_INTERVAL);
+      if (this.song.finished && (this.song.nextEventTime <= this.ctx.currentTime)) {
+        this.song.cancel(this.ctx);
+        this.song = null;
+        this.songid = 0;
+      }
     }
   }
   
@@ -79,9 +85,23 @@ export class Audio {
           if (!decoded) {
             this.songid = 0;
           } else if (decoded instanceof Promise) {
-            decoded.then(buffer => this.playAudioBuffer(buffer, 0.5, 0, this.songid));
+            decoded.then(buffer => {
+              const nodes = this.playAudioBuffer(buffer, 0.5, 0, this.songid);
+              if (repeat) nodes.sourceNode.loop = true;
+              this.songBuffer = buffer;
+              this.songBufferNode = nodes.sourceNode;
+              this.songNode = nodes.endNode;
+              this.songBufferStartTime = this.ctx.currentTime;
+              this.songBufferLength = decoded.duration;
+            });
           } else if (decoded instanceof AudioBuffer) {
-            this.playAudioBuffer(decoded, 0.5, 0, this.songid);
+            const nodes = this.playAudioBuffer(decoded, 0.5, 0, this.songid);
+            if (repeat) nodes.sourceNode.loop = true;
+            this.songBuffer = decoded;
+            this.songBufferNode = nodes.sourceNode;
+            this.songNode = nodes.endNode;
+            this.songBufferStartTime = this.ctx.currentTime;
+            this.songBufferLength = decoded.duration;
           } else {
             this.songid = 0;
           }
@@ -97,6 +117,14 @@ export class Audio {
       this.song.cancel(this.ctx);
       this.song = null;
     }
+    if (this.songNode) {
+      const oldNode = this.songNode;
+      oldNode.gain.setValueAtTime(this.songNode.gain.value, this.ctx.currentTime);
+      oldNode.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.250);
+      window.setTimeout(() => oldNode.disconnect(), 250);
+      this.songNode = null;
+    }
+    this.songBufferNode = null;
     this.songid = 0;
   }
   
@@ -135,14 +163,39 @@ export class Audio {
   }
   
   egg_audio_get_playhead() {
-    console.log(`TODO Audio.egg_audio_get_playhead`);
     if (!this.ctx) return 0.0;
+    if (this.song) {
+      const t = this.ctx.currentTime - this.song.startTime;
+      if (t <= 0.0) return 0.001;
+      return t;
+    }
+    if (this.songBufferNode) {
+      let t = this.ctx.currentTime - this.songBufferStartTime;
+      t %= this.songBufferLength;
+      if (t <= 0.0) return 0.001;
+      return t;
+    }
     return 0.0;
   }
   
   egg_audio_set_playhead(s) {
-    console.log(`TODO Audio.egg_audio_set_playhead(${s})`);
     if (!this.ctx) return;
+    if (s < 0) s = 0;
+    if (this.song) {
+      this.song.setPlayhead(this.ctx, s);
+    }
+    if (this.songBufferNode) {
+      const repeat = this.songBufferNode.loop;
+      const oldNode = this.songNode;
+      oldNode.gain.setValueAtTime(this.songNode.gain.value, this.ctx.currentTime);
+      oldNode.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.250);
+      window.setTimeout(() => oldNode.disconnect(), 250);
+      const nodes = this.playAudioBuffer(this.songBuffer, 0.5, 0, this.songid, s);
+      if (repeat) nodes.sourceNode.loop = true;
+      this.songBufferNode = nodes.sourceNode;
+      this.songNode = nodes.endNode;
+      this.songBufferStartTime = this.ctx.currentTime - s;
+    }
   }
   
   /* Private.
@@ -224,19 +277,15 @@ export class Audio {
   
   /* Start playing this AudioBuffer on the main context.
    */
-  playAudioBuffer(buffer, trim, when, songid) {
+  playAudioBuffer(buffer, trim, when, songid, skip) {
     const sourceNode = new AudioBufferSourceNode(this.ctx, {
       buffer,
       channelCount: 1,
     });
-    let endNode = sourceNode;
-    if (trim !== 1.0) {
-      const gainNode = new GainNode(this.ctx, { gain: trim });
-      endNode.connect(gainNode);
-      endNode = gainNode;
-    }
-    endNode.connect(this.ctx.destination);
-    sourceNode.start(when);
+    const gainNode = new GainNode(this.ctx, { gain: trim });
+    sourceNode.connect(gainNode);
+    gainNode.connect(this.ctx.destination);
+    sourceNode.start(when, skip);
     if (songid) {
       sourceNode.addEventListener("ended", () => {
         if (this.songid === songid) {
@@ -244,6 +293,7 @@ export class Audio {
         }
       });
     }
+    return { sourceNode, endNode: gainNode };
   }
   
   getNoise() {

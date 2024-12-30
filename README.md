@@ -64,7 +64,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - This is proving difficult to reproduce.
 - - [x] demo: Show and modify playhead
 - - [x] native: playhead for WAV songs
-- - [ ] web: playhead for both types
+- - [x] web: playhead for both types
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] AudioService.play: Detect formats playable directly and don't call /api/compile for them.
