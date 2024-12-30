@@ -440,7 +440,8 @@ int eggdev_song_sanitize_wav(struct sr_encoder *dst,const uint8_t *src,int srcc,
     if ((chunklen<0)||(srcp>srcc-chunklen)) FAIL("Invalid chunk length %d around %d/%d",chunklen,srcp-8,srcc)
     const uint8_t *v=src+srcp;
     srcp+=chunklen;
-    //if (srcp&1) srcp++;//TODO I recall WAV has an alignment constraint, but can't find confirmation. (is it 2 bytes or 4? Or am I just imagining it?)
+    // WAV chunks must align to 2 bytes:
+    if (srcp&1) srcp++;
     
     if (!memcmp(chunkid,"fmt ",4)) {
       if (rate) FAIL("Multiple 'fmt ' chunks")

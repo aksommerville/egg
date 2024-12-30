@@ -66,6 +66,9 @@ struct synth_voice *synth_voice_sub_new(
   const struct synth_env_config *levelenv
 );
 
+void synth_voice_pcm_set_repeat(struct synth_voice *voice,int frame); // <0 for no repeat (default)
+int synth_voice_pcm_get_position(const struct synth_voice *voice);
 int synth_voice_pcm_set_position(struct synth_voice *voice,int p);
+void synth_voice_pcm_abort(struct synth_voice *voice);
 
 #endif

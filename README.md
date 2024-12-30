@@ -63,7 +63,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Doors Without Walls, the drum channel didn't play. Had GM and volume=128. Was it mistakenly flagged as ignore? Changing volume fixed it.
 - - - This is proving difficult to reproduce.
 - - [x] demo: Show and modify playhead
-- - [ ] native: playhead for WAV songs
+- - [x] native: playhead for WAV songs
 - - [ ] web: playhead for both types
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.

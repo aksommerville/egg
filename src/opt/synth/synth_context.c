@@ -116,8 +116,9 @@ static void synth_song_error(struct synth *synth) {
  
 static int synth_update_song(struct synth *synth,int limit) {
 
-  // No song? Take the entire buffer.
+  // No song? Take the entire buffer. A PCM song is "no song" for our purposes.
   if (!synth->songc) return limit;
+  if (synth->songvoice) return limit;
   
   // Delay already pending?
   if (synth->songdelay>0) {
@@ -473,6 +474,7 @@ static void synth_play_song_internal(struct synth *synth,const void *src,int src
   if (!force) {
     if (rid==synth->songid) return;
   }
+  if (synth->songvoice) synth_voice_pcm_abort(synth->songvoice);
   synth_end_song(synth);
   synth->song=0;
   synth->songc=0;
@@ -529,9 +531,12 @@ static void synth_play_song_internal(struct synth *synth,const void *src,int src
     struct synth_voice *voice=synth_voice_pcm_new(synth,pcm,1.0f);
     synth_pcm_del(pcm);
     if (!voice) return;
+    if (synth->songrepeat) synth_voice_pcm_set_repeat(voice,0);
     synth->voicev[synth->voicec++]=voice;
     synth->songvoice=voice;
     synth->songid=rid;
+    synth->song=(const uint8_t*)"\0";
+    synth->songc=1; // Don't let it be zero.
     
   } else {
     fprintf(stderr,"%s: Unknown format for %d-byte song id %d\n",__func__,srcc,rid);
@@ -593,6 +598,7 @@ int synth_get_song(const struct synth *synth) {
 
 double synth_get_playhead(struct synth *synth) {
   if (!synth->songc) return 0.0;
+  if (synth->songvoice) synth->playhead=synth_voice_pcm_get_position(synth->songvoice);
   double ph=(double)synth->playhead/(double)synth->rate;
   if (ph<=0.0) ph=0.001; // Never report exactly zero if a song is playing.
   return ph;
