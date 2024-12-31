@@ -56,7 +56,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Audio
 - - [x] Editor: Live feedback of synth playhead, via WebSocket.
 - - - I think we don't actually need WebSocket for this. Have the client assume that it's playing in real time, it's not rocket science.
-- - [ ] Editor: Adjust synth config real time.
+- - [x] Editor: Adjust synth config real time.
 - - [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
 - - [ ] Confirm we're ignoring ignorable things, for future-proofing.
 - - [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.

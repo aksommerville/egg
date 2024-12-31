@@ -47,6 +47,14 @@ export class PlayheadUi {
     this.renderSoon();
   }
   
+  /* <0 if we're not playing.
+   * SongEditor uses this to decide whether to restart the song after a channel header change.
+   */
+  getPlayheadIfPlaying() {
+    if (!this.renderInterval) return -1;
+    return this.p;
+  }
+  
   renderSoon() {
     if (this.renderTimeout) return;
     if (this.renderInterval) return;

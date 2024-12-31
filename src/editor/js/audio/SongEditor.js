@@ -103,7 +103,7 @@ export class SongEditor {
     const channels = this.dom.spawn(this.element, "DIV", ["channels"]);
     for (const channel of this.song.channels) {
       if (!channel) continue;
-      const card = this.dom.spawn(channels, "DIV", ["channel"], { "data-chid": channel.chid });
+      const card = this.dom.spawn(channels, "DIV", ["channel"], { "data-chid": channel.chid, "on-change": () => this.onChannelHeaderChanged() });
       this.populateChannelCard(card, channel);
     }
     
@@ -117,7 +117,7 @@ export class SongEditor {
     channels.innerHTML = "";
     for (const channel of this.song.channels) {
       if (!channel) continue;
-      const card = this.dom.spawn(channels, "DIV", ["channel"], { "data-chid": channel.chid });
+      const card = this.dom.spawn(channels, "DIV", ["channel"], { "data-chid": channel.chid, "on-change": () => this.onChannelHeaderChanged() });
       this.populateChannelCard(card, channel);
     }
   }
@@ -415,6 +415,12 @@ export class SongEditor {
     this.audioService.stop();
   }
   
+  onChannelHeaderChanged() {
+    const playhead = this.playhead.getPlayheadIfPlaying();
+    if (playhead < 0) return;
+    this.onPlay(playhead);
+  }
+  
   onVisibilityChanged() {
     this.rebuildEventsTable(false);
   }
@@ -435,6 +441,7 @@ export class SongEditor {
     const channel = this.song.defineChannel(chid);
     if (!channel) return;
     this.rebuildChannelCards();
+    this.onChannelHeaderChanged();
     this.dirty();
   }
   
@@ -450,6 +457,7 @@ export class SongEditor {
       this.song.channels[chid] = null;
       this.song.events = this.song.events.filter(e => e.chid !== chid);
       this.buildUi();
+      this.onChannelHeaderChanged();
       this.dirty();
     }).catch(e => this.dom.modalError(e));
   }
@@ -529,6 +537,7 @@ export class SongEditor {
       if (!newChannel) return;
       this.song.channels[chid] = newChannel;
       this.rebuildChannelCards();
+      this.onChannelHeaderChanged();
       this.dirty();
     }).catch(e => this.dom.modalError(e));
   }
