@@ -54,7 +54,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Language (eggrt_configure.c:eggrt_get_user_languages)
 - - [ ] poll() substitute (http_internal.h). For now eggdev can't run a server.
 - [ ] Audio
-- - [ ] Editor: Live feedback of synth playhead, via WebSocket.
+- - [x] Editor: Live feedback of synth playhead, via WebSocket.
+- - - I think we don't actually need WebSocket for this. Have the client assume that it's playing in real time, it's not rocket science.
 - - [ ] Editor: Adjust synth config real time.
 - - [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
 - - [ ] Confirm we're ignoring ignorable things, for future-proofing.

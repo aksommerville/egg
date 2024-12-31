@@ -108,6 +108,7 @@ export class AudioService {
   }
   
   stop() {
+    this.broadcast({ id: "stop" });
     switch (this.outputMode) {
       case "server": this.outputMode = "none"; return this.comm.http("POST", "/api/sound").catch(e => {});
       case "client":  {
@@ -130,7 +131,7 @@ export class AudioService {
     if (!repeat) repeat = 0;
     switch (this.outputMode) {
       case "none": return Promise.reject("Audio output not enabled.");
-      case "server": return this.comm.http("POST", "/api/sound", { position, repeat }, null, serial);
+      case "server": return this.comm.http("POST", "/api/sound", { position, repeat }, null, serial).then(() => this.broadcast({ id: "play", serial, position }));
       case "client": {
           let compile; // Promise
           switch (SynthFormats.detectFormat(serial)) {
@@ -146,7 +147,10 @@ export class AudioService {
             if (!this.updateInterval) {
               this.updateInterval = setInterval(() => this.update(), 100);
             }
-            this.audio.playSong(new Uint8Array(rsp), false, true);
+            const serial = new Uint8Array(rsp);
+            this.audio.playSong(serial, false, true);
+            if (position) this.audio.egg_audio_set_playhead(position);
+            this.broadcast({ id: "play", serial, position });
           });
         }
     }

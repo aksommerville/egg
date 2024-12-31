@@ -9,6 +9,7 @@ import { Data } from "../Data.js";
 import { SongEventModal } from "./SongEventModal.js";
 import { DrumChannelModal } from "./DrumChannelModal.js";
 import { VoiceChannelModal } from "./VoiceChannelModal.js";
+import { PlayheadUi } from "./PlayheadUi.js";
 
 export class SongEditor {
   static getDependencies() {
@@ -23,6 +24,7 @@ export class SongEditor {
     
     this.res = null;
     this.song = null;
+    this.playhead = null;
     
     this.CHANNEL_COLORS = [
       "#1e2e62", "#1e6258", "#5e4c08", "#5e0822",
@@ -74,6 +76,10 @@ export class SongEditor {
     const player = this.dom.spawn(globals, "DIV", ["player"]);
     this.dom.spawn(player, "INPUT", { type: "button", value: ">", "on-click": () => this.onPlay() });
     this.dom.spawn(player, "INPUT", { type: "button", value: "!!", "on-click": () => this.onStop() });
+    
+    this.playhead = this.dom.spawnController(globals, PlayheadUi);
+    this.playhead.setDuration(this.song.getDuration());
+    this.playhead.onplay = p => this.onPlay(p);
     
     const visibility = this.dom.spawn(globals, "DIV", ["visibility"]);
     this.dom.spawn(visibility, "SELECT", ["trackVisibility"], { "on-change": () => this.onVisibilityChanged() },
@@ -392,7 +398,7 @@ export class SongEditor {
   /* UI events.
    ****************************************************************************/
    
-  onPlay() {
+  onPlay(position) {
     if (!this.song) return;
     if (this.audioService.outputMode === "none") {
       if (this.audioService.serverAvailable) this.audioService.setOutputMode("server");
@@ -401,7 +407,7 @@ export class SongEditor {
     const oldChannels = this.applyTransientChannelFocus();
     const serial = this.song.encode();
     this.song.channels = oldChannels;
-    this.audioService.play(serial, 0/*position*/, 0/*repeat*/).then(() => {
+    this.audioService.play(serial, position || 0, 0/*repeat*/).then(() => {
     }).catch(e => this.dom.modalError(e));
   }
   

@@ -4,6 +4,43 @@
  
 export class SynthFormats {
 
+  /* Duration of encoded song in seconds, any format.
+   */
+  static measureDuration(s) {
+    switch (this.detectFormat(s)) {
+      case "egs": return this.measureDurationEgs(s);
+      case "wav": return this.measureDurationWav(s);
+      // "mid" should never come up, only formats deliverable to Audio (ie egs and wav).
+    }
+    return 0;
+  }
+  
+  static measureDurationEgs(s) {
+    const split = this.splitEgs(s);
+    if (!split) return 0;
+    const iter = this.iterateEgsEvents(split.events);
+    let dur = 0;
+    for (;;) {
+      const event = iter.next();
+      if (!event) break;
+      if (event.type === "delay") dur += event.delay;
+    }
+    return dur;
+  }
+  
+  static measureDurationWav(s) {
+    // Basically do the same as this.decodeWav(), but stop once we have the rate and sample count.
+    if (!s || (s[0] !== 0x52) || (s[1] !== 0x49) || (s[2] !== 0x46) || (s[3] !== 0x46)) return 0;
+    if (s.length < 44) return 0;
+    if ((s[36] !== 0x64) || (s[37] !== 0x61) || (s[38] !== 0x74) || (s[39] !== 0x61)) return 0;
+    const datalen = s[40] | (s[41] << 8) | (s[42] << 16) | (s[43] << 24);
+    if ((datalen < 0) || (44 + datalen !== s.length)) return 0;
+    const rate = s[24] | (s[25] << 8) | (s[26] << 16) | (s[27] << 24);
+    if ((rate < 200) || (rate > 200000)) return 0;
+    const samplec = datalen >> 1;
+    return samplec / rate;
+  }
+
   /* Check signatures.
    * Input must be Uint8Array.
    * Returns one of: "", "egs", "wav", "mid".

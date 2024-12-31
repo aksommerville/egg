@@ -116,6 +116,14 @@ export class Song {
     return channel;
   }
   
+  getDuration() {
+    let lastEventTime = 0;
+    for (const event of this.events) {
+      if (event.time > lastEventTime) lastEventTime = event.time;
+    }
+    return lastEventTime / 1000;
+  }
+  
   /* Setup, private.
    *******************************************************************************/
   
