@@ -5,6 +5,7 @@
 import { Rom } from "../Rom.js";
 import { SynthFormats } from "./SynthFormats.js";
 import { Song } from "./Song.js";
+import { Channel } from "./Channel.js";
 
 const AUDIO_FUTURE_INTERVAL = 2.000;
  
@@ -21,6 +22,7 @@ export class Audio {
     this.song = null;
     this.songNode = null; // GainNode, if current song is PCM.
     this.globalTrim = 0.333;
+    this.liveChannels = [];
     
     /* (sounds) is populated lazy, as sound effects get asked for.
      * So an entry in (sounds) with (serial) present needs to be decoded first.
@@ -49,6 +51,8 @@ export class Audio {
   
   stop() {
     if (!this.ctx) return;
+    for (const channel of this.liveChannels) channel?.cancel(this.ctx);
+    this.liveChannels = [];
     if (this.ctx.state === "running") {
       this.ctx.suspend();
     }
@@ -128,6 +132,19 @@ export class Audio {
     this.songid = 0;
   }
   
+  setLiveChannel(chcfg) {
+    if (!chcfg) return;
+    const chid = chcfg.chid;
+    if ((typeof(chid) !== "number") || (chid < 0) || (chid >= 0x10)) return;
+    while (chid >= this.liveChannels.length) this.liveChannels.push(null);
+    let channel = this.liveChannels[chid];
+    if (channel) {
+      channel.cancelHard(this.ctx);
+    }
+    channel = new Channel(chcfg, this.ctx, this.ctx.destination, 1.0/*this.globalTrim*/);
+    this.liveChannels[chid] = channel;
+  }
+  
   /* Platform entry points.
    ****************************************************************************/
   
@@ -158,8 +175,25 @@ export class Audio {
   }
   
   egg_audio_event(chid, opcode, a, b, durms) {
-    console.log(`TODO Audio.egg_audio_event(${chid}, ${opcode}, ${a}, ${b}, ${durms})`);
     if (!this.ctx) return;
+    if ((chid >= 0) && (chid < 0x10)) {
+      while (chid >= this.liveChannels.length) this.liveChannels.push(null);
+      let channel = this.liveChannels[chid];
+      if (!channel) {
+        const cfg = this.configureLiveChannel(chid);
+        if (!cfg) return;
+        channel = this.liveChannels[chid] = new Channel(cfg, this.ctx, this.ctx.destination, this.globalTrim);
+      }
+      switch (opcode) {
+        case 0x89: channel.playNote(this.ctx, this.ctx.currentTime, a, b / 127.0, durms); break;
+        case 0x80: channel.endNote(this.ctx, this.ctx.currentTime, a, b / 127.0); break;
+        case 0x90: channel.beginNote(this.ctx, this.ctx.currentTime, a, b / 127.0); break;
+      }
+    } else switch (opcode) {
+      case 0xff: {
+          for (const channel of this.liveChannels) channel?.cancelHard(this.ctx);
+        } break;
+    }
   }
   
   egg_audio_get_playhead() {
@@ -200,6 +234,22 @@ export class Audio {
   
   /* Private.
    **************************************************************************/
+   
+  configureLiveChannel(chid) {
+    // This shouldn't actually happen. The source should call setLiveChannel() before sending events.
+    const trim = 0x80;
+    const mode = 2; // WAVE
+    const v = [
+      0x06, // levelenv (velocity+sustain)
+        1, // sustain index
+        3, // pointc
+        0x20,0x40,0x00, 0x10,0xf0,0x00,
+        0x30,0x10,0x00, 0x30,0x30,0x00,
+        0x60,0x00,0x00, 0x81,0x00,0x00,0x00,
+      3, // shape (3=saw)
+    ];
+    return { chid, trim, mode, v };
+  }
    
   // AudioBuffer, null, or Promise<AudioBuffer>
   acquireSound(rid) {

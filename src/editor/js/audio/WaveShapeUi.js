@@ -12,6 +12,9 @@ export class WaveShapeUi {
     this.dom = dom;
     this.window = window;
     
+    // Owner may set directly:
+    this.ondirty = () => {};
+    
     this.shape = 0; // (0,1,2,3,4)=(custom,sine,square,saw,triangle)
     this.coefv = []; // 0..65535, only if (shape==0).
     this.renderTimeout = null;
@@ -235,6 +238,7 @@ export class WaveShapeUi {
    ********************************************************************************/
   
   onShapeChanged() {
+    this.ondirty();
     this.shape = +this.element.querySelector("select[name='shape']").value;
     this.renderSoon();
   }
@@ -254,18 +258,18 @@ export class WaveShapeUi {
     
     // Right click: Zero the harmonic.
     if (event.button === 2) {
-      console.log(`Right click in column ${col}`);
       if (col >= this.coefv.length) return;
       this.coefv[col] = 0;
       this.renderSoon();
+      this.ondirty();
       return;
     }
     
     // Left click: Pad (coefv) until we reach this column, then set this column.
-    // I'm undecided whether to allow free dragging after that. TODO decide.
     const v = Math.max(0, Math.min(0xffff, Math.round(((canvas.height - (event.y - bounds.y)) * 65535) / canvas.height)));
     while (this.coefv.length <= col) this.coefv.push(0);
     this.coefv[col] = v;
     this.renderSoon();
+    this.ondirty();
   }
 }

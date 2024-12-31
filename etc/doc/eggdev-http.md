@@ -51,6 +51,7 @@ Returns `{ path, serial }[]`, no nesting. `serial` is encoded base64. `path` doe
 
 Request body is a MIDI or WAV file, or empty to silence playback.
 Fails 501 if the server launched without an audio driver. You can call with an empty body to test availability.
+Add `?unavailableStatus=299` or any 3-digit number for a different status (so browsers don't log it as an error).
 Only one thing can play at a time.
 TODO Can we get playhead feedback over a WebSocket?
 

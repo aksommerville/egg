@@ -17,7 +17,7 @@ export class Channel {
     this.trim *= globalTrim;
     this.mode = src.mode;
     this.decode(src.v, ctx);
-    this.inflight = []; // {time,tail}
+    this.inflight = []; // {time,tail,noteid}
     this.dst = dst;
   }
   
@@ -43,6 +43,43 @@ export class Channel {
       }
     }
     this.inflight = [];
+  }
+  
+  cancelHard(ctx) {
+    if (ctx) {
+      for (const voice of this.inflight) {
+        voice.tail.disconnect();
+      }
+    }
+    this.inflight = [];
+  }
+  
+  // Same as playNote(), velocity is 0..1
+  beginNote(ctx, when, noteid, velocity) {
+    switch (this.mode) {
+      case 2: case 3: case 4: {
+          const frequency = SynthFormats.frequencyForMidiNote(noteid);
+          let oscAndTail = null;
+          switch (this.mode) {
+            case 2: oscAndTail = this.oscillateWave(ctx, frequency, when, velocity, 50); break;
+            case 3: oscAndTail = this.oscillateFm(ctx, frequency, when, velocity, 50); break;
+            case 4: oscAndTail = this.oscillateSub(ctx, frequency, when, velocity, 50); break;
+          }
+          if (!oscAndTail) return;
+          const note = this.finishTunedNote(ctx, oscAndTail[0], oscAndTail[1], when, velocity, 50);
+          if (note) note.noteid = noteid;
+        } break;
+    }
+  }
+  
+  endNote(ctx, when, noteid, velocity) {
+    const p = this.inflight.findIndex(n => n.noteid === noteid);
+    if (p < 0) return;
+    const note = this.inflight[p];
+    this.inflight.splice(p, 1);
+    note.tail.gain.setValueAtTime(note.tail.gain.value, 0);
+    note.tail.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.250);//TODO apply env release
+    window.setTimeout(() => note.tail.disconnect(), 250);
   }
   
   /* (when) in seconds of context time.
@@ -90,8 +127,11 @@ export class Channel {
         const p = this.inflight.findIndex(v => v.tail === env);
         if (p >= 0) this.inflight.splice(p, 1);
       });
-      this.inflight.push({ time: when, tail: env });
+      const note = { time: when, tail: env };
+      this.inflight.push(note);
+      return note;
     }
+    return null;
   }
   
   decodeDrum(src) {

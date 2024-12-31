@@ -64,13 +64,9 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - This is proving difficult to reproduce.
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
-- - [x] AudioService.play: Detect formats playable directly and don't call /api/compile for them.
 - - [ ] Ensure parity between web and native.
-- - [ ] editor: MIDI in
+- - [x] editor: MIDI in
 - - [ ] Channel.oscillateSub: Sub width stubbed out, figure this out.
-- - [x] Envelope editor: Don't create points on a single click. Require double-click or a modifier key. ...using control key
-- - [x] Envelope editor: When dragging, keep tattle updating even when OOB.
-- - [x] Envelope editor: Option to sync time scale across all envelope editors.
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - [ ] Eggsamples
 - - [ ] Carefully rename the old eggsamples repo from 202408.

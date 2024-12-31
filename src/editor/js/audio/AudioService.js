@@ -1,6 +1,7 @@
 /* AudioService.js
  * Interface to either the server's native synthesizer, or a WebAudio one that we run client-side.
  * Clients asking to play a sound don't need to care which.
+ * We are also responsible for MIDI-In.
  */
  
 import { Comm } from "../Comm.js";
@@ -9,10 +10,11 @@ import { SynthFormats } from "/rt/js/synth/SynthFormats.js";
  
 export class AudioService {
   static getDependencies() {
-    return [Comm];
+    return [Comm, Window];
   }
-  constructor(comm) {
+  constructor(comm, window) {
     this.comm = comm;
+    this.window = window;
     
     this.outputMode = "none"; // "none","server","client"
     this.serverAvailable = null; // boolean after we've confirmed.
@@ -20,8 +22,28 @@ export class AudioService {
     this.listeners = [];
     this.audio = null;
     this.updateInterval = null;
+    this.midiAccess = null;
+    this.nextMidiListenerId = 1;
+    this.midiListeners = [];
     
-    this.comm.httpStatusOnly("POST", "/api/sound").then(status => {
+    if (!this.window.navigator?.requestMIDIAccess) {
+      console.log(`AudioService: MIDI not available`);
+    } else this.window.navigator.requestMIDIAccess().then(access => {
+      this.midiAccess = access;
+      // Don't use addEventListener here: We might see the same object more than once.
+      for (const [id, device] of access.inputs) {
+        device.onmidimessage = mm => this.onMidiMessage(mm);
+      }
+      this.midiAccess.addEventListener("statechange", e => {
+        if (e.port?.state === "connected") {
+          e.port.onmidimessage = mm => this.onMidiMessage(mm);
+        }
+      });
+    }).catch(e => {
+      console.log(`AudioService: MIDI error`, e);
+    });
+    
+    this.comm.httpStatusOnly("POST", "/api/sound?unavailableStatus=299").then(status => {
       this.serverAvailable = (status === 200);
       this.broadcast({ id: "availability" });
     }).catch(e => {
@@ -43,6 +65,18 @@ export class AudioService {
   
   broadcast(event) {
     for (const { cb } of this.listeners) cb(event);
+  }
+  
+  // cb(serial:Uint8Array, deviceId:string). Per MDN, serial will be a single event.
+  listenMidi(cb) {
+    const id = this.nextMidiListenerId++;
+    this.midiListeners.push({ cb, id });
+    return id;
+  }
+  
+  unlistenMidi(id) {
+    const p = this.midiListeners.findIndex(l => l.id === id);
+    if (p >= 0) this.midiListeners.splice(p, 1);
   }
   
   setOutputMode(mode) {
@@ -75,8 +109,8 @@ export class AudioService {
   
   stop() {
     switch (this.outputMode) {
-      case "server": return this.comm.http("POST", "/api/sound").catch(e => {});
-      case "client": {
+      case "server": this.outputMode = "none"; return this.comm.http("POST", "/api/sound").catch(e => {});
+      case "client":  {
           if (this.audio) {
             this.audio.stop();
             //this.audio = null;
@@ -85,6 +119,7 @@ export class AudioService {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
           }
+          this.outputMode = "none";
         } break;
     }
     return Promise.resolve();
@@ -120,6 +155,11 @@ export class AudioService {
   
   update() {
     if (this.audio) this.audio.update();
+  }
+  
+  onMidiMessage(event) {
+    if (!event.data) return;
+    for (const { cb } of this.midiListeners) cb(event.data, event.target.id);
   }
 }
 

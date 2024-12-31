@@ -25,12 +25,25 @@ export class VoiceChannelModal {
     this.pitchenv = null;
     this.rangeenv = null;
     this.shape = null; // WaveShapeUi
+    this.dirty = false;
+    
+    this.audioService.setOutputMode("client");
+    this.midiListener = this.audioService.listenMidi((serial, devid) => this.onMidiIn(serial, devid));
+  }
+  
+  onRemoveFromDom() {
+    this.audioService.unlistenMidi(this.midiListener);
+    this.midiListener = null;
   }
   
   setup(channel, song) {
     this.channel = { ...channel };
     this.song = song;
     this.buildUi();
+    if (this.audioService.audio) {
+      this.audioService.audio.setLiveChannel({ ...this.channel, chid: 0 });
+      this.dirty = false;
+    }
   }
   
   /* Build UI.
@@ -77,6 +90,7 @@ export class VoiceChannelModal {
     const tzmax = Math.max(this.levelenv?.vbox.tz || 0, this.pitchenv?.vbox.tz || 0, this.rangeenv?.vbox.tz || 0);
     const initEnv = (e, others) => {
       if (!e) return;
+      e.ondirty = () => { this.dirty = true; };
       e.setTimeRange(0, tzmax);
       e.listenTimeRange((ta, tz) => {
         for (const o of others) if (o) o.setTimeRange(ta, tz);
@@ -93,6 +107,7 @@ export class VoiceChannelModal {
     vp = this.levelenv.setup(this.channel.v, vp, "level");
     this.shape = this.dom.spawnController(parent, WaveShapeUi);
     vp = this.shape.setup(this.channel.v, vp);
+    this.shape.ondirty = () => { this.dirty = true; }
     this.pitchenv = this.dom.spawnController(parent, EnvUi);
     vp = this.pitchenv.setup(this.channel.v, vp, "pitch");
     if (vp < this.channel.v.length) console.log(`VoiceChannelModal.buildUiWave, decode ended at ${vp}/${this.channel.v.length}`);
@@ -112,7 +127,7 @@ export class VoiceChannelModal {
       range = this.channel.v[vp] + this.channel.v[vp+1] / 256.0;
       vp += 2;
     }
-    const table = this.dom.spawn(parent, "TABLE");
+    const table = this.dom.spawn(parent, "TABLE", { "on-change": () => { this.dirty = true; }});
     this.dom.spawn(table, "TR",
       this.dom.spawn(null, "TD", "Rate"),
       this.dom.spawn(null, "TD",
@@ -143,7 +158,7 @@ export class VoiceChannelModal {
       width = (this.channel.v[vp] << 8) | this.channel.v[vp+1];
       vp += 2;
     }
-    const table = this.dom.spawn(parent, "TABLE");
+    const table = this.dom.spawn(parent, "TABLE", { "on-change": () => { this.dirty = true; }});
     this.dom.spawn(table, "TR",
       this.dom.spawn(null, "TD", "Width, hz"),
       this.dom.spawn(null, "TD",
@@ -199,10 +214,28 @@ export class VoiceChannelModal {
       case 4: this.channel.v = new Uint8Array(Song.DEFAULT_SUB_CONFIG); break;
       default: this.channel.v = new Uint8Array(0);
     }
+    this.dirty = true;
     this.buildModeSpecific();
   }
   
   onSubmit() {
     this.resolve(this.encode());
+  }
+  
+  onMidiIn(serial, devid) {
+    if (!this.audioService.audio) return;
+    if (serial.length < 1) return;
+    if ((serial[0] >= 0x80) && (serial[0] < 0xf0)) {
+      const chid = 0; // (serial[0]&0x0f) if we want to respect the bus. But zero is the channel we configured.
+      if (this.dirty) {
+        const chcfg = { ...this.encode(), chid };
+        this.audioService.audio.setLiveChannel(chcfg);
+        this.dirty = false;
+      }
+      this.audioService.audio.egg_audio_event(chid, serial[0] & 0xf0, serial[1] || 0, serial[2] || 0, 0);
+    } else switch (serial[0]) {
+      case 0xff: this.audioService.audio.egg_audio_event(0xff, 0xff, 0, 0, 0); break;
+      //TODO Other Realtime events?
+    }
   }
 }

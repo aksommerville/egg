@@ -14,6 +14,9 @@ export class EnvUi {
     this.nonce = nonce;
     this.window = window;
     
+    // Owner may replace directly:
+    this.ondirty = () => {};
+    
     this.hint = ""; // "", "level", "pitch", "range"
     this.flags = 0; // as encoded
     this.susp = -1; // <0 or valid
@@ -502,6 +505,7 @@ export class EnvUi {
       this.window.removeEventListener("mousemove", this.mouseListener);
       this.window.removeEventListener("mouseup", this.mouseListener);
       this.mouseListener = null;
+      this.ondirty();
       return;
     }
     const line = (this.mouseLine === "lo") ? this.loline : this.hiline;
@@ -740,6 +744,7 @@ export class EnvUi {
         else if (result.v > 0xffff) result.v = 0xffff;
         line[index] = result;
       }
+      this.ondirty();
       this.renderSoon();
     }).catch(e => this.dom.modalError(e));
     
@@ -822,9 +827,11 @@ export class EnvUi {
     } else {
       this.flags &= ~0x04;
     }
+    this.ondirty();
     this.renderSoon();
   }
   
+  // There's no onLoVisibilityChanged: Low line is always present in the model, hiding it is just a render thing.
   onHiVisibilityChanged() {
     const value = this.element.querySelector("select[name='hiVisibility']").value;
     if (value === "disabled") {
@@ -832,6 +839,7 @@ export class EnvUi {
     } else {
       this.flags |= 0x02;
     }
+    this.ondirty();
     this.renderSoon();
   }
 }

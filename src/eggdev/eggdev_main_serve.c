@@ -389,11 +389,16 @@ static int eggdev_cb_get_api_resources(struct http_xfer *req,struct http_xfer *r
  
 static int eggdev_cb_post_api_sound(struct http_xfer *req,struct http_xfer *rsp) {
 
-  /* Not configured, must return 501.
+  /* Not configured, must return 501. Or a code they request.
    * Then empty body, end song and return 200.
    * These are for testing availability of audio.
    */
-  if (!eggdev.hostio||!eggdev.hostio->audio||!eggdev.synth) return http_xfer_set_status(rsp,501,"Audio not available");
+  if (!eggdev.hostio||!eggdev.hostio->audio||!eggdev.synth) {
+    int code=501;
+    http_xfer_get_param_int(&code,req,"unavailableStatus",17);
+    if ((code<100)||(code>999)) code=501;
+    return http_xfer_set_status(rsp,code,"Audio not available");
+  }
   struct sr_encoder *body=http_xfer_get_body(req);
   if (!body->c) {
     if (hostio_audio_lock(eggdev.hostio)>=0) {
