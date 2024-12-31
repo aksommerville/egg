@@ -54,9 +54,6 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] Language (eggrt_configure.c:eggrt_get_user_languages)
 - - [ ] poll() substitute (http_internal.h). For now eggdev can't run a server.
 - [ ] Audio
-- - [x] Editor: Live feedback of synth playhead, via WebSocket.
-- - - I think we don't actually need WebSocket for this. Have the client assume that it's playing in real time, it's not rocket science.
-- - [x] Editor: Adjust synth config real time.
 - - [ ] SongEditor trimEndTime is subject to rounding errors that cause it to think trimming is necessary sometimes when it's not. Can anything be done?
 - - [ ] Confirm we're ignoring ignorable things, for future-proofing.
 - - [ ] eggdev_compile_song_gm.c: Canned GM instruments and drums.
@@ -66,9 +63,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] Ensure parity between web and native.
-- - [x] editor: MIDI in
 - - [ ] Channel.oscillateSub: Sub width stubbed out, figure this out.
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
+- - This is more complex than it sounds. Clients would have to be able to tell eggdev which units they're interested in.
+- - Otherwise we're building the libraries only for the benefit of clients that don't use the provided build process, which is hopefully none of them.
 - [ ] Eggsamples
 - - [ ] Carefully rename the old eggsamples repo from 202408.
 - - [ ] Shoot-em-up
@@ -81,11 +79,12 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Eggzotics: Build for Egg and eg TinyArcade, for platforms that can't run Egg properly.
 - [ ] Validate eject.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
-- [ ] ImageEditor: Animation and composition previews, and save the settings to localStorage.
+- [x] ImageEditor: Animation and composition previews, and save the settings to localStorage.
 - [ ] MacOS: Incorrect window title, and doesn't update on language change.
 - [ ] MacOS: Lots of initial settings were wrong, eg gcc warning flags
 - [ ] MacOS: Point-sprite culling. Visible in Spelling Bee, as you scroll around. (might only be on the iMac? I didn't notice on the MacBook)
 - [ ] MacOS: On the iMac, I get a warning about monitoring keyboard when not focussed. We don't need that, how to turn it off?
+- [ ] stdlib produces a 16 MB file due to fake-malloc's heap space. Can we avoid that somehow?
 
 ## Third-Party Code
 

@@ -630,3 +630,63 @@ body {
   width: 200px;
   height: 20px;
 }
+
+.ImageEditor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.ImageEditor > .imageRow {
+  border-bottom: 1px solid #000;
+  display: flex;
+  flex-direction: row;
+}
+.ImageEditor canvas.full {
+  width: 520px;
+  height: 520px;
+}
+.ImageEditor .details {
+  padding: 4px;
+}
+.ImageEditor .toggle {
+  display: none;
+}
+.ImageEditor .toggle + label {
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid #000;
+  padding: 3px;
+  background-color: #888;
+  color: #fff;
+}
+.ImageEditor .toggle:checked + label {
+  background-color: #ff0;
+  color: #000;
+}
+.ImageEditor > .animationRow {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.ImageEditor canvas.preview {
+  width: 256px;
+  height: 256px;
+  image-rendering: pixelated;
+  object-fit: contain;
+  margin: 10px;
+}
+.ImageEditor .faceList {
+  min-width: 200px;
+  height: 100%;
+  border-right: 1px solid #000;
+  border-left: 1px solid #000;
+}
+.ImageEditor .workbench {
+  flex: 1;
+  height: 100%;
+}
+.ImageEditor .workbench table input[type="text"] {
+  width: 50px;
+}
