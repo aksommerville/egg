@@ -5,6 +5,7 @@
  
 import { Comm } from "../Comm.js";
 import { Audio } from "/rt/js/synth/Audio.js";
+import { SynthFormats } from "/rt/js/synth/SynthFormats.js";
  
 export class AudioService {
   static getDependencies() {
@@ -95,18 +96,24 @@ export class AudioService {
     switch (this.outputMode) {
       case "none": return Promise.reject("Audio output not enabled.");
       case "server": return this.comm.http("POST", "/api/sound", { position, repeat }, null, serial);
-      //TODO We don't have to call /api/compile every time (and it's expensive!). EGS and well-formed WAV can pass right thru.
-      case "client": return this.comm.httpBinary("POST", "/api/compile", null, null, serial).then(rsp => {
-          if (!this.audio) {
-            const rt = {};
-            this.audio = new Audio(rt);
+      case "client": {
+          let compile; // Promise
+          switch (SynthFormats.detectFormat(serial)) {
+            case "egs": case "wav": compile = Promise.resolve(serial); break;
+            default: compile = this.comm.httpBinary("POST", "/api/compile", null, null, serial); break;
           }
-          this.audio.start();
-          if (!this.updateInterval) {
-            this.updateInterval = setInterval(() => this.update(), 100);
-          }
-          this.audio.playSong(new Uint8Array(rsp), false, true);
-        });
+          return compile.then(rsp => {
+            if (!this.audio) {
+              const rt = {};
+              this.audio = new Audio(rt);
+            }
+            this.audio.start();
+            if (!this.updateInterval) {
+              this.updateInterval = setInterval(() => this.update(), 100);
+            }
+            this.audio.playSong(new Uint8Array(rsp), false, true);
+          });
+        }
     }
     return Promise.reject(`Invalid output mode ${JSON.stringify(this.outputMode)}`);
   }

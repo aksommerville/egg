@@ -75,6 +75,16 @@ export class EnvUi {
     }
   }
   
+  setTimeRange(ta, tz) {
+    this.vbox.ta = ta;
+    this.vbox.tz = tz;
+    this.renderSoon();
+  }
+  
+  listenTimeRange(cb) {
+    this.timecb = cb;
+  }
+  
   /* Decode.
    ***********************************************************************************/
   
@@ -453,6 +463,7 @@ export class EnvUi {
     const midv = (this.vboxAnchor.va + this.vboxAnchor.vz) / 2;
     const tRadius = Math.max(1, Math.round((this.vboxAnchor.tz - this.vboxAnchor.ta) * tScale) / 2);
     const vRadius = Math.max(1, Math.round((this.vboxAnchor.vz - this.vboxAnchor.va) * vScale) / 2);
+    const oldbox = {...this.vbox};
     if (this.vbox.ta) {
       this.vbox = {
         ta: midt - tRadius,
@@ -471,6 +482,9 @@ export class EnvUi {
     if (this.vbox.ta < 0) this.vbox.ta = 0;
     if (this.vbox.va < 0) this.vbox.va = 0;
     if (this.vbox.vz > 0x10000) this.vbox.vz = 0x10000;
+    if (this.timecb && ((this.vbox.ta !== oldbox.ta) || (this.vbox.tz !== oldbox.tz))) {
+      this.timecb(this.vbox.ta, this.vbox.tz);
+    }
     this.renderSoon();
   }
   
@@ -521,6 +535,7 @@ export class EnvUi {
     point.t = t;
     point.v = v;
     this.renderSoon();
+    this.populateTattle(null, point);
   }
   
   onCanvasMouseDown(event) {
@@ -539,17 +554,21 @@ export class EnvUi {
      */
     const hivis = (this.element.querySelector("select[name='hiVisibility']")?.value === "visible");
     const lovis = (this.element.querySelector("select[name='loVisibility']")?.value === "visible");
-    if (hivis) {
-      if (this.checkMouseDownPoint(x, y, bounds.width, bounds.height, this.hiline, event)) return;
+    if (!event.ctrlKey) {
+      if (hivis) {
+        if (this.checkMouseDownPoint(x, y, bounds.width, bounds.height, this.hiline, event)) return;
+      }
+      if (lovis) {
+        if (this.checkMouseDownPoint(x, y, bounds.width, bounds.height, this.loline, event)) return;
+      }
     }
-    if (lovis) {
-      if (this.checkMouseDownPoint(x, y, bounds.width, bounds.height, this.loline, event)) return;
-    }
-    if (hivis) {
-      if (this.checkMouseDownLine(x, y, bounds.width, bounds.height, this.hiline, event)) return;
-    }
-    if (lovis) {
-      if (this.checkMouseDownLine(x, y, bounds.width, bounds.height, this.loline, event)) return;
+    if (event.ctrlKey) { // Control-click on a line to create a new handle.
+      if (hivis) {
+        if (this.checkMouseDownLine(x, y, bounds.width, bounds.height, this.hiline, event)) return;
+      }
+      if (lovis) {
+        if (this.checkMouseDownLine(x, y, bounds.width, bounds.height, this.loline, event)) return;
+      }
     }
   }
   
@@ -748,6 +767,7 @@ export class EnvUi {
         this.vbox.tz -= this.vbox.ta;
         this.vbox.ta = 0;
       }
+      if (this.timecb) this.timecb(this.vbox.ta, this.vbox.tz);
     } else {
       const vperpx = (this.vbox.vz - this.vbox.va) / canvas.height;
       const dv = Math.round(vperpx * d);
@@ -764,14 +784,19 @@ export class EnvUi {
     this.renderSoon();
   }
   
-  populateTattle(event) {
+  populateTattle(event, point) {
     const tattle = this.element.querySelector(".tattle");
     if (!tattle) return;
-    const canvas = this.element.querySelector("canvas");
-    if (!canvas) return;
-    const bounds = canvas.getBoundingClientRect();
-    const t = this.tFromX(canvas.width, event.x - bounds.x);
-    let v = this.vFromY(canvas.height, event.y - bounds.y);
+    if (event) {
+      const canvas = this.element.querySelector("canvas");
+      if (!canvas) return;
+      const bounds = canvas.getBoundingClientRect();
+      point = {
+        t: this.tFromX(canvas.width, event.x - bounds.x),
+        v: this.vFromY(canvas.height, event.y - bounds.y),
+      };
+    }
+    let {t,v} = point;
     if (this.hint === "pitch") {
       v -= 0x8000;
       if (v > 0) v = `+${v} c`;

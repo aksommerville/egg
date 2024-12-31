@@ -74,6 +74,17 @@ export class VoiceChannelModal {
       case 3: this.buildUiFm(parent); break;
       case 4: this.buildUiSub(parent); break;
     }
+    const tzmax = Math.max(this.levelenv?.vbox.tz || 0, this.pitchenv?.vbox.tz || 0, this.rangeenv?.vbox.tz || 0);
+    const initEnv = (e, others) => {
+      if (!e) return;
+      e.setTimeRange(0, tzmax);
+      e.listenTimeRange((ta, tz) => {
+        for (const o of others) if (o) o.setTimeRange(ta, tz);
+      });
+    };
+    initEnv(this.levelenv, [this.pitchenv, this.rangeenv]);
+    initEnv(this.pitchenv, [this.levelenv, this.rangeenv]);
+    initEnv(this.rangeenv, [this.levelenv, this.pitchenv]);
   }
   
   buildUiWave(parent) {
