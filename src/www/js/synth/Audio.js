@@ -86,7 +86,7 @@ export class Audio {
             this.songid = 0;
           } else if (decoded instanceof Promise) {
             decoded.then(buffer => {
-              const nodes = this.playAudioBuffer(buffer, 0.5, 0, this.songid);
+              const nodes = this.playAudioBuffer(buffer, 1, 0, this.songid);
               if (repeat) nodes.sourceNode.loop = true;
               this.songBuffer = buffer;
               this.songBufferNode = nodes.sourceNode;
@@ -95,7 +95,7 @@ export class Audio {
               this.songBufferLength = decoded.duration;
             });
           } else if (decoded instanceof AudioBuffer) {
-            const nodes = this.playAudioBuffer(decoded, 0.5, 0, this.songid);
+            const nodes = this.playAudioBuffer(decoded, 1, 0, this.songid);
             if (repeat) nodes.sourceNode.loop = true;
             this.songBuffer = decoded;
             this.songBufferNode = nodes.sourceNode;
