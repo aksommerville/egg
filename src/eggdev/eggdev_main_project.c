@@ -102,16 +102,22 @@ static int eggdev_project_generate_makefile(struct eggdev_project_context *ctx) 
   if (sr_encode_fmt(&ctx->scratch,"PROJRDNS:=com.aksommerville.egggame.%s\n",ctx->projname)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,"ENABLE_SERVER_AUDIO:=\n",-1)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,"BUILDABLE_DATA_TYPES:=\n",-1)<0) return -1;
-
+  
+  // I'd prefer that developers define EGG_SDK in their environment.
+  // Writing this host's EGG_SDK into the project Makefile is a bad idea, since it ought to be able to build on other hosts too.
+  // But it's better than nothing.
+  // Previously, we hard-coded it to "../egg" which is fine if all your repos are in one directory, but eg eggsamples and eggzotics break that rule.
+  if (sr_encode_fmt(&ctx->scratch,
+    "\nifndef EGG_SDK\n"
+    "  EGG_SDK:=%s\n"
+    "endif\n\n"
+  ,eggdev_buildcfg.EGG_SDK)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,
-    "ifndef EGG_SDK\n"
-    "  EGG_SDK:=../egg\n"
-    "endif\n"
-    "\n"
     "include $(EGG_SDK)/etc/tool/common.mk\n"
     "\n"
     "endif\n"
   ,-1)<0) return -1;
+  
   return 0;
 }
 
@@ -171,7 +177,7 @@ static int eggdev_project_generate_metadata(struct eggdev_project_context *ctx) 
   if (sr_encode_raw(&ctx->scratch,"players=1\n",-1)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,"# desc= Short description.\n",-1)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,"# freedom= restricted | limited | intact | free\n",-1)<0) return -1;
-  if (sr_encode_raw(&ctx->scratch,"# copyright=(c) 2024 Your Name Here\n",-1)<0) return -1;
+  if (sr_encode_fmt(&ctx->scratch,"# copyright=(c) %d Your Name Here\n",tm?(1900+tm->tm_year):2025)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,"# advisory= Mention if there's gore, profanity, nudity, etc.\n",-1)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,"# genre= Use itch.io for reference.\n",-1)<0) return -1;
   if (sr_encode_raw(&ctx->scratch,"# tags= Use itch.io for reference.\n",-1)<0) return -1;
@@ -433,13 +439,16 @@ int eggdev_main_project() {
     return -2;
   }
   
-  // Call out for all the rest.
+  // Call out for all the rest. eggdev_project_in_dir() changes working directory, so we will change it back.
+  char *wd=getcwd(0,0);
   if ((err=eggdev_project_in_dir(&ctx))<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error generating project.\n",ctx.projname);
+    if (wd) { err=chdir(wd); free(wd); }
     dir_rmrf(ctx.projname);
     eggdev_project_context_cleanup(&ctx);
     return -2;
   }
+  if (wd) { err=chdir(wd); free(wd); }
   
   // Success!
   fprintf(stdout,"%s: Generated project, now get to work.\n",ctx.projname);

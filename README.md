@@ -41,9 +41,13 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## Examples
 
-- [Season of Penance](https://github.com/aksommerville/penance)
-- [Spelling Bee](https://github.com/aksommerville/spellingbee)
-- [The Secret of the Seven Sauces](https://github.com/aksommerville/sevensauces)
+- There's a demo ROM in this repo, with a bunch of useful feature tests. Just `make run`.
+- [Eggsamples](https://github.com/aksommerville/eggsamples): A bunch of little games you're free to cannibalize.
+- [Eggzotics](https://github.com/aksommerville/eggzotics): Demo games targetting highly-constrained platforms, that can also build for Egg.
+- Real games:
+- - [Season of Penance](https://github.com/aksommerville/penance)
+- - [Spelling Bee](https://github.com/aksommerville/spellingbee)
+- - [The Secret of the Seven Sauces](https://github.com/aksommerville/sevensauces)
 
 ## TODO
 
@@ -67,19 +71,12 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - - This is more complex than it sounds. Clients would have to be able to tell eggdev which units they're interested in.
 - - Otherwise we're building the libraries only for the benefit of clients that don't use the provided build process, which is hopefully none of them.
-- [ ] Eggsamples
-- - [ ] Carefully rename the old eggsamples repo from 202408.
-- - [ ] Shoot-em-up
-- - [ ] Formal RPG
-- - [ ] Adventure
-- - [ ] Platformer
-- - [ ] Something in WAT instead of C.
-- - [ ] Rhythm
-- - [ ] Beat-em-up with Paper Mario style graphics.
-- [ ] Eggzotics: Build for Egg and eg TinyArcade, for platforms that can't run Egg properly.
 - [ ] Validate eject.
 - [ ] linux: App icon stopped showing up. I think after upgrading to Ubuntu 24.04. Full Moon still works tho.
-- [x] ImageEditor: Animation and composition previews, and save the settings to localStorage.
+- - I'm stumped! Our window init and icon init are almost identical to Full Moon. It's xegl, not glx, but that shouldn't matter for this X11 stuff.
+- - One difference is FM sets a Colormap at init. Tried that, and no difference (and why would there be?).
+- - XChangeProperty returns 1 as expected.
+- - Tried a minimal image, tried various modifications of the high bits... nothing.
 - [ ] MacOS: Incorrect window title, and doesn't update on language change.
 - [ ] MacOS: Lots of initial settings were wrong, eg gcc warning flags
 - [ ] MacOS: Point-sprite culling. Visible in Spelling Bee, as you scroll around. (might only be on the iMac? I didn't notice on the MacBook)

@@ -192,11 +192,12 @@ static int xegl_init(struct xegl *xegl,const struct xegl_setup *setup) {
   if (xegl->delegate.cb_mbutton||xegl->delegate.cb_mwheel) {
     wattr.event_mask|=ButtonPressMask|ButtonReleaseMask;
   }
+  unsigned long wflags=CWBorderPixel|CWEventMask;
   xegl->win=XCreateWindow(
     xegl->dpy,RootWindow(xegl->dpy,xegl->screen),
     0,0,xegl->w,xegl->h,0,
     CopyFromParent,InputOutput,CopyFromParent,
-    CWBorderPixel|CWEventMask,&wattr
+    wflags,&wattr
   );
   if (!xegl->win) return -1;
   
