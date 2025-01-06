@@ -248,7 +248,7 @@ export class Audio {
         0x60,0x00,0x00, 0x81,0x00,0x00,0x00,
       3, // shape (3=saw)
     ];
-    return { chid, trim, mode, v };
+    return { chid, trim: trim, mode: mode, v };
   }
    
   // AudioBuffer, null, or Promise<AudioBuffer>

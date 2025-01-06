@@ -68,6 +68,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] Ensure parity between web and native.
 - - [ ] Channel.oscillateSub: Sub width stubbed out, figure this out.
+- - [ ] web: Wave voice not using pitchenv (see snake)
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - - This is more complex than it sounds. Clients would have to be able to tell eggdev which units they're interested in.
 - - Otherwise we're building the libraries only for the benefit of clients that don't use the provided build process, which is hopefully none of them.

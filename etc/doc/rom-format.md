@@ -66,3 +66,8 @@ Let eggdev generate a TOC, and only use the symbolic type IDs in your code.
 `strings` uses this, probably nothing else should. But it's legal anywhere.
 
 `.COMMENT` is extra processing instructions for the compiler. You can't have a COMMENT without a FORMAT.
+
+## Embedding in HTML
+
+In addition to a `<script>` tag containing the Egg Runtime, there must be `<egg-rom>` whose body is a base64-encoded ROM file.
+Aside from base64, there's no difference between a ROM in HTML and one loose in the filesystem.

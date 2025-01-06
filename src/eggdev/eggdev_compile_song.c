@@ -537,6 +537,11 @@ int eggdev_compile_song(struct eggdev_res *res) {
     err=eggdev_song_sanitize_wav(&dst,res->serial,res->serialc,res->path);
     eggdev_res_set_format(res,"wav",3);
     
+  // Empty is ok, produce a short silent EGS.
+  } else if (!res->serialc) {
+    err=sr_encode_raw(&dst,"\0EGS\xff\x7f",6); // No channel config, and just one event: delay 4096 ms
+    eggdev_res_set_format(res,"egs",3);
+    
   // Nothing else is allowed.
   } else {
     fprintf(stderr,"%s: Unknown format for song. Expected MIDI.\n",res->path);

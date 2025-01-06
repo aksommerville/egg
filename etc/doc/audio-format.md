@@ -2,9 +2,10 @@
 
 `sound` and `song` resources are the same thing, except:
 - `sound` are limited to 5 seconds duration.
-- `sound` may be sourced from WAV, `song` may only be from MIDI.
 
 In the ROM, they are stored as either WAV or EGS.
+You may supply them as MIDI, WAV, or empty.
+Empty is convenient as a placeholder. You can code all the call sites for a sound before getting around to actually making it.
 
 ## From WAV
 
