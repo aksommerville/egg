@@ -8,11 +8,15 @@ static const char render_raw_vsrc[]=
   "uniform vec2 screensize;\n"
   "uniform vec4 tint;\n"
   "uniform float alpha;\n"
+  "uniform float dstedge;\n"
   "attribute vec2 apos;\n"
   "attribute vec4 acolor;\n"
   "varying vec4 vcolor;\n"
   "void main() {\n"
-    "vec2 npos=((apos+0.25)*2.0)/screensize-1.0;\n"
+    "vec2 npos=vec2(\n"
+      "((dstedge+apos.x)*2.0)/(dstedge*2.0+screensize.x)-1.0,\n"
+      "((dstedge+apos.y)*2.0)/(dstedge*2.0+screensize.y)-1.0\n"
+    ");\n"
     "gl_Position=vec4(npos,0.0,1.0);\n"
     "vcolor=vec4(mix(acolor.rgb,tint.rgb,tint.a),acolor.a*alpha);\n"
   "}\n"
@@ -30,11 +34,17 @@ static const char render_raw_fsrc[]=
  
 static const char render_decal_vsrc[]=
   "uniform vec2 screensize;\n"
+  "uniform float srcedge;\n"
+  "uniform float dstedge;\n"
+  "uniform vec2 texsize;\n"
   "attribute vec2 apos;\n"
   "attribute vec2 atexcoord;\n"
   "varying vec2 vtexcoord;\n"
   "void main() {\n"
-    "vec2 npos=(apos*2.0)/screensize-1.0;\n"
+    "vec2 npos=vec2(\n"
+      "((dstedge+apos.x)*2.0)/(dstedge*2.0+screensize.x)-1.0,\n"
+      "((dstedge+apos.y)*2.0)/(dstedge*2.0+screensize.y)-1.0\n"
+    ");\n"
     "gl_Position=vec4(npos,0.0,1.0);\n"
     "vtexcoord=atexcoord;\n"
   "}\n"
@@ -43,6 +53,8 @@ static const char render_decal_vsrc[]=
 static const char render_decal_fsrc[]=
   "uniform sampler2D sampler;\n"
   "uniform float alpha;\n"
+  "uniform float srcedge;\n"
+  "uniform vec2 texsize;\n"
   "uniform vec4 texlimit;\n" // For mode7, establish firm boundaries in texture space.
   "uniform vec4 tint;\n"
   "varying vec2 vtexcoord;\n"
@@ -51,7 +63,11 @@ static const char render_decal_fsrc[]=
     "if (vtexcoord.y<texlimit.y) discard;\n"
     "if (vtexcoord.x>=texlimit.z) discard;\n"
     "if (vtexcoord.y>=texlimit.w) discard;\n"
-    "gl_FragColor=texture2D(sampler,vtexcoord);\n"
+    "vec2 texcoord=vec2(\n"
+      "vtexcoord.x*(1.0-(srcedge*2.0)/texsize.x)+srcedge/texsize.x,\n"
+      "vtexcoord.y*(1.0-(srcedge*2.0)/texsize.y)+srcedge/texsize.y\n"
+    ");\n"
+    "gl_FragColor=texture2D(sampler,texcoord);\n"
     "gl_FragColor=vec4(mix(gl_FragColor.rgb,tint.rgb,tint.a),gl_FragColor.a*alpha);\n"
   "}\n"
 "";
@@ -62,13 +78,17 @@ static const char render_decal_fsrc[]=
 static const char render_tile_vsrc[]=
   "uniform vec2 screensize;\n"
   "uniform float pointsize;\n"
+  "uniform float dstedge;\n"
   "attribute vec2 apos;\n"
   "attribute float atileid;\n"
   "attribute float axform;\n"
   "varying vec2 vsrcp;\n"
   "varying mat2 vmat;\n"
   "void main() {\n"
-    "vec2 npos=(apos*2.0)/screensize-1.0;\n"
+    "vec2 npos=vec2(\n"
+      "((dstedge+apos.x)*2.0)/(dstedge*2.0+screensize.x)-1.0,\n"
+      "((dstedge+apos.y)*2.0)/(dstedge*2.0+screensize.y)-1.0\n"
+    ");\n"
     "gl_Position=vec4(npos,0.0,1.0);\n"
     "vsrcp=vec2(\n"
       "mod(atileid,16.0),\n"
@@ -91,6 +111,8 @@ static const char render_tile_fsrc[]=
   "uniform sampler2D sampler;\n"
   "uniform float alpha;\n"
   "uniform vec4 tint;\n"
+  "uniform float srcedge;\n"
+  "uniform vec2 texsize;\n"
   "varying vec2 vsrcp;\n"
   "varying mat2 vmat;\n"
   "void main() {\n"
@@ -98,6 +120,10 @@ static const char render_tile_fsrc[]=
     "texcoord.y=1.0-texcoord.y;\n"
     "texcoord=vmat*(texcoord-0.5)+0.5;\n"
     "texcoord=vsrcp+texcoord/16.0;\n"
+    "texcoord=vec2(\n"
+      "texcoord.x*(1.0-(srcedge*2.0)/texsize.x)+srcedge/texsize.x,\n"
+      "texcoord.y*(1.0-(srcedge*2.0)/texsize.y)+srcedge/texsize.y\n"
+    ");\n"
     "gl_FragColor=texture2D(sampler,texcoord);\n"
     "gl_FragColor=vec4(mix(gl_FragColor.rgb,tint.rgb,tint.a),gl_FragColor.a*alpha);\n"
   "}\n"
@@ -222,6 +248,7 @@ int render_init_programs(struct render *render) {
   render->u_raw_screensize=glGetUniformLocation(render->pgm_raw,"screensize");
   render->u_raw_tint=glGetUniformLocation(render->pgm_raw,"tint");
   render->u_raw_alpha=glGetUniformLocation(render->pgm_raw,"alpha");
+  render->u_raw_dstedge=glGetUniformLocation(render->pgm_raw,"dstedge");
   
   glUseProgram(render->pgm_decal);
   render->u_decal_screensize=glGetUniformLocation(render->pgm_decal,"screensize");
@@ -229,6 +256,9 @@ int render_init_programs(struct render *render) {
   render->u_decal_alpha=glGetUniformLocation(render->pgm_decal,"alpha");
   render->u_decal_tint=glGetUniformLocation(render->pgm_decal,"tint");
   render->u_decal_texlimit=glGetUniformLocation(render->pgm_decal,"texlimit");
+  render->u_decal_dstedge=glGetUniformLocation(render->pgm_decal,"dstedge");
+  render->u_decal_srcedge=glGetUniformLocation(render->pgm_decal,"srcedge");
+  render->u_decal_texsize=glGetUniformLocation(render->pgm_decal,"texsize");
   
   glUseProgram(render->pgm_tile);
   render->u_tile_screensize=glGetUniformLocation(render->pgm_tile,"screensize");
@@ -236,6 +266,9 @@ int render_init_programs(struct render *render) {
   render->u_tile_alpha=glGetUniformLocation(render->pgm_tile,"alpha");
   render->u_tile_tint=glGetUniformLocation(render->pgm_tile,"tint");
   render->u_tile_pointsize=glGetUniformLocation(render->pgm_tile,"pointsize");
+  render->u_tile_dstedge=glGetUniformLocation(render->pgm_tile,"dstedge");
+  render->u_tile_srcedge=glGetUniformLocation(render->pgm_tile,"srcedge");
+  render->u_tile_texsize=glGetUniformLocation(render->pgm_tile,"texsize");
   
   return 0;
 }
@@ -272,10 +305,11 @@ void render_draw_rect(struct render *render,int dsttexid,const struct egg_draw_r
   if (render_texture_require_fb(dsttex)<0) return;
   glBindFramebuffer(GL_FRAMEBUFFER,dsttex->fbid);
   glUseProgram(render->pgm_raw);
-  glViewport(0,0,dsttex->w,dsttex->h);
+  glViewport(0,0,dsttex->edge_extra*2+dsttex->w,dsttex->edge_extra*2+dsttex->h);
   glUniform2f(render->u_raw_screensize,dsttex->w,dsttex->h);
   glUniform4f(render->u_raw_tint,(render->tint>>24)/255.0f,((render->tint>>16)&0xff)/255.0f,((render->tint>>8)&0xff)/255.0f,(render->tint&0xff)/255.0f);
   glUniform1f(render->u_raw_alpha,render->alpha/255.0f);
+  glUniform1f(render->u_raw_dstedge,dsttex->edge_extra);
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   for (;c-->0;v++) {
@@ -313,10 +347,11 @@ static void render_draw_raw(struct render *render,int texid,int mode,const struc
   if (render_texture_require_fb(texture)<0) return;
   glBindFramebuffer(GL_FRAMEBUFFER,texture->fbid);
   glUseProgram(render->pgm_raw);
-  glViewport(0,0,texture->w,texture->h);
+  glViewport(0,0,texture->edge_extra*2+texture->w,texture->edge_extra*2+texture->h);
   glUniform2f(render->u_raw_screensize,texture->w,texture->h);
   glUniform4f(render->u_raw_tint,(render->tint>>24)/255.0f,((render->tint>>16)&0xff)/255.0f,((render->tint>>8)&0xff)/255.0f,(render->tint&0xff)/255.0f);
   glUniform1f(render->u_raw_alpha,render->alpha/255.0f);
+  glUniform1f(render->u_raw_dstedge,texture->edge_extra);
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(0,2,GL_SHORT,0,sizeof(struct render_vertex_raw),&v[0].x);
@@ -381,12 +416,15 @@ void render_draw_decal(struct render *render,int dsttexid,int srctexid,const str
   if ((srctex->w<1)||(srctex->h<1)) return;
   if (render_texture_require_fb(dsttex)<0) return;
   glBindFramebuffer(GL_FRAMEBUFFER,dsttex->fbid);
-  glViewport(0,0,dsttex->w,dsttex->h);
+  glViewport(0,0,dsttex->edge_extra*2+dsttex->w,dsttex->edge_extra*2+dsttex->h);
   glUseProgram(render->pgm_decal);
   glUniform2f(render->u_decal_screensize,dsttex->w,dsttex->h);
   glBindTexture(GL_TEXTURE_2D,srctex->texid);
   glUniform4f(render->u_decal_tint,(render->tint>>24)/255.0f,((render->tint>>16)&0xff)/255.0f,((render->tint>>8)&0xff)/255.0f,(render->tint&0xff)/255.0f);
   glUniform1f(render->u_decal_alpha,render->alpha/255.0f);
+  glUniform1f(render->u_decal_dstedge,dsttex->edge_extra);
+  glUniform1f(render->u_decal_srcedge,srctex->edge_extra);
+  glUniform2f(render->u_decal_texsize,srctex->w+srctex->edge_extra*2.0,srctex->h+srctex->edge_extra*2.0);
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   
@@ -480,9 +518,12 @@ void render_draw_mode7(struct render *render,int dsttexid,int srctexid,const str
   if ((srctex->w<1)||(srctex->h<1)) return;
   if (render_texture_require_fb(dsttex)<0) return;
   glBindFramebuffer(GL_FRAMEBUFFER,dsttex->fbid);
-  glViewport(0,0,dsttex->w,dsttex->h);
+  glViewport(0,0,dsttex->edge_extra*2+dsttex->w,dsttex->edge_extra*2+dsttex->h);
   glUseProgram(render->pgm_decal);
   glUniform2f(render->u_decal_screensize,dsttex->w,dsttex->h);
+  glUniform1f(render->u_decal_dstedge,dsttex->edge_extra);
+  glUniform1f(render->u_decal_srcedge,srctex->edge_extra);
+  glUniform2f(render->u_decal_texsize,srctex->w+srctex->edge_extra*2.0,srctex->h+srctex->edge_extra*2.0);
   glBindTexture(GL_TEXTURE_2D,srctex->texid);
   if (interpolate) {
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
@@ -512,7 +553,7 @@ void render_draw_tile(struct render *render,int dsttexid,int srctexid,const stru
   struct render_texture *srctex=render->texturev+srctexid-1;
   if (render_texture_require_fb(dsttex)<0) return;
   glBindFramebuffer(GL_FRAMEBUFFER,dsttex->fbid);
-  glViewport(0,0,dsttex->w,dsttex->h);
+  glViewport(0,0,dsttex->edge_extra*2+dsttex->w,dsttex->edge_extra*2+dsttex->h);
   glUseProgram(render->pgm_tile);
   glUniform2f(render->u_tile_screensize,dsttex->w,dsttex->h);
   glActiveTexture(GL_TEXTURE0);
@@ -521,6 +562,9 @@ void render_draw_tile(struct render *render,int dsttexid,int srctexid,const stru
   glUniform4f(render->u_tile_tint,(render->tint>>24)/255.0f,((render->tint>>16)&0xff)/255.0f,((render->tint>>8)&0xff)/255.0f,(render->tint&0xff)/255.0f);
   glUniform1f(render->u_tile_alpha,render->alpha/255.0f);
   glUniform1f(render->u_tile_pointsize,srctex->w>>4);
+  glUniform1f(render->u_tile_dstedge,dsttex->edge_extra);
+  glUniform1f(render->u_tile_srcedge,srctex->edge_extra);
+  glUniform2f(render->u_tile_texsize,srctex->w+srctex->edge_extra*2.0,srctex->h+srctex->edge_extra*2.0);
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glEnableVertexAttribArray(2);
@@ -585,6 +629,9 @@ void render_draw_to_main(struct render *render,int mainw,int mainh,int texid) {
   glUniform4f(render->u_decal_tint,0.0f,0.0f,0.0f,0.0f);
   glUniform1f(render->u_decal_alpha,1.0f);
   glUniform4f(render->u_decal_texlimit,0.0f,0.0f,1.0f,1.0f);
+  glUniform1f(render->u_decal_dstedge,0.0f);
+  glUniform1f(render->u_decal_srcedge,texture->edge_extra);
+  glUniform2f(render->u_decal_texsize,texture->w+texture->edge_extra*2.0,texture->h+texture->edge_extra*2.0);
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(0,2,GL_SHORT,0,sizeof(struct render_vertex_decal),&vtxv[0].x);

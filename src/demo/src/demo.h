@@ -57,5 +57,7 @@ struct menu *menu_spawn_video_aux();
 struct menu *menu_spawn_video_stress();
 // From storage:
 struct menu *menu_spawn_resources();
+// From regression:
+struct menu *menu_spawn_20250110();
 
 #endif

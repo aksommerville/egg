@@ -37,6 +37,16 @@ static void _regression_render(struct menu *menu) {
   picklist_render(MENU->picklist);
 }
 
+/* Picklist callback.
+ */
+ 
+static void _regression_cb_picklist(int optid,void *userdata) {
+  struct menu *menu=userdata;
+  switch (optid) {
+    case 20250110: menu_spawn_20250110(); break;
+  }
+}
+
 /* New.
  */
  
@@ -50,7 +60,9 @@ struct menu *menu_spawn_regression() {
   menu->render=_regression_render;
   
   if (!(MENU->picklist=picklist_new())) { menu->defunct=1; return 0; }
-  picklist_add_option(MENU->picklist,"TODO Regression",-1,0,0,0);
+  MENU->picklist->cb=_regression_cb_picklist;
+  MENU->picklist->userdata=menu;
+  picklist_add_option(MENU->picklist,"20250110 Sprite Culling",-1,20250110,0,0);
   
   return menu;
 }

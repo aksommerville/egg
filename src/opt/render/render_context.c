@@ -218,8 +218,13 @@ static int render_texture_upload(struct render *render,struct render_texture *te
     default: return -1;
   }
   if (stride!=w*chanc) return -1;
+  if (!v) {
+    texture->edge_extra=32;
+  } else {
+    texture->edge_extra=0;
+  }
   glBindTexture(GL_TEXTURE_2D,texture->texid);
-  glTexImage2D(GL_TEXTURE_2D,0,ifmt,w,h,0,glfmt,type,v);
+  glTexImage2D(GL_TEXTURE_2D,0,ifmt,w+texture->edge_extra*2,h+texture->edge_extra*2,0,glfmt,type,v);
   texture->w=w;
   texture->h=h;
   texture->fmt=fmt;
