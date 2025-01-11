@@ -38,6 +38,28 @@ void strings_check_language();
  */
 int strings_get(void *dstpp,int rid,int index);
 
+/* Take a format string (rid,index) and replace markers "%N" where N is '0'..'9' with the corresponding insertion.
+ * Insertions can be a signed decimal integer 'i', a literal string 's', or another strings resource 'r'.
+ * eg (rid,index) could be "%0 gave you %1 gold.", then insv could be [
+ *   {'r',{.r={RID_strings_npc_names,20}}},
+ *   {'i',{.i=123}},
+ * ] to produce "So-and-so gave you 123 gold.".
+ * Invalid insertion references produce no output.
+ * "%%" produces a single '%'.
+ * '%' followed by anything that isn't '%' or a digit, emits verbatim.
+ */
+struct strings_insertion {
+  char mode; // [isr]
+  union {
+    int i;
+    struct { const char *v; int c; } s;
+    struct { int rid,ix; } r;
+  };
+};
+int strings_format(char *dst,int dsta,int rid,int index,const struct strings_insertion *insv,int insc);
+
+int strings_decsint_repr(char *dst,int dsta,int src);
+
 /********************************************************************
  * Text rendering.
  *

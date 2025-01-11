@@ -9,6 +9,7 @@
 #  - Declare ENABLE_SERVER_AUDIO: Empty for WebAudio only, nonempty for server-side audio too. (for `make edit`)
 #  - Declare BUILDABLE_DATA_TYPES, for resource types that you will compile. And define your rules for that.
 #  - Declare EXTRA_MAC_ICONS, with paths to PNG files, if you want more than the ROM's iconImage for a MacOS bundle's icons.
+#  - Declare NON_SRC_FILES, patterns under src/ to ignore.
 
 # Cache `eggdev config`; all the little particulars of each host's build environment are Egg's problem, not the games'.
 include mid/eggcfg
@@ -38,7 +39,7 @@ $(TOC_H):$(DATADIRS);$(PRECMD) $(EGG_SDK)/out/eggdev list src/data -ftoc > $@
 
 # Compile to WebAssembly and pack into one lib that becomes resource code:1.
 ifneq (,$(WEB_CC))
-  WEB_OFILES:=$(patsubst src/%.c,mid/web/%.o,$(CFILES)) $(patsubst $(EGG_SDK)/src/opt/%.c,mid/web/%.o,$(OPT_CFILES))
+  WEB_OFILES:=$(patsubst src/%.c,mid/web/%.o,$(filter-out $(NON_SRC_FILES),$(CFILES))) $(patsubst $(EGG_SDK)/src/opt/%.c,mid/web/%.o,$(OPT_CFILES))
   -include $(WEB_OFILES:.o=.d)
   mid/web/%.o:src/%.c|$(TOC_H);$(PRECMD) $(WEB_CC) -o$@ $<
   mid/web/%.o:$(EGG_SDK)/src/opt/%.c|$(TOC_H);$(PRECMD) $(WEB_CC) -o$@ $<
@@ -64,7 +65,7 @@ endif
 # And if we're on a Mac, build an application bundle too.
 ifneq (,$(strip $(NATIVE_TARGET)))
   NATIVE_OPT_CFILES:=$(filter-out $(EGG_SDK)/src/opt/stdlib/%,$(OPT_CFILES))
-  NATIVE_OFILES:=$(patsubst src/%.c,mid/$(NATIVE_TARGET)/%.o,$(CFILES)) $(patsubst $(EGG_SDK)/src/opt/%.c,mid/$(NATIVE_TARGET)/%.o,$(NATIVE_OPT_CFILES))
+  NATIVE_OFILES:=$(patsubst src/%.c,mid/$(NATIVE_TARGET)/%.o,$(filter-out $(NON_SRC_FILES),$(CFILES))) $(patsubst $(EGG_SDK)/src/opt/%.c,mid/$(NATIVE_TARGET)/%.o,$(NATIVE_OPT_CFILES))
   -include $(NATIVE_OFILES:.o=.d)
   mid/$(NATIVE_TARGET)/%.o:src/%.c|$(TOC_H);$(PRECMD) $(CC) -o$@ $<
   mid/$(NATIVE_TARGET)/%.o:$(EGG_SDK)/src/opt/%.c|$(TOC_H);$(PRECMD) $(CC) -o$@ $<

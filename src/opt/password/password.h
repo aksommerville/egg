@@ -18,7 +18,7 @@
  *   if (egg_store_set("save",4,password,passwordc)<0) return -1;
  *
  * To load it:
- *   char tmp[1024]; // <-- Exact size necessary is knowable from sizeof(my_state), if you care.
+ *   char tmp[PASSWORD_ENCODED_SIZE(typeof(my_state))];
  *   int tmpc=egg_store_get(tmp,sizeof(tmp),"save",4);
  *   if ((tmpc<1)||(tmpc>sizeof(tmp))) return -1;
  *   PASSWORD_DECODE(my_state,tmp,tmpc)
@@ -97,5 +97,7 @@ int password_b64_decode(void *dst,int dsta,const char *src,int srcc);
       } \
     } \
   }
+  
+#define PASSWORD_ENCODED_SIZE(mystructtype) (((sizeof(mystructtype)+8)/3)*4)
 
 #endif
