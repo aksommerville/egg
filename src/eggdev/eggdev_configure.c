@@ -193,6 +193,19 @@ static void eggdev_print_help_macicon() {
   );
 }
 
+/* --help=minify
+ */
+ 
+static void eggdev_print_help_minify() {
+  fprintf(stderr,"\nUsage: %s minify -oDST SRC\n\n",eggdev.exename);
+  fprintf(stderr,
+    "Run our Javascript minifier a la carte.\n"
+    "SRC should be a Javascript file with relative imports.\n"
+    "This is the same thing we do at `eggdev bundle` to generate the <script> tag from src/www/bootstrap.js.\n"
+    "\n"
+  );
+}
+
 /* --help default
  */
  
@@ -212,6 +225,7 @@ static void eggdev_print_help_default() {
     "  metadata ROM [--lang=all|LANG] [--iconImage] [--posterImage]\n"
     "     sound [ROM TYPE:ID] [FILE] [-oPATH] [--audio=DRIVER] [--audio-rate=HZ] [--audio-chanc=1|2] [--audio-buffer=INT] [--audio-device=STRING] [--repeat]\n"
     "   macicon -oICNS [ROM] [PNG...]\n"
+    "    minify -oDST SRC\n"
     "\n"
   );
 }
@@ -234,6 +248,7 @@ void eggdev_print_help(const char *topic) {
   _(metadata)
   _(sound)
   _(macicon)
+  _(minify)
   #undef _
   else eggdev_print_help_default();
 }

@@ -1,7 +1,10 @@
 import { Rom } from "./js/Rom.js";
 import { Runtime } from "./js/Runtime.js";
+import { ImageDecoder } from "./js/ImageDecoder.js";
 
 const DEFAULT_ROM_PATH = "/demo.egg";
+
+let runtime = null;
 
 function reprError(error) {
   if (!error) return "A fatal error occurred (no detail).";
@@ -53,7 +56,6 @@ function registerResizeHandler() {
 }
 
 function launchEgg(serial) {
-  let runtime;
   return Promise.resolve().then(() => {
     const canvas = document.getElementById("egg-canvas");
     if (!canvas) throw new Error("Canvas not found.");
@@ -62,6 +64,7 @@ function launchEgg(serial) {
     //console.log(`launchEgg`, { rom, serial, runtime, canvas });
     return runtime.load();
   }).then(() => {
+    window.eggRuntime = runtime;
     registerResizeHandler();
     return waitForFirstInteraction(runtime);
   }).then(() => {
@@ -69,26 +72,42 @@ function launchEgg(serial) {
   });
 }
 
+function terminateEgg() {
+  if (!runtime) return;
+  runtime.stop();
+  runtime = null;
+  window.eggRuntime = null;
+}
+
 /* Main bootstrap.
  * Acquire the encoded ROM (possibly base64-encoded too), and give it to launchEgg.
+ * Alternately, the host may set `window.eggIsMultiLauncher` true, and we'll do nothing but install launchEgg on window.
  */
-window.addEventListener("load", () => {
-  const romElement = document.querySelector("egg-rom");
-  let launchPromise;
-  if (romElement) {
-    launchPromise = launchEgg(romElement.innerText);
-  /*IGNORE{*/
-  } else if (DEFAULT_ROM_PATH) {
-    launchPromise = fetch("/api/make" + DEFAULT_ROM_PATH).then(rsp => {
-      if (!rsp.ok) return rsp.text().then(body => { throw body; });
-      return rsp.arrayBuffer();
-    }).then(rom => {
-      return launchEgg(rom);
-    });
-  /*}IGNORE*/
-  } else {
-    launchPromise = Promise.reject('ROM not found');
-  }
-  launchPromise.then(() => {
-  }).catch(e => reportError(e));
-}, { once: true });
+if (window.eggIsMultiLauncher) {
+  window.launchEgg = launchEgg;
+  window.terminateEgg = terminateEgg;
+  window.Rom = Rom;
+  window.ImageDecoder = ImageDecoder;
+  window.eggRuntime = null;
+} else {
+  window.addEventListener("load", () => {
+    const romElement = document.querySelector("egg-rom");
+    let launchPromise;
+    if (romElement) {
+      launchPromise = launchEgg(romElement.innerText);
+    /*IGNORE{*/
+    } else if (DEFAULT_ROM_PATH) {
+      launchPromise = fetch("/api/make" + DEFAULT_ROM_PATH).then(rsp => {
+        if (!rsp.ok) return rsp.text().then(body => { throw body; });
+        return rsp.arrayBuffer();
+      }).then(rom => {
+        return launchEgg(rom);
+      });
+    /*}IGNORE*/
+    } else {
+      launchPromise = Promise.reject('ROM not found');
+    }
+    launchPromise.then(() => {
+    }).catch(e => reportError(e));
+  }, { once: true });
+}

@@ -3,6 +3,13 @@
  
 export class Rom {
   constructor(serial) {
+    // Allow shallow copies as a convenience, so we can pass Rom instances around where serial is expected.
+    if (serial instanceof Rom) {
+      this.resv = serial.resv;
+      this.serial = serial.serial;
+      this.textDecoder = serial.textDecoder;
+      return;
+    }
     if (typeof(serial) === "string") serial = this.decodeBase64(serial);
     if (serial instanceof ArrayBuffer) serial = new Uint8Array(serial);
     if (!(serial instanceof Uint8Array)) throw new Error(`Rom input must be string, ArrayBuffer, or Uint8Array`);

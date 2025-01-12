@@ -1,0 +1,89 @@
+</script>
+<style>
+.modal::backdrop {
+  background-color: #000;
+  opacity: 0.75;
+}
+.RootUi {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #000;
+  color: #fff;
+  font-family: sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.RootUi > .topRow {
+  display: flex;
+  flex-direction: row;
+}
+.RootUi .controls {
+  display: flex;
+  flex-direction: column;
+}
+.RootUi > .GameList {
+  flex: 1;
+}
+.GameList {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+.GameCard {
+  margin: 5px;
+  padding: 5px;
+  border: 1px solid #000;
+  background-color: #333;
+  width: 300px;
+  height: 100px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.GameCard > .titleRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14pt;
+  font-weight: bold;
+}
+.GameCard > .publication {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  font-size: 9pt;
+}
+.GameCard > .vitals {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  font-size: 9pt;
+}
+.error {
+  display: none;
+  z-index: 100;
+  background-color: #800;
+  color: #fff;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+}
+#egg-canvas {
+  width: 640px;
+  height: 360px;
+  image-rendering: pixelated;
+  object-fit: contain;
+  flex: 1;
+}
+</style>
+</head>
+<body>
+<div class="error"></div>
+</body>
+</html>

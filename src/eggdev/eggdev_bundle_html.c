@@ -179,12 +179,9 @@ static int eggdev_bundle_html_js(struct eggdev_bundle_html *ctx) {
     return -2;
   }
   struct jst_context jst={0};
-  struct sr_encoder tmp={0};
   int err=jst_minify(&ctx->dst,&jst,src,srcc,path);
-  //if (err>=0) err=eggdev_bundle_html_emit_text(&ctx->dst,tmp.v,tmp.c);
   free(src);
   jst_context_cleanup(&jst);
-    sr_encoder_cleanup(&tmp);
   if (err<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error minifying platform javascript.\n",path);
     return -2;

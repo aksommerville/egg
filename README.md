@@ -87,6 +87,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - I've seen others asking Apple about this but haven't seen any answers. IOHIDManager docs don't mention it.
 - - Leaving unfixed. We'll have to advise users that it's fine to click "Deny".
 - [ ] stdlib produces a 16 MB file due to fake-malloc's heap space. Can we avoid that somehow?
+- [x] Eggcade: Web app for launching ROMs, not embedded.
 
 ## Third-Party Code
 

@@ -137,6 +137,7 @@ int eggdev_main_project();
 int eggdev_main_metadata();
 int eggdev_main_sound();
 int eggdev_main_macicon();
+int eggdev_main_minify();
 
 int eggdev_compile_metadata(struct eggdev_res *res);
 int eggdev_uncompile_metadata(struct eggdev_res *res);

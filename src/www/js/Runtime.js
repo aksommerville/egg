@@ -83,7 +83,9 @@ export class Runtime {
   }
   
   toggleFullscreen() {
-    console.log(`TODO Runtime.toggleFullscreen`);
+    if (!this.canvas) return;
+    // Browser should provide its own means of leaving fullscreen (eg Esc). If we got this request, assume it's *to* fullscreen only.
+    this.canvas.requestFullscreen();
   }
   
   toggleHardPause() {
