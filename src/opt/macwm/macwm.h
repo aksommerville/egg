@@ -76,6 +76,8 @@ int macwm_hid_from_mac_keycode(int maccode);
  */
 void macwm_release_keys(struct macwm *macwm);
 
+void macwm_set_title(struct macwm *macwm,const char *title);
+
 //TODO show/hide cursor
 
 #endif

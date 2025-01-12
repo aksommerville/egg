@@ -107,6 +107,12 @@ int macwm_get_fullscreen(const struct macwm *macwm) {
   return macwm->fullscreen;
 }
 
+void macwm_set_title(struct macwm *macwm,const char *title) {
+  if (!macwm) return;
+  if (!title) title="";
+  macwm->window.title=[NSString stringWithUTF8String:title];
+}
+
 /* Fullscreen.
  */
 

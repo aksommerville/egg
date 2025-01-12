@@ -70,15 +70,12 @@ static int _macwm_init(struct hostio_video *driver,const struct hostio_video_set
   return 0;
 }
 
-/* Update.
+/* Simple hooks.
  */
 
 static int _macwm_update(struct hostio_video *driver) {
   return macwm_update(DRIVER->macwm);
 }
-
-/* Render framing.
- */
 
 static int _macwm_begin_frame(struct hostio_video *driver) {
   return macwm_render_begin(DRIVER->macwm);
@@ -89,12 +86,13 @@ static int _macwm_end_frame(struct hostio_video *driver) {
   return 0;
 }
 
-/* Fullscreen.
- */
-
 static void _macwm_set_fullscreen(struct hostio_video *driver,int fullscreen) {
   macwm_set_fullscreen(DRIVER->macwm,fullscreen);
   driver->fullscreen=macwm_get_fullscreen(DRIVER->macwm);
+}
+
+static void _macwm_set_title(struct hostio_video *driver,const char *title) {
+  macwm_set_title(DRIVER->macwm,title);
 }
 
 /* Type definition.
@@ -111,6 +109,7 @@ const struct hostio_video_type hostio_video_type_macwm={
   .gx_begin=_macwm_begin_frame,
   .gx_end=_macwm_end_frame,
   .set_fullscreen=_macwm_set_fullscreen,
+  .set_title=_macwm_set_title,
 };
 
 /* Private, extra support for renderer.
