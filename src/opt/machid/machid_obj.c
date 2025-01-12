@@ -165,7 +165,7 @@ struct machid *machid_new(const struct machid_delegate *delegate) {
   IOHIDManagerRegisterDeviceRemovalCallback(machid->hidmgr,machid_cb_DeviceRemoval,machid);
   IOHIDManagerRegisterInputValueCallback(machid->hidmgr,machid_cb_InputValue,machid);
 
-  IOHIDManagerSetDeviceMatching(machid->hidmgr,0); // match every HID
+  IOHIDManagerSetDeviceMatching(machid->hidmgr,0);
 
   IOHIDManagerScheduleWithRunLoop(machid->hidmgr,CFRunLoopGetCurrent(),MACHID_RUNLOOP_MODE);
   

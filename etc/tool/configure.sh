@@ -4,7 +4,7 @@ DSTPATH="$1"
 rm -f "$DSTPATH"
 
 echo "******************************************"
-echo "* Generating build configuration."
+echo "* Generating build configuration ($0)."
 echo "* This is a first-time thing only."
 echo "* Delete $DSTPATH to rerun in the future."
 echo "* Please review $DSTPATH, then make again."
@@ -79,11 +79,11 @@ if ( echo "int main() { return 0; }" | clang --target=wasm32 -ocfgtmp.o -c -xc -
   if [ -n "$web_LD" ] ; then
     true
   else
-    echo "Failed to identify wasm-ld executable."
+    echo "Failed to identify wasm-ld executable. Can't build for web."
     WEB_OK=
   fi
 else
-  echo "Looks like 'clang' does not target wasm32"
+  echo "Looks like 'clang' does not target wasm32. Can't build for web."
 fi
 
 if [ -n "$WEB_OK" ] ; then
@@ -94,6 +94,8 @@ if [ -n "$WEB_OK" ] ; then
   echo "  --export=egg_client_init --export=egg_client_quit --export=egg_client_update --export=egg_client_render" >>$DSTPATH
   echo "web_LDPOST:=" >>$DSTPATH
   echo "web_OPT_ENABLE:=" >>$DSTPATH
+else
+  echo "WASMLESS_CLANG:=1" >>$DSTPATH
 fi
 
 #-------------------------------------------------------------
@@ -103,10 +105,12 @@ NATIVE_CFLAGS=
 NATIVE_LDFLAGS=
 NATIVE_LDPOST=
 NATIVE_OPT_ENABLE=
+NATIVE_OBJC=
 
 case "$NATIVE_TARGET" in
 
   linux)
+    NATIVE_CFLAGS="-Wno-incompatible-library-redeclaration -Wno-builtin-declaration-mismatch"
     NATIVE_LDPOST="-lpthread"
     NEED_EGL=
     NEED_GLES2=
@@ -164,17 +168,25 @@ case "$NATIVE_TARGET" in
   
   macos)
     NATIVE_OPT_ENABLE="macos macwm machid macaudio"
+    NATIVE_CFLAGS=" -Wno-incompatible-library-redeclaration -Wno-comment -Wno-parentheses -Wno-builtin-requires-header"
+    NATIVE_CFLAGS="$NATIVE_CFLAGS -Wno-pointer-sign -Wno-deprecated-declarations -DEGG_GLSL_VERSION=120"
+    NATIVE_OBJC="\$(macos_CC) -xobjective-c"
+    NATIVE_LDPOST="-framework Cocoa -framework Quartz -framework OpenGL -framework IOKit -framework CoreGraphics -framework AudioUnit"
   ;;
   
   mswin)
     NATIVE_OPT_ENABLE="mswin"
+    NATIVE_CFLAGS="-Wno-incompatible-library-redeclaration -Wno-builtin-declaration-mismatch"
   ;;
   
 esac
 
 echo "" >>$DSTPATH
-echo "${NATIVE_TARGET}_CC:=gcc -c -MMD -O3 -Isrc -Werror -Wno-incompatible-library-redeclaration -Wno-builtin-declaration-mismatch $NATIVE_CFLAGS" >>$DSTPATH
+echo "${NATIVE_TARGET}_CC:=gcc -c -MMD -O3 -Isrc -Werror $NATIVE_CFLAGS" >>$DSTPATH
 echo "${NATIVE_TARGET}_AS:=\$(${NATIVE_TARGET}_CC) -xassembler-with-cpp" >>$DSTPATH
+if [ -n "$NATIVE_OBJC" ] ; then
+  echo "${NATIVE_TARGET}_OBJC:=$NATIVE_OBJC" >>$DSTPATH
+fi
 echo "${NATIVE_TARGET}_LD:=gcc $NATIVE_LDFLAGS" >>$DSTPATH
 echo "${NATIVE_TARGET}_LDPOST:=-lm -lz $NATIVE_LDPOST" >>$DSTPATH
 echo "${NATIVE_TARGET}_AR:=ar" >>$DSTPATH
