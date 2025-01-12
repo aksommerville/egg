@@ -78,16 +78,14 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - One difference is FM sets a Colormap at init. Tried that, and no difference (and why would there be?).
 - - XChangeProperty returns 1 as expected.
 - - Tried a minimal image, tried various modifications of the high bits... nothing.
-- [x] MacOS: Incorrect window title, and doesn't update on language change.
-- [x] MacOS: Lots of initial settings were wrong, eg gcc warning flags
-- [x] MacOS: Point-sprite culling. Visible in Spelling Bee, as you scroll around. (might only be on the iMac? I didn't notice on the MacBook)
+- - ...updates: Full Moon is not actually working. If we change it now, it keeps the old icon. WM must have it cached somewhere.
+- - ...Also, tried XSetWMHints instead of XChangeProperty: No dice.
 - [ ] MacOS: On the iMac, I get a warning about monitoring keyboard when not focussed. We don't need that, how to turn it off?
 - - Testing: Settings/Privacy & Security/Input Monitoring: Remove from list. Will retrigger next launch.
 - - machid is causing it. Stub machid_new and it goes away.
 - - I've seen others asking Apple about this but haven't seen any answers. IOHIDManager docs don't mention it.
 - - Leaving unfixed. We'll have to advise users that it's fine to click "Deny".
 - [ ] stdlib produces a 16 MB file due to fake-malloc's heap space. Can we avoid that somehow?
-- [x] Eggcade: Web app for launching ROMs, not embedded.
 
 ## Third-Party Code
 
