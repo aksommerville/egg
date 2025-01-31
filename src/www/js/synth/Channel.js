@@ -368,14 +368,14 @@ export class Channel {
   oscillateSub(ctx, frequency, when, velocity, dur) {
     const noiseNode = new AudioBufferSourceNode(ctx, { buffer: this.noise, channelCount: 1, loop: true });
     const Q = frequency / this.subWidth;
-    const gain = 10; //TODO How to select gain for bandpass? Match opt/synth/synth_voice_sub.c, at least make the same mistake in both places.
+    const ggain = 10; //TODO How to select gain for bandpass? Match opt/synth/synth_voice_sub.c, at least make the same mistake in both places.
     // Two passes, same as native synth.
     const filter1 = new BiquadFilterNode(ctx, { frequency, Q, type: "bandpass" });
     const filter2 = new BiquadFilterNode(ctx, { frequency, Q, type: "bandpass" });
     noiseNode.connect(filter1);
     filter1.connect(filter2);
-    if (gain !== 1) {
-      const gainNode = new GainNode(ctx, { gain });
+    if (ggain !== 1) {
+      const gainNode = new GainNode(ctx, { gain: ggain });
       filter2.connect(gainNode);
       return [noiseNode, gainNode];
     }
