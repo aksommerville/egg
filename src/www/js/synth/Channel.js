@@ -222,7 +222,7 @@ export class Channel {
     if (srcp >= src.length) return;
     this.pitchenv = new Env();
     srcp = this.pitchenv.decode(src, srcp);
-    if (!this.pitchenv.pointc && (this.pitchenv.inivlo === 0.5) && (this.pitchenv.inivhi === 0.5)) {
+    if (!this.pitchenv.points.length && (this.pitchenv.inivlo === 0.5) && (this.pitchenv.inivhi === 0.5)) {
       this.pitchenv = null;
     } else {
       this.pitchenv.bias(-0.5);
@@ -318,7 +318,7 @@ export class Channel {
       frequency: frequency * this.rate,
       type: "sine",
     });
-    modulator.start();//TODO Confirm it's ok that we're not stopping or disconnecting this.
+    modulator.start();
     
     const modgain = new GainNode(ctx, { gain: frequency });
     modgain.gain.setValueAtTime(frequency, 0);
