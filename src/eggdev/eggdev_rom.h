@@ -82,7 +82,7 @@ struct eggdev_res *eggdev_rom_insert(struct eggdev_rom *rom,int p,int tid,int ri
 int eggdev_res_set_name(struct eggdev_res *res,const char *src,int srcc);
 int eggdev_res_set_comment(struct eggdev_res *res,const char *src,int srcc);
 int eggdev_res_set_format(struct eggdev_res *res,const char *src,int srcc);
-int eggdev_res_set_path(struct eggdev_res *res,const char *src,int srcc);
+int eggdev_res_set_path(struct eggdev_res *res,const char *src,int srcc); // Does not infer anything else.
 int eggdev_res_set_serial(struct eggdev_res *res,const void *src,int srcc);
 void eggdev_res_handoff_serial(struct eggdev_res *res,void *src,int srcc);
 

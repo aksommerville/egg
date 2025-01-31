@@ -439,6 +439,109 @@ static int eggdev_cb_post_api_sound(struct http_xfer *req,struct http_xfer *rsp)
   return http_xfer_set_status(rsp,200,"OK");
 }
 
+/* POST /api/synth
+ */
+ 
+static int eggdev_http_synth_print(struct sr_encoder *dst,struct synth *synth,const void *src,int srcc,int rate) {
+
+  // Show synth our song and start playing it. Important that we not ask for repeat.
+  if (synth_install_song(synth,1,src,srcc)<0) return -1;
+  synth_play_song(synth,1,0,0);
+  
+  // Emit the provisional 44-byte WAV header. Will need to fill in: (flen) (rate) (brate) (datalen)
+  int dstc0=dst->c;
+  if (sr_encode_raw(dst,
+    "RIFF\0\0\0\0WAVE" // [4..7] file length
+    "fmt \x10\0\0\0"
+      "\1\0\1\0" // format, chanc (constant)
+      "\0\0\0\0" // [24..27] rate
+      "\0\0\0\0" // [28..31] byte rate (rate*2)
+      "\2\0\x10\0" // framesize, samplesize (constant)
+    "data\0\0\0\0" // [40..43] data length
+  ,44)<0) return -1;
+  
+  //TODO I wish we had a reliable way to measure the exact length of the sound beforehand.
+  // synth itself doesn't even do that -- it adds 500 ms to all PCM prints to accomodate tails.
+  // That's highly stupid. The exact length is knowable.
+  
+  // Run synthesizer in smallish chunks until the sound finishes, appending to (dst).
+  int panic=100000; // Stop around 50 MB, don't let it get out of control.
+  do {
+    const int samplec=256;
+    const int bytec=samplec<<1;
+    if (sr_encoder_require(dst,bytec)<0) return -1;
+    synth_updatei((int16_t*)((char*)dst->v+dst->c),samplec,synth);
+    dst->c+=bytec;
+  } while (synth_get_song(synth)&&(--panic>0));
+  
+  // Not a big deal, since we updated in small chunks, but eliminate trailing zeroes.
+  while ((dst->c-dstc0>=46)&&!memcmp((char*)dst->v+dst->c-2,"\0\0",2)) dst->c-=2;
+  
+  // If we're on a big-endian host, we have to swap bytes in output. I don't expect eggdev to run on anything big-endian.
+  
+  // Fill in the WAV header.
+  int fulllen=dst->c-dstc0;
+  if (fulllen<46) return -1;
+  int filelen=fulllen-8;
+  int datalen=fulllen-44;
+  int brate=rate<<1;
+  uint8_t *w=(uint8_t*)dst->v+dstc0;
+  w[4]=filelen;
+  w[5]=filelen>>8;
+  w[6]=filelen>>16;
+  w[7]=filelen>>24;
+  w[24]=rate;
+  w[25]=rate>>8;
+  w[26]=rate>>16;
+  w[27]=rate>>24;
+  w[28]=brate;
+  w[29]=brate>>8;
+  w[30]=brate>>16;
+  w[31]=brate>>24;
+  w[40]=datalen;
+  w[41]=datalen>>8;
+  w[42]=datalen>>16;
+  w[43]=datalen>>24;
+  
+  return 0;
+}
+ 
+static int eggdev_cb_post_api_synth(struct http_xfer *req,struct http_xfer *rsp) {
+  
+  int rate=44100;
+  http_xfer_get_param_int(&rate,req,"rate",4);
+  struct sr_encoder *body=http_xfer_get_body(req);
+  struct sr_encoder *dst=http_xfer_get_body(rsp);
+  if ((rate<1)||!body||!dst) return http_xfer_set_status(rsp,400,"Invalid request");
+  
+  // Compile input so synth can accept it. We'll get EGS or sanitized WAV out of this.
+  struct eggdev_res res={0};
+  if (eggdev_res_set_serial(&res,body->v,body->c)<0) {
+    eggdev_res_cleanup(&res);
+    return http_xfer_set_status(rsp,500,"Failed to copy serial");
+  }
+  if (eggdev_compile_song(&res)<0) {
+    eggdev_res_cleanup(&res);
+    return http_xfer_set_status(rsp,400,"Failed to compile sound");
+  }
+  
+  // Make a synthesizer, and call out to play with it.
+  struct synth *synth=synth_new(rate,1);
+  if (!synth) {
+    eggdev_res_cleanup(&res);
+    return http_xfer_set_status(rsp,500,"Failed to instantiate synthesizer");
+  }
+  synth_emit_full_volume(synth);
+  int err=eggdev_http_synth_print(dst,synth,res.serial,res.serialc,rate);
+  eggdev_res_cleanup(&res);
+  synth_del(synth);
+  if (err<0) {
+    dst->c=0;
+    return http_xfer_set_status(rsp,500,"Failed to print sound");
+  }
+  return http_xfer_set_status(rsp,200,"OK");
+}
+
 /* POST /api/compile
  */
  
@@ -538,6 +641,7 @@ static int eggdev_cb_serve(struct http_xfer *req,struct http_xfer *rsp,void *use
     HTTP_METHOD_GET,"/api/make",eggdev_cb_get_api_make,
     HTTP_METHOD_GET,"/api/resources/**",eggdev_cb_get_api_resources,
     HTTP_METHOD_POST,"/api/sound",eggdev_cb_post_api_sound,
+    HTTP_METHOD_POST,"/api/synth",eggdev_cb_post_api_synth,
     HTTP_METHOD_POST,"/api/compile",eggdev_cb_post_api_compile,
     HTTP_METHOD_GET,"/api/gamehtml",eggdev_cb_get_api_gamehtml,
     HTTP_METHOD_GET,"/api/symbols",eggdev_cb_get_api_symbols,

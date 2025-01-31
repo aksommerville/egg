@@ -690,3 +690,15 @@ body {
 .ImageEditor .workbench table input[type="text"] {
   width: 50px;
 }
+
+.CompareSoundsModal > .scroller {
+  max-height: 80vh;
+  overflow-y: scroll;
+}
+.CompareSoundsModal .row {
+  display: flex;
+  flex-direction: row;
+}
+.CompareSoundsModal .row > .name {
+  flex: 1;
+}

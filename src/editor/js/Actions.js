@@ -4,6 +4,7 @@
  */
  
 import { Custom } from "../override/Custom.js";
+import { Dom } from "./Dom.js";
 import { TextEditor } from "./TextEditor.js";
 import { HexEditor } from "./HexEditor.js";
 import { ImageEditor } from "./ImageEditor.js";
@@ -11,6 +12,7 @@ import { MetadataEditor } from "./MetadataEditor.js";
 import { StringsEditor } from "./StringsEditor.js";
 import { WavEditor } from "./audio/WavEditor.js";
 import { SongEditor } from "./audio/SongEditor.js";
+import { CompareSoundsModal } from "./audio/CompareSoundsModal.js";
 import { LaunchService } from "./LaunchService.js";
 import { MapEditor } from "./map/MapEditor.js";
 import { SpriteEditor } from "./map/SpriteEditor.js";
@@ -19,13 +21,15 @@ import { CommandListEditor } from "./map/CommandListEditor.js";
  
 export class Actions {
   static getDependencies() {
-    return [Custom, LaunchService];
+    return [Custom, LaunchService, Dom];
   }
-  constructor(custom, launchService) {
+  constructor(custom, launchService, dom) {
     this.launchService = launchService;
+    this.dom = dom;
     
     this.ops = [
       { op: "launch", label: "Launch", fn: () => this.launchService.launch() },
+      { op: "compareSounds", label: "Compare Sounds", fn: () => this.dom.spawnModal(CompareSoundsModal) },
       ...custom.getActions(),
     ];
     

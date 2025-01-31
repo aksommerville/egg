@@ -68,6 +68,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] Ensure parity between web and native.
 - - [ ] Channel.oscillateSub: Sub width stubbed out, figure this out.
+- - - [x] I need a convenient and fast way to compare native vs web output.
+- - - - We have `eggdev sound` already, for native synth. Just need a web correllary.
+- - - - This tool will have to run in a browser. We can have the server do the native bit.
+- - - - New editor action "Compare Sounds". And right off the bat "sound/4-tom.mid" is obviously different Native vs Web.
 - - [ ] web: Wave voice not using pitchenv (see snake)
 - [ ] Ship client libraries eg stdlib as static archives ready to link.
 - - This is more complex than it sounds. Clients would have to be able to tell eggdev which units they're interested in.

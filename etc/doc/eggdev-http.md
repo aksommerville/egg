@@ -55,6 +55,12 @@ Add `?unavailableStatus=299` or any 3-digit number for a different status (so br
 Only one thing can play at a time.
 TODO Can we get playhead feedback over a WebSocket?
 
+`POST /api/synth?rate=HZ`
+
+Request body is any audio resource.
+Compile the resource, stand a synthesizer, print PCM, and return a WAV file.
+This does not require a server-side audio driver.
+
 `POST /api/compile?srcfmt=NAME&dstfmt=NAME`
 
 Run one resource through the standard compiler or uncompiler.
