@@ -6,7 +6,7 @@
 import { SynthFormats } from "./SynthFormats.js";
 import { Song } from "./Song.js";
 import { Env } from "./Env.js";
- 
+
 export class Channel {
 
   /* (src) must be from SynthFormats.splitEgs().channels, and not null.
@@ -367,9 +367,18 @@ export class Channel {
   
   oscillateSub(ctx, frequency, when, velocity, dur) {
     const noiseNode = new AudioBufferSourceNode(ctx, { buffer: this.noise, channelCount: 1, loop: true });
-    const Q = 1;//((65536 - this.subWidth) * 2) / ctx.sampleRate; //TODO Sane calculation for Q.
-    const filter = new BiquadFilterNode(ctx, { frequency, Q, type: "bandpass" });
-    noiseNode.connect(filter);
-    return [noiseNode, filter];
+    const Q = frequency / this.subWidth;
+    const gain = 10; //TODO How to select gain for bandpass? Match opt/synth/synth_voice_sub.c, at least make the same mistake in both places.
+    // Two passes, same as native synth.
+    const filter1 = new BiquadFilterNode(ctx, { frequency, Q, type: "bandpass" });
+    const filter2 = new BiquadFilterNode(ctx, { frequency, Q, type: "bandpass" });
+    noiseNode.connect(filter1);
+    filter1.connect(filter2);
+    if (gain !== 1) {
+      const gainNode = new GainNode(ctx, { gain });
+      filter2.connect(gainNode);
+      return [noiseNode, gainNode];
+    }
+    return [noiseNode, filter2];
   }
 }
