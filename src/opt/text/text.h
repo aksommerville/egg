@@ -60,6 +60,11 @@ int strings_format(char *dst,int dsta,int rid,int index,const struct strings_ins
 
 int strings_decsint_repr(char *dst,int dsta,int src);
 
+/* Returns 10-bit language code or -1.
+ * You should already know this list, it's your data, but maybe this is more convenient.
+ */
+int strings_lang_by_index(int p);
+
 /********************************************************************
  * Text rendering.
  *

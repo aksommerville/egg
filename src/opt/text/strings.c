@@ -176,3 +176,24 @@ int strings_format(char *dst,int dsta,int rid,int index,const struct strings_ins
   if (dstc<dsta) dst[dstc]=0;
   return dstc;
 }
+
+/* Language by index.
+ */
+ 
+int strings_lang_by_index(int p) {
+  if (p<0) return -1;
+  int pvlang=-1;
+  const struct text_res *res=strings.resv;
+  int i=strings.resc;
+  for (;i-->0;res++) {
+    int tid=(res->id>>16)&0xffff;
+    if (tid!=EGG_TID_strings) continue;
+    int rid=res->id&0xffff;
+    int lang=rid>>6;
+    if (lang!=pvlang) {
+      if (!p--) return lang;
+      pvlang=lang;
+    }
+  }
+  return -1;
+}
