@@ -18,8 +18,47 @@ export class Rom {
     this.decode();
   }
   
+  /* Decodes all image resources and adds an Image object to (resv[]).
+   * Returns a Promise.
+   */
+  preload() {
+    const promises = [];
+    for (const res of this.resv) {
+      switch (res.tid) {
+        case Rom.TID_image: {
+            promises.push(this.preloadImage(res.serial).then(img => {
+              res.image = img;
+            }));
+          } break;
+      }
+    }
+    return Promise.all(promises);
+  }
+  
+  preloadImage(serial) {
+    const blob = new Blob([serial]);
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    //const image = document.createElement("IMG");
+    return new Promise((resolve, reject) => {
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = e => {
+        URL.revokeObjectURL(url);
+        reject(e);
+      };
+      image.src = url;
+    });
+  }
+  
   getResource(tid, rid) {
     return this.resv.find(r => ((r.tid === tid) && (r.rid === rid)))?.serial || [];
+  }
+  
+  getResourceEntry(tid, rid) {
+    return this.resv.find(r => ((r.tid === tid) && (r.rid === rid)));
   }
   
   /* (lang) nonzero to resolve 'k$', if present.

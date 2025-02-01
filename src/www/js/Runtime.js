@@ -7,7 +7,6 @@ import { Exec } from "./Exec.js";
 import { Video } from "./Video.js";
 import { Audio } from "./synth/Audio.js";
 import { Input } from "./Input.js";
-import { ImageDecoder } from "./ImageDecoder.js";
 import { Incfg } from "./Incfg.js";
 
 /* The ideal update interval is 1/60 seconds, about 0.017.
@@ -25,7 +24,6 @@ export class Runtime {
     this.video = new Video(this);
     this.audio = new Audio(this);
     this.input = new Input(this);
-    this.imageDecoder = new ImageDecoder();
     this.incfg = null; // Instance of Incfg if configuring.
     this.status = "new"; // "new" "loaded" "running" "stopped"
     this.exitStatus = 0;
@@ -168,14 +166,12 @@ export class Runtime {
     const iconRid = +this.rom.getMetadata("iconImage", 0);
     if (iconRid) {
       const serial = this.rom.getResource(Rom.TID_image, iconRid);
-      if (this.imageDecoder.isPng(serial)) {
-        const b64 = this.rom.encodeBase64(serial);
-        for (const element of document.querySelectorAll("link[rel='icon']")) element.remove();
-        const element = document.createElement("LINK");
-        element.setAttribute("rel", "icon");
-        element.setAttribute("href", "data:image/png;base64," + b64);
-        document.head.appendChild(element);
-      }
+      const b64 = this.rom.encodeBase64(serial);
+      for (const element of document.querySelectorAll("link[rel='icon']")) element.remove();
+      const element = document.createElement("LINK");
+      element.setAttribute("rel", "icon");
+      element.setAttribute("href", "data:image/png;base64," + b64);
+      document.head.appendChild(element);
     }
   }
   

@@ -178,27 +178,33 @@ export class Video {
     this.gl.bindTexture(this.gl.TEXTURE_2D, tex.id);
     
     let ifmt = this.gl.RGBA, glfmt = this.gl.RGBA, type = this.gl.UNSIGNED_BYTE;
-    let minstride = w << 2;
-    switch (fmt) {
-      case Video.TEX_FMT_RGBA: break;
-      case Video.TEX_FMT_A8: ifmt = this.gl.ALPHA; glfmt = this.gl.ALPHA; minstride = w; break;
-      case Video.TEX_FMT_A1: {
-          if (src) src = this.expandOneBit(src, w, h, stride);
-          fmt = Video.TEX_FMT_RGBA;
-          stride = w << 2;
-        } break;
-      default: return -1;
-    }
-    if (src) {
-      if (stride < 1) stride = minstride;
-      else if (stride < minstride) return -1;
-      if (h * stride > src.length) return -1;
-      if (stride !== minstride) {
-        if (!(src = this.restride(src, minstride, stride, h))) return -1;
+    if ((src instanceof Image) || (src instanceof HTMLCanvasElement)) {
+      // WebGL accepts these directly.
+      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, ifmt, glfmt, type, src);
+    } else {
+      // Validate raw pixels.
+      let minstride = w << 2;
+      switch (fmt) {
+        case Video.TEX_FMT_RGBA: break;
+        case Video.TEX_FMT_A8: ifmt = this.gl.ALPHA; glfmt = this.gl.ALPHA; minstride = w; break;
+        case Video.TEX_FMT_A1: {
+            if (src) src = this.expandOneBit(src, w, h, stride);
+            fmt = Video.TEX_FMT_RGBA;
+            stride = w << 2;
+          } break;
+        default: return -1;
       }
+      if (src) {
+        if (stride < 1) stride = minstride;
+        else if (stride < minstride) return -1;
+        if (h * stride > src.length) return -1;
+        if (stride !== minstride) {
+          if (!(src = this.restride(src, minstride, stride, h))) return -1;
+        }
+      }
+      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, ifmt, w, h, 0, glfmt, type, src);
     }
     
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, ifmt, w, h, 0, glfmt, type, src);
     tex.w = w;
     tex.h = h;
     tex.fmt = fmt;
@@ -214,21 +220,6 @@ export class Video {
       }
     }
     return dst;
-  }
-  
-  loadTextureSerial(texid, src) {
-    if (texid < 2) return -1;
-    if (!src?.length) return -1;
-    const tex = this.textures[texid];
-    if (!tex) return -1;
-    try {
-      const image = this.rt.imageDecoder.decode(src);
-      return this.loadTexture(tex, image.fmt, image.w, image.h, image.stride, image.v);
-    } catch (e) {
-      console.error(e);
-      return -1;
-    }
-    return -1;
   }
   
   requireFramebuffer(tex) {
@@ -292,9 +283,12 @@ export class Video {
   }
   
   egg_texture_load_image(texid, rid) {
-    const serial = this.rt.rom.getResource(Rom.TID_image, rid);
-    if (!serial.length) return -1;
-    return this.loadTextureSerial(texid, serial);
+    if (texid < 2) return -1;
+    const tex = this.textures[texid];
+    if (!tex) return -1;
+    const res = this.rt.rom.getResourceEntry(Rom.TID_image, rid);
+    if (!res || !res.image) return -1;
+    return this.loadTexture(tex, 1/*RGBA*/, res.image.naturalWidth, res.image.naturalHeight, 0, res.image);
   }
   
   egg_texture_load_raw(texid, fmt, w, h, stride, srcp, srcc) {

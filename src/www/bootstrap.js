@@ -1,6 +1,5 @@
 import { Rom } from "./js/Rom.js";
 import { Runtime } from "./js/Runtime.js";
-import { ImageDecoder } from "./js/ImageDecoder.js";
 
 const DEFAULT_ROM_PATH = "/demo.egg";
 
@@ -56,10 +55,10 @@ function registerResizeHandler() {
 }
 
 function launchEgg(serial) {
-  return Promise.resolve().then(() => {
+  const rom = new Rom(serial);
+  return rom.preload().then(() => {
     const canvas = document.getElementById("egg-canvas");
     if (!canvas) throw new Error("Canvas not found.");
-    const rom = new Rom(serial);
     runtime = new Runtime(rom, canvas);
     //console.log(`launchEgg`, { rom, serial, runtime, canvas });
     return runtime.load();
@@ -87,7 +86,6 @@ if (window.eggIsMultiLauncher) {
   window.launchEgg = launchEgg;
   window.terminateEgg = terminateEgg;
   window.Rom = Rom;
-  window.ImageDecoder = ImageDecoder;
   window.eggRuntime = null;
 } else {
   window.addEventListener("load", () => {

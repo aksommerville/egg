@@ -309,12 +309,12 @@ static int eggdev_project_copy_res(struct eggdev_project_context *ctx,const char
 static int eggdev_project_copy_resources(struct eggdev_project_context *ctx) {
   int err;
   // There are more fonts we could copy if we felt like it, and more pages for font9. Usually I end up deleting them, so just sticking to the basics here.
-  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/2-font9_0020.a1.rlead.png","src/data/image/1-font9_0020.a1.rlead.png"))<0) return err;
-  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/3-font9_00a1.a1.rlead.png","src/data/image/2-font9_00a1.a1.rlead.png"))<0) return err;
-  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/4-font9_0400.a1.rlead.png","src/data/image/3-font9_0400.a1.rlead.png"))<0) return err;
-  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/8-font6_0020.a1.rlead.png","src/data/image/4-font6_0020.a1.rlead.png"))<0) return err;
-  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/9-cursive_0020.a1.rlead.png","src/data/image/5-cursive_0020.a1.rlead.png"))<0) return err;
-  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/10-witchy_0020.a1.rlead.png","src/data/image/6-witchy_0020.a1.rlead.png"))<0) return err;
+  if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/2-font9_0020.a1.png","src/data/image/1-font9_0020.a1.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/3-font9_00a1.a1.png","src/data/image/2-font9_00a1.a1.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/4-font9_0400.a1.png","src/data/image/3-font9_0400.a1.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/8-font6_0020.a1.png","src/data/image/4-font6_0020.a1.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/9-cursive_0020.a1.png","src/data/image/5-cursive_0020.a1.png"))<0) return err;
+  //if ((err=eggdev_project_copy_res(ctx,"src/demo/data/image/10-witchy_0020.a1.png","src/data/image/6-witchy_0020.a1.png"))<0) return err;
   if ((err=eggdev_project_copy_res(ctx,"src/editor/override/Custom.js","src/editor/override/Custom.js"))<0) return err;
   return 0;
 }

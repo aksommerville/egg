@@ -109,10 +109,7 @@ export class GameCard {
   
   dataUrlFromResource(serial) {
     if (serial?.length) {
-      const imageDecoder = new this.window.ImageDecoder(); // Egg bootstrap installs this on window.
-      if (imageDecoder.isPng(serial)) {
-        return "data:image/png;base64," +  this.rom.encodeBase64(serial);
-      }
+      return "data:image/png;base64," +  this.rom.encodeBase64(serial);
     }
     return "";
   }
