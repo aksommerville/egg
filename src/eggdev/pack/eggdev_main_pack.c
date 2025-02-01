@@ -1,4 +1,4 @@
-#include "eggdev_internal.h"
+#include "eggdev/eggdev_internal.h"
 #include "opt/synth/synth_formats.h"
 
 static int eggdev_res_cmp(const void *a,const void *b) {

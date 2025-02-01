@@ -1,4 +1,4 @@
-#include "eggdev_internal.h"
+#include "eggdev/eggdev_internal.h"
 
 /* Context.
  */

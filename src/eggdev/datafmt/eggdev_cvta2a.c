@@ -1,4 +1,4 @@
-#include "eggdev_internal.h"
+#include "eggdev/eggdev_internal.h"
 #include "opt/image/image.h"
 
 #define EGGDEV_FMT_PNG 1

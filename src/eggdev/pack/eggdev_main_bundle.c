@@ -4,7 +4,7 @@
  * All this file does is distinguish HTML from Native, and call out.
  */
 
-#include "eggdev_internal.h"
+#include "eggdev/eggdev_internal.h"
 
 int eggdev_bundle_html();
 int eggdev_bundle_native();

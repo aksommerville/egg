@@ -1,5 +1,5 @@
-#include "eggdev_internal.h"
-#include "jst.h"
+#include "eggdev/eggdev_internal.h"
+#include "eggdev/minify/jst.h"
 
 /* Context.
  */

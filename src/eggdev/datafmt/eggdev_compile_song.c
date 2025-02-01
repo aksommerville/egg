@@ -1,4 +1,4 @@
-#include "eggdev_internal.h"
+#include "eggdev/eggdev_internal.h"
 #include "opt/synth/synth_formats.h"
 
 #define HOLD_LIMIT 32
