@@ -48,11 +48,6 @@ struct http_socket *http_context_socket_for_request(
   const struct http_xfer *req
 );
 
-struct http_socket *http_context_socket_for_websocket(
-  const struct http_context *ctx,
-  const struct http_websocket *ws
-);
-
 /* Socket.
  **************************************************************/
 
@@ -60,7 +55,6 @@ struct http_socket *http_context_socket_for_websocket(
 #define HTTP_SOCKET_ROLE_SERVER 1
 #define HTTP_SOCKET_ROLE_SERVER_STREAM 2
 #define HTTP_SOCKET_ROLE_CLIENT_STREAM 3
-#define HTTP_SOCKET_ROLE_WEBSOCKET 4
 
 /* State for SERVER_STREAM and CLIENT_STREAM.
  * Both rest in IDLE state between transactions.
@@ -100,10 +94,8 @@ struct http_socket {
   int wbufp;
   
   /* High-level context objects. These are how we communicate beyond the http unit.
-   * (ws) must always be set if our role is WEBSOCKET.
    * (req,rsp) are set transiently in both STREAM roles, according to state.
    */
-  struct http_websocket *ws;
   struct http_xfer *req;
   struct http_xfer *rsp;
 };
@@ -115,13 +107,9 @@ void http_socket_del(struct http_socket *sock);
 struct http_socket *http_socket_new(struct http_context *ctx);
 struct http_socket *http_socket_new_handoff(struct http_context *ctx,int fd);
 
-/* There is no "configure_websocket_server".
- * Those sockets begin as "server_stream" and get upgraded.
- */
 int http_socket_configure_server(struct http_socket *sock,int local_only,int port);
 int http_socket_configure_server_stream(struct http_socket *sock); // Must have initialized with handoff.
 int http_socket_configure_client_stream(struct http_socket *sock,struct http_xfer *req,const char *url,int urlc); // (req) HANDOFF
-int http_socket_configure_websocket_client(struct http_socket *sock,const char *url,int urlc);
 
 /* (now<0.0) to skip timeout checks.
  */
@@ -133,24 +121,6 @@ void http_socket_force_defunct(struct http_socket *sock);
  */
 int http_socket_preupdate(struct http_socket *sock);
 int http_socket_update(struct http_socket *sock);
-
-/* WebSocket.
- ***************************************************************/
- 
-struct http_websocket {
-  struct http_context *ctx;
-  int (*cb)(struct http_websocket *ws,int opcode,const void *v,int c);
-  void *userdata;
-};
-
-void http_websocket_del(struct http_websocket *ws);
-struct http_websocket *http_websocket_new(struct http_context *ctx);
-
-int http_websocket_encode_upgrade_request(
-  struct sr_encoder *dst,
-  struct http_websocket *ws,
-  const char *url,int urlc
-);
 
 /* Transfer.
  ****************************************************************/

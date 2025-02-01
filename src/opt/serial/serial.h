@@ -83,9 +83,6 @@ int sr_url_decode(char *dst,int dsta,const char *src,int srcc);
 int sr_base64_encode(char *dst,int dsta,const void *src,int srcc);
 int sr_base64_decode(void *dst,int dsta,const char *src,int srcc);
 
-int sr_md5(void *dst,int dsta,const void *src,int srcc);
-int sr_sha1(void *dst,int dsta,const void *src,int srcc);
-
 /* Structured encoder.
  * Caller can yoink (encoder.v), otherwise you must cleanup.
  ****************************************************************/

@@ -10,22 +10,11 @@ struct http_socket *http_context_socket_for_request(
   const struct http_context *ctx,
   const struct http_xfer *req
 ) { return 0; }
-struct http_socket *http_context_socket_for_websocket(
-  const struct http_context *ctx,
-  const struct http_websocket *ws
-) { return 0; }
 int http_listen(struct http_context *ctx,int local_only,int port) { return -1; }
 int http_unlisten(struct http_context *ctx,int port) { return -1; }
 int http_update(struct http_context *ctx,int toms) { return -1; }
 int http_get_files(struct pollfd *dst,int dsta,struct http_context *ctx) { return -1; }
 int http_update_file(struct http_context *ctx,int fd) { return -1; }
-struct http_websocket *http_context_get_websocket_by_index(const struct http_context *ctx,int p) { return 0; }
-struct http_websocket *http_websocket_connect(
-  struct http_context *ctx,
-  const char *url,int urlc,
-  int (*cb)(struct http_websocket *ws,int opcode,const void *v,int c),
-  void *userdata
-) { return 0; }
 struct http_xfer *http_request(
   struct http_context *ctx,
   const char *method,
@@ -82,7 +71,6 @@ struct http_context *http_context_new(const struct http_context_delegate *delega
   if (delegate) ctx->delegate=*delegate;
   
   ctx->limits.requests=10;
-  ctx->limits.websockets=10;
   ctx->limits.backlog=100;
   ctx->limits.idle_timeout=10.0;
   ctx->limits.active_timeout=60.0;
@@ -151,18 +139,6 @@ struct http_socket *http_context_socket_for_request(
   int i=ctx->socketc;
   for (;i-->0;sockp++) {
     if ((*sockp)->req==req) return *sockp;
-  }
-  return 0;
-}
-
-struct http_socket *http_context_socket_for_websocket(
-  const struct http_context *ctx,
-  const struct http_websocket *ws
-) {
-  struct http_socket **sockp=ctx->socketv;
-  int i=ctx->socketc;
-  for (;i-->0;sockp++) {
-    if ((*sockp)->ws==ws) return *sockp;
   }
   return 0;
 }
@@ -302,45 +278,6 @@ int http_update_file(struct http_context *ctx,int fd) {
     return 0;
   }
   return -1;
-}
-
-/* Find websocket.
- */
- 
-struct http_websocket *http_context_get_websocket_by_index(const struct http_context *ctx,int p) {
-  if (p<0) return 0;
-  struct http_socket **sock=ctx->socketv;
-  int i=ctx->socketc;
-  for (;i-->0;sock++) {
-    if ((*sock)->role!=HTTP_SOCKET_ROLE_WEBSOCKET) continue;
-    if (!(*sock)->ws) continue;
-    if (p--) continue;
-    return (*sock)->ws;
-  }
-  return 0;
-}
-
-/* New WebSocket client connection.
- */
- 
-struct http_websocket *http_websocket_connect(
-  struct http_context *ctx,
-  const char *url,int urlc,
-  int (*cb)(struct http_websocket *ws,int opcode,const void *v,int c),
-  void *userdata
-) {
-  if (ctx->limits.websockets<1) return 0;
-  if (http_context_socketv_require(ctx)<0) return 0;
-  struct http_socket *sock=http_socket_new(ctx);
-  if (!sock) return 0;
-  if (http_socket_configure_websocket_client(sock,url,urlc)<0) {
-    http_socket_del(sock);
-    return 0;
-  }
-  sock->ws->cb=cb;
-  sock->ws->userdata=userdata;
-  ctx->socketv[ctx->socketc++]=sock;
-  return sock->ws;
 }
 
 /* Handoff client request xfer to backlog.

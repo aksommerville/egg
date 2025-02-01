@@ -651,28 +651,12 @@ static int eggdev_cb_serve(struct http_xfer *req,struct http_xfer *rsp,void *use
   );
 }
 
-/* WebSocket connection.
- * TODO Are we going to use WebSocket?
- */
- 
-static int eggdev_cb_connect(struct http_websocket *ws,void *userdata) {
-  fprintf(stderr,"%s\n",__func__);
-  return 0;
-}
-
-static int eggdev_cb_disconnect(struct http_websocket *ws,void *userdata) {
-  fprintf(stderr,"%s\n",__func__);
-  return 0;
-}
-
 /* Init HTTP context.
  */
  
 static int eggdev_serve_init_http() {
   struct http_context_delegate delegate={
     .cb_serve=eggdev_cb_serve,
-    .cb_connect=eggdev_cb_connect,
-    .cb_disconnect=eggdev_cb_disconnect,
   };
   if (!(eggdev.http=http_context_new(&delegate))) {
     fprintf(stderr,"%s: Failed to create HTTP context.\n",eggdev.exename);

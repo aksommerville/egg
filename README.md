@@ -83,8 +83,5 @@ Dependencies required for build:
 - zlib
 
 Code baked into our source:
-- zlib.js by imaya. [Source](https://github.com/imaya/zlib.js). In the Web runtime.
 - [Newlib](https://sourceware.org/newlib/). In client libraries.
-- MD5 (`sr_encodings.c`) by Christophe Devine (GPL)
-- SHA-1 (`sr_encodings.c`) by Steve Reid (Public Domain)
 - `synth_voice_sub.c`, IIR algorithms copied from _The Scientist and Engineer's Guide to Digital Signal Processing_ by Steven W Smith

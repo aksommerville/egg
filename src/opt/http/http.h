@@ -6,7 +6,6 @@
 
 struct http_context;
 struct http_xfer;
-struct http_websocket;
 struct sr_encoder;
 struct pollfd;
 
@@ -19,8 +18,6 @@ struct pollfd;
 struct http_context_delegate {
   void *userdata;
   int (*cb_serve)(struct http_xfer *req,struct http_xfer *rsp,void *userdata);
-  int (*cb_connect)(struct http_websocket *ws,void *userdata);
-  int (*cb_disconnect)(struct http_websocket *ws,void *userdata);
 };
 
 void http_context_del(struct http_context *ctx);
@@ -28,7 +25,6 @@ struct http_context *http_context_new(const struct http_context_delegate *delega
 
 struct http_limits {
   int requests; // Max HTTP requests in flight at a time. Doesn't count WebSockets.
-  int websockets; // Max WebSockets at a time.
   int backlog; // Max outbound requests deferred due to (requests) limit.
   double idle_timeout; // sec. When to drop sockets, if they are between transactions.
   double active_timeout; // sec. Drop socket mid-transaction.
@@ -52,40 +48,6 @@ int http_unlisten(struct http_context *ctx,int port);
 int http_update(struct http_context *ctx,int toms);
 int http_get_files(struct pollfd *dst,int dsta,struct http_context *ctx);
 int http_update_file(struct http_context *ctx,int fd);
-
-/* WebSocket.
- ****************************************************************/
-
-/* Create a client WebSocket, connected to some remote host.
- * On success, returns a WEAK object owned by the context.
- * All WebSockets trigger their callback with (-1,0,0) as they delete.
- * You must drop any references to it at that time.
- */
-struct http_websocket *http_websocket_connect(
-  struct http_context *ctx,
-  const char *url,int urlc,
-  int (*cb)(struct http_websocket *ws,int opcode,const void *v,int c),
-  void *userdata
-);
-
-/* Disconnect a WebSocket, either client or server role.
- * Global cb_disconnect will not fire for it.
- */
-void http_websocket_disconnect(struct http_websocket *ws);
-
-int http_websocket_send(struct http_websocket *ws,int opcode,const void *v,int c);
-
-void *http_websocket_get_userdata(const struct http_websocket *ws);
-void http_websocket_set_userdata(struct http_websocket *ws,void *userdata);
-void http_websocket_set_callback(struct http_websocket *ws,int (*cb)(struct http_websocket *ws,int opcode,const void *v,int c));
-
-struct http_websocket *http_context_get_websocket_by_index(const struct http_context *ctx,int p);
-
-/* Convenience for WebSocket servers.
- * If this request asks for an upgrade to WebSocket, respond affirmatively and return the new WebSocket object.
- * Not-a-WebSocket-request is indistinguishable from real errors.
- */
-struct http_websocket *http_websocket_check_upgrade(struct http_xfer *req,struct http_xfer *rsp);
 
 /* xfer: Request or response.
  * This is a dumb object. Its only job is to model the HTTP request/response.
