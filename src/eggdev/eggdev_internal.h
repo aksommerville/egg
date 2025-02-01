@@ -167,6 +167,18 @@ int eggdev_cvta2a(
   const char *dstfmt,int dstfmtc,
   const char *srcfmt,int srcfmtc
 );
+int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src,int srcc,int fromfmt);
+#define EGGDEV_FMT_PNG 1
+#define EGGDEV_FMT_MIDI 2
+#define EGGDEV_FMT_WAV 3
+#define EGGDEV_FMT_EGS 4
+#define EGGDEV_FMT_STRINGS_BIN 5
+#define EGGDEV_FMT_METADATA_BIN 6
+#define EGGDEV_FMT_ROM 7
+#define EGGDEV_FMT_TEXT 8
+#define EGGDEV_FMT_HTML 9
+#define EGGDEV_FMT_CSS 10
+#define EGGDEV_FMT_JS 11
 
 /* (src,srcc) zero to check the global rom if present.
  */
@@ -195,6 +207,10 @@ void eggdev_hexdump(const void *src,int srcc);
 /* Never returns negative or >dsta, and output is lowercase.
  */
 int eggdev_normalize_suffix(char *dst,int dsta,const char *src,int srcc);
+
+/* Given a relative URL (rel) from file (ref), join into (dst).
+ */
+int eggdev_relative_path(char *dst,int dsta,const char *ref,int refc,const char *rel,int relc);
 
 int eggdev_command_list_compile(
   struct sr_encoder *dst,

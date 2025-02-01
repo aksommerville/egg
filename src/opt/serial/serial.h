@@ -112,6 +112,8 @@ int sr_encode_intbelen(struct sr_encoder *encoder,const void *src,int srcc,int l
 int sr_encode_intlelen(struct sr_encoder *encoder,const void *src,int srcc,int lenlen);
 int sr_encode_vlqlen(struct sr_encoder *encoder,const void *src,int srcc);
 
+int sr_encode_base64(struct sr_encoder *encoder,const void *src,int srcc);
+
 /* JSON structures and helpers.
  * All JSON-related errors are sticky: Once something fails, no further JSON calls will succeed.
  * You can safely defer error detection to the end, if that's more convenient.

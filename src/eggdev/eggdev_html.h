@@ -33,6 +33,7 @@ void eggdev_html_reader_init(struct eggdev_html_reader *reader,const void *src,i
  * COMMENT includes DOCTYPE.
  * SPACE is lexically the same as TEXT, but only contains whitespace. Typically you'll ignore those.
  * eggdev_html_expression_type always returns one of the symbols below; empty string is SPACE.
+ * Whitespace is not trimmed from TEXT.
  */
 int eggdev_html_reader_next(void *dstpp,struct eggdev_html_reader *reader);
 int eggdev_html_expression_type(const char *src,int srcc);

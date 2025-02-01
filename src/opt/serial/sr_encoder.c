@@ -164,6 +164,23 @@ int sr_encode_vlqlen(struct sr_encoder *encoder,const void *src,int srcc) {
   return 0;
 }
 
+/* Base64.
+ */
+ 
+int sr_encode_base64(struct sr_encoder *encoder,const void *src,int srcc) {
+  for (;;) {
+    char *dst=((char*)encoder->v)+encoder->c;
+    int dsta=encoder->a-encoder->c;
+    int err=sr_base64_encode(dst,dsta,src,srcc);
+    if (err<0) return -1;
+    if (encoder->c<=encoder->a-err) {
+      encoder->c+=err;
+      return 0;
+    }
+    if (sr_encoder_require(encoder,err)<0) return -1;
+  }
+}
+
 /* JSON assert completion.
  */
  

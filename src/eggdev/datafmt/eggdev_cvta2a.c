@@ -1,19 +1,78 @@
 #include "eggdev/eggdev_internal.h"
 #include "opt/image/image.h"
 
-#define EGGDEV_FMT_PNG 1
-#define EGGDEV_FMT_MIDI 5
-#define EGGDEV_FMT_WAV 6
-#define EGGDEV_FMT_EGS 7
-#define EGGDEV_FMT_STRINGS_BIN 9
-#define EGGDEV_FMT_METADATA_BIN 10
-#define EGGDEV_FMT_ROM 11
-#define EGGDEV_FMT_TEXT 12
+/* Guess format for text with unknown name and no obvious signature.
+ * At the limit, we can call it simply TEXT.
+ */
+ 
+int eggdev_cvta2a_guess_text_format(const char *src,int srcc) {
+
+  // Read the first whitespace-delimited token.
+  int srcp=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp]<=0x20)) srcp++;
+  const char *token=src+srcp;
+  int tokenc=0;
+  while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+  if (!tokenc) return EGGDEV_FMT_TEXT;
+  
+  // '<' as th first character, it's got to be HTML. (we don't use XML anywhere)
+  if (token[0]=='<') return EGGDEV_FMT_HTML;
+  
+  // Double-slash is telling; only Javascript uses that. (unfortunately I generally don't, at the start of a file)
+  if ((tokenc>=2)&&(token[0]=='/')&&(token[1]=='/')) return EGGDEV_FMT_JS;
+  
+  // Slash-star is a CSS or JS block comment. Keep reading until we find something more distinctive.
+  int comment=0;
+  if ((tokenc>=2)&&(token[0]=='/')&&(token[1]=='*')) {
+    comment=1;
+    srcp=0; // Our first token pull would consume '/**/', so start over.
+    while (srcp<srcc) {
+      if ((unsigned char)src[srcp]<=0x20) {
+        srcp++;
+        continue;
+      }
+      // Not a comment or space. Stop here.
+      if ((srcp>srcc-2)||(src[srcp]!='/')) break;
+      // No need to skip line comments; they're only legal in JS.
+      if (src[srcp+1]=='/') return EGGDEV_FMT_JS;
+      // Skip block comments.
+      if (src[srcp+1]=='*') {
+        srcp+=2;
+        for (;;) {
+          if (srcp>srcc-2) break;
+          if ((src[srcp]=='*')&&(src[srcp+1]=='/')) { srcp+=2; break; }
+          srcp++;
+        }
+      } else {
+        break;
+      }
+    }
+    token=src+srcp;
+    tokenc=0;
+    while ((srcp<srcc)&&((unsigned char)src[srcp++]>0x20)) tokenc++;
+    // A file consisting only of block comments can be either JS or CSS. CSS is lighter.
+    if (!tokenc) return EGGDEV_FMT_CSS;
+  }
+  
+  // There's only so many things a JS file would start with:
+  if ((tokenc==6)&&!memcmp(token,"import",6)) return EGGDEV_FMT_JS;
+  if ((tokenc==6)&&!memcmp(token,"export",6)) return EGGDEV_FMT_JS;
+  if ((tokenc==5)&&!memcmp(token,"const",5)) return EGGDEV_FMT_JS;
+  if ((tokenc==3)&&!memcmp(token,"let",3)) return EGGDEV_FMT_JS;
+  if ((tokenc==3)&&!memcmp(token,"var",3)) return EGGDEV_FMT_JS;
+  if ((tokenc==8)&&!memcmp(token,"function",8)) return EGGDEV_FMT_JS;
+  if ((tokenc==5)&&!memcmp(token,"class",5)) return EGGDEV_FMT_JS;
+  // Anything else starting with a block comment, call it CSS.
+  if (comment) return EGGDEV_FMT_CSS;
+  
+  // Not sure.
+  return EGGDEV_FMT_TEXT;
+}
 
 /* Guess format.
  */
  
-static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src,int srcc,int fromfmt) {
+int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src,int srcc,int fromfmt) {
 
   /* (name) trumps all if we recognize it, and if we don't recognize it that's an error.
    */
@@ -26,6 +85,10 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
     if ((namec==12)&&!memcmp(name,"metadata_bin",12)) return EGGDEV_FMT_METADATA_BIN;
     if ((namec==3)&&!memcmp(name,"rom",3)) return EGGDEV_FMT_ROM;
     if ((namec==4)&&!memcmp(name,"text",4)) return EGGDEV_FMT_TEXT;
+    if ((namec==4)&&!memcmp(name,"html",4)) return EGGDEV_FMT_HTML;
+    if ((namec==3)&&!memcmp(name,"htm",3)) return EGGDEV_FMT_HTML;
+    if ((namec==3)&&!memcmp(name,"css",3)) return EGGDEV_FMT_CSS;
+    if ((namec==2)&&!memcmp(name,"js",2)) return EGGDEV_FMT_JS;
     return 0;
   }
   
@@ -43,7 +106,8 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
     if ((srcc>=4)&&!memcmp(src,"\0EM\xff",4)) return EGGDEV_FMT_METADATA_BIN;
     // other...
     if ((srcc>=4)&&!memcmp(src,"\0EGG",4)) return EGGDEV_FMT_ROM;
-    // If the first 256 bytes are G0 and a few selected C0s, call it TEXT.
+    if ((srcc>=14)&&!memcmp(src,"<!DOCTYPE html",14)) return EGGDEV_FMT_HTML;
+    // If there's anything outside G0 (and LF, CR, HT) in the first 256, it's binary and we won't guess.
     int ckc=srcc,text=1;
     if (ckc>256) ckc=256;
     const uint8_t *ck=src;
@@ -56,7 +120,7 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
       text=0;
       break;
     }
-    if (text) return EGGDEV_FMT_TEXT;
+    if (text) return eggdev_cvta2a_guess_text_format(src,srcc);
   }
   
   /* Anything we can infer from the source format?
