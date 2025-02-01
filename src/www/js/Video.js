@@ -153,12 +153,15 @@ export class Video {
     const dst = new Uint8Array(w * h * 4);
     for (let yi=h, dstp=0, srcrowp=0; yi-->0; srcrowp+=stride) {
       for (let xi=w, srcp=srcrowp, srcmask=0x80; xi-->0; ) {
-        dst[dstp++] = 0x00;
-        dst[dstp++] = 0x00;
-        dst[dstp++] = 0x00;
         if (src[srcp] & srcmask) {
           dst[dstp++] = 0xff;
+          dst[dstp++] = 0xff;
+          dst[dstp++] = 0xff;
+          dst[dstp++] = 0xff;
         } else {
+          dst[dstp++] = 0x00;
+          dst[dstp++] = 0x00;
+          dst[dstp++] = 0x00;
           dst[dstp++] = 0x00;
         }
         if (srcmask === 1) { srcmask = 0x80; srcp++; }
@@ -234,6 +237,7 @@ export class Video {
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, tex.fbid);
     this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, tex.id, 0);
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+    return 1;
   }
   
   requireVbuf(bytes) {
@@ -282,7 +286,7 @@ export class Video {
     const dstc = tex.w * 4 * tex.h;
     if (dstc > dsta) return dstc;
     const dst = this.rt.exec.getMemory(dstp, dstc);
-    this.gl.bindFramebuffer(tex.fbid);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, tex.fbid);
     this.gl.readPixels(0, 0, tex.w, tex.h, this.gl.RGBA, this.gl.UNSIGNED_BYTE, dst);
     return dstc;
   }
@@ -290,12 +294,6 @@ export class Video {
   egg_texture_load_image(texid, rid) {
     const serial = this.rt.rom.getResource(Rom.TID_image, rid);
     if (!serial.length) return -1;
-    return this.loadTextureSerial(texid, serial);
-  }
-  
-  egg_texture_load_serial(texid, srcp, srcc) {
-    const serial = this.rt.exec.getMemory(srcp, srcc);
-    if (!serial) return -1;
     return this.loadTextureSerial(texid, serial);
   }
   

@@ -142,17 +142,6 @@
     egg_audio_set_playhead(s);
   }
   
-  static int egg_wasm_image_decode_header(wasm_exec_env_t ee,int wp,int hp,int pixelsizep,const void *src,int srcc) {
-    int *w=eggrt_wasm_get_client_memory(wp,4);
-    int *h=eggrt_wasm_get_client_memory(hp,4);
-    int *pixelsize=eggrt_wasm_get_client_memory(pixelsizep,4);
-    return egg_image_decode_header(w,h,pixelsize,src,srcc);
-  }
-  
-  static int egg_wasm_image_decode(wasm_exec_env_t ee,void *dst,int dsta,const void *src,int srcc) {
-    return egg_image_decode(dst,dsta,src,srcc);
-  }
-  
   static void egg_wasm_texture_del(wasm_exec_env_t ee,int texid) {
     egg_texture_del(texid);
   }
@@ -173,10 +162,6 @@
   
   static int egg_wasm_texture_load_image(wasm_exec_env_t ee,int texid,int rid) {
     return egg_texture_load_image(texid,rid);
-  }
-  
-  static int egg_wasm_texture_load_serial(wasm_exec_env_t ee,int texid,const void *src,int srcc) {
-    return egg_texture_load_serial(texid,src,srcc);
   }
   
   static int egg_wasm_texture_load_raw(wasm_exec_env_t ee,int texid,int fmt,int w,int h,int stride,const void *src,int srcc) {
@@ -240,14 +225,11 @@
     {"egg_audio_event",egg_wasm_audio_event,"(iiiii)"},
     {"egg_audio_get_playhead",egg_wasm_audio_get_playhead,"()F"},
     {"egg_audio_set_playhead",egg_wasm_audio_set_playhead,"(F)"},
-    {"egg_image_decode_header",egg_wasm_image_decode_header,"(iii*~)i"},
-    {"egg_image_decode",egg_wasm_image_decode,"(*~*~)i"},
     {"egg_texture_del",egg_wasm_texture_del,"(i)"},
     {"egg_texture_new",egg_wasm_texture_new,"()i"},
     {"egg_texture_get_status",egg_wasm_texture_get_status,"(iii)i"},
     {"egg_texture_get_pixels",egg_wasm_texture_get_pixels,"(*~i)i"},
     {"egg_texture_load_image",egg_wasm_texture_load_image,"(ii)i"},
-    {"egg_texture_load_serial",egg_wasm_texture_load_serial,"(i*~)i"},
     {"egg_texture_load_raw",egg_wasm_texture_load_raw,"(iiiii*~)i"},
     {"egg_draw_globals",egg_wasm_draw_globals,"(ii)"},
     {"egg_draw_clear",egg_wasm_draw_clear,"(ii)"},
@@ -348,20 +330,6 @@
     egg_audio_set_playhead(s);
   }
   
-  int w2c_env_egg_image_decode_header(struct w2c_env *env,uint32_t wp,uint32_t hp,uint32_t pixelsizep,uint32_t srcp,int srcc) {
-    int *w=HOSTADDR(wp,4);
-    int *h=HOSTADDR(hp,4);
-    int *pixelsize=HOSTADDR(pixelsizep,4);
-    void *src=HOSTADDR(srcp,srcc);
-    return egg_image_decode_header(w,h,pixelsize,src,srcc);
-  }
-  
-  int w2c_env_egg_image_decode(struct w2c_env *env,uint32_t dstp,int dsta,uint32_t srcp,int srcc) {
-    void *dst=HOSTADDR(dstp,dsta);
-    void *src=HOSTADDR(srcp,srcc);
-    return egg_image_decode(dst,dsta,src,srcc);
-  }
-  
   void w2c_env_egg_texture_del(struct w2c_env *env,int texid) {
     egg_texture_del(texid);
   }
@@ -383,11 +351,6 @@
   
   int w2c_env_egg_texture_load_image(struct w2c_env *env,int texid,int rid) {
     return egg_texture_load_image(texid,rid);
-  }
-  
-  int w2c_env_egg_texture_load_serial(struct w2c_env *env,int texid,uint32_t srcp,int srcc) {
-    const void *src=HOSTADDR(srcp,srcc);
-    return egg_texture_load_serial(texid,src,srcc);
   }
   
   int w2c_env_egg_texture_load_raw(struct w2c_env *env,int texid,int fmt,int w,int h,int stride,uint32_t srcp,int srcc) {

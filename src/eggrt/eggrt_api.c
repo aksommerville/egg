@@ -24,14 +24,11 @@ void egg_play_song(int rid,int force,int repeat);
 void egg_audio_event(int chid,int opcode,int a,int b,int durms);
 double egg_audio_get_playhead();
 void egg_audio_set_playhead(double s);
-int egg_image_decode_header(int *w,int *h,int *pixelsize,const void *v,int c);
-int egg_image_decode(void *dst,int dsta,const void *v,int c);
 void egg_texture_del(int texid);
 int egg_texture_new();
 int egg_texture_get_status(int *w,int *h,int texid);
 int egg_texture_get_pixels(void *dst,int dsta,int texid);
 int egg_texture_load_image(int texid,int rid);
-int egg_texture_load_serial(int texid,const void *src,int srcc);
 int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc);
 void egg_draw_globals(int tint,int alpha);
 void egg_draw_clear(int dsttexid,uint32_t rgba);
@@ -248,28 +245,6 @@ void egg_audio_set_playhead(double s) {
   }
 }
 
-/* Image decoder.
- */
- 
-int egg_image_decode_header(int *w,int *h,int *pixelsize,const void *v,int c) {
-  struct image image={0};
-  int len=image_decode_header(&image,v,c);
-  if (len<=0) return -1;
-  if (w) *w=image.w;
-  if (h) *h=image.h;
-  if (pixelsize) *pixelsize=image.pixelsize;
-  return len;
-}
-
-int egg_image_decode(void *dst,int dsta,const void *v,int c) {
-  struct image *image=image_decode(v,c);
-  if (!image) return -1;
-  int dstc=image->stride*image->h;
-  if (dstc<=dsta) memcpy(dst,image->v,dstc);
-  image_del(image);
-  return dstc;
-}
-
 /* Textures.
  */
  
@@ -289,20 +264,15 @@ int egg_texture_get_status(int *w,int *h,int texid) {
 }
 
 int egg_texture_get_pixels(void *dst,int dsta,int texid) {
-  fprintf(stderr,"TODO %s [%s:%d]\n",__func__,__FILE__,__LINE__);
-  return 0;
+  return render_texture_get_pixels(dst,dsta,eggrt.render,texid);
 }
 
 /* Load content to texture.
  */
 
 int egg_texture_load_image(int texid,int rid) {
-  const void *serial=0;
-  int serialc=eggrt_rom_get(&serial,EGG_TID_image,rid);
-  return egg_texture_load_serial(texid,serial,serialc);
-}
-
-int egg_texture_load_serial(int texid,const void *src,int srcc) {
+  const void *src=0;
+  int srcc=eggrt_rom_get(&src,EGG_TID_image,rid);
   struct image *image=image_decode(src,srcc);
   if (!image) return -1;
   int fmt=EGG_TEX_FMT_RGBA;

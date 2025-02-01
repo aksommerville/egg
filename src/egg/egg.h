@@ -205,13 +205,6 @@ void egg_audio_set_playhead(double s);
 #define EGG_XFORM_YREV 2
 #define EGG_XFORM_SWAP 4
 
-/* Decode the header or pixels of an encoded image, typically sourced from an image resource.
- * Both return the total pixels length in bytes.
- * This is a bit exotic. Normally you'll want egg_texture_load_image() instead.
- */
-int egg_image_decode_header(int *w,int *h,int *pixelsize,const void *v,int c);
-int egg_image_decode(void *dst,int dsta,const void *v,int c);
-
 /* Valid texid are >0.
  * You must delete all textures you create.
  * A newly created texture has zero size.
@@ -219,13 +212,8 @@ int egg_image_decode(void *dst,int dsta,const void *v,int c);
 void egg_texture_del(int texid);
 int egg_texture_new();
 
-/* Returns one of:
- *  <0: Not allocated.
- *   0: Load pending.
- *  >0: Loaded.
- * If loaded we populate (*w,*h), if you provide them.
- * Rendering to or from a texture in "pending" status will noop.
- * That status happens in web browsers, if we use the browser's async image loading facilities.
+/* Size of a texture.
+ * Returns a 'status' flag that isn't very meaningful anymore.
  */
 int egg_texture_get_status(int *w,int *h,int texid);
 
@@ -239,11 +227,6 @@ int egg_texture_get_pixels(void *dst,int dsta,int texid);
  * Returns status (-1,0,1).
  */
 int egg_texture_load_image(int texid,int rid);
-
-/* Replace texture with an encoded image.
- * Same as egg_texture_load_image() but sourced from client memory instead of a ROM asset.
- */
-int egg_texture_load_serial(int texid,const void *src,int srcc);
 
 /* Replace texture with raw pixels.
  * You must supply full geometry, and also the buffer's length as validation.

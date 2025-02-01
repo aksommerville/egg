@@ -40,9 +40,7 @@ void render_texture_get_origin(int *qual,int *rid,const struct render *render,in
 
 void render_texture_get_header(int *w,int *h,int *fmt,const struct render *render,int texid);
 
-// Caller frees, if not null.
-//XXX Caller should supply buffer.
-void *render_texture_get_pixels(int *w,int *h,int *fmt,struct render *render,int texid);
+int render_texture_get_pixels(void *dst,int dsta,struct render *render,int texid);
 
 void render_texture_clear(struct render *render,int texid);
 

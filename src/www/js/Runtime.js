@@ -306,36 +306,4 @@ export class Runtime {
     this.input.stop();
     return 0;
   }
-  
-  egg_image_decode_header(wp, hp, psp, srcp, srcc) {
-    const src = this.exec.getMemory(srcp, srcc);
-    if (!src) return -1;
-    try {
-      const image = this.imageDecoder.decodeHeader(src);
-      if (wp) this.exec.mem32[wp >> 2] = image.w;
-      if (hp) this.exec.mem32[hp >> 2] = image.h;
-      if (psp) switch (image.fmt) {
-        case 1: this.exec.mem32[psp >> 2] = 32; break;
-        case 2: this.exec.mem32[psp >> 2] = 8; break;
-        case 3: this.exec.mem32[psp >> 2] = 1; break;
-      }
-      return image.stride * image.h;
-    } catch (e) {
-      return -1;
-    }
-  }
-  
-  egg_image_decode(dstp, dsta, srcp, srcc) {
-    const dst = this.exec.getMemory(dstp, dsta);
-    const src = this.exec.getMemory(srcp, srcc);
-    if (!src) return -1;
-    try {
-      const image = this.imageDecoder.decode(src);
-      const dstc = image.stride * image.h;
-      if (dst && (dstc <= dsta)) dst.set(image.v);
-      return dstc;
-    } catch (e) {
-      return -1;
-    }
-  }
 }

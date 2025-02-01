@@ -219,37 +219,53 @@ int font_add_image(
   return 0;
 }
 
+/* Texture have to be read as RGBA.
+ * It's a shame, since they probably started A1 and now we need A1 again.
+ * Le sigh... convert here.
+ * Opaque white is opaque, everything else is transparent (so source can use either alpha or luma).
+ * (dst) must be zeroed initially; we only visit the opaque pixels.
+ */
+ 
+static void font_a1_from_rgba(void *dst,int dststride,const void *src,int srcstride,int w,int h) {
+  srcstride>>=2;
+  uint8_t *dstrow=dst;
+  const uint32_t *srcrow=src;
+  int yi=h; for (;yi-->0;dstrow+=dststride,srcrow+=srcstride) {
+    uint8_t *dstp=dstrow;
+    uint8_t dstmask=0x80;
+    const uint32_t *srcp=srcrow;
+    int xi=w; for (;xi-->0;srcp++) {
+      if (*srcp==0xffffffff) (*dstp)|=dstmask;
+      if (dstmask==1) { dstp++; dstmask=0x80; }
+      else dstmask>>=1;
+    }
+  }
+}
+
 /* Add image from resource.
  */
 
 int font_add_image_resource(struct font *font,int codepoint,int imageid) {
-  uint32_t id=(EGG_TID_image<<16)|imageid;
-  int lo=0,hi=strings.resc;
-  while (lo<hi) {
-    int ck=(lo+hi)>>1;
-    uint32_t q=strings.resv[ck].id;
-         if (id<q) hi=ck;
-    else if (id>q) lo=ck;
-    else {
-      const void *src=strings.resv[ck].v;
-      int srcc=strings.resv[ck].c;
-      int w=0,h=0,pixelsize=0,pixlen;
-      if ((pixlen=egg_image_decode_header(&w,&h,&pixelsize,src,srcc))<1) return -1;
-      if (pixelsize!=1) return -1;
-      void *pixels=malloc(pixlen);
-      if (!pixels) return -1;
-      if (egg_image_decode(pixels,pixlen,src,srcc)!=pixlen) {
-        free(pixels);
-        return -1;
-      }
-      if (font_add_image(font,codepoint,pixels,w,h,0,1)<0) {
-        free(pixels);
-        return -1;
-      }
-      return 0;
-    }
-  }
-  return -1;
+  int texid=egg_texture_new();
+  if (texid<1) return -1;
+  int err=egg_texture_load_image(texid,imageid);
+  if (err<0) goto _done_;
+  int w=0,h=0;
+  egg_texture_get_status(&w,&h,texid);
+  if ((w<1)||(h<1)) { err=-1; goto _done_; }
+  void *rgba=malloc(w*h*4);
+  if (!rgba) { err=-1; goto _done_; }
+  if ((err=egg_texture_get_pixels(rgba,w*h*4,texid))<0) goto _done_;
+  int stride=(w+7)>>3;
+  void *a1=calloc(stride,h);
+  if (!a1) { err=-1; goto _done_; }
+  font_a1_from_rgba(a1,stride,rgba,w<<2,w,h);
+  if ((err=font_add_image(font,codepoint,a1,w,h,stride,1))>=0) a1=0; // Handoff on success.
+ _done_:;
+  if (a1) free(a1);
+  if (rgba) free(rgba);
+  egg_texture_del(texid);
+  return err;
 }
 
 /* Measure glyph.

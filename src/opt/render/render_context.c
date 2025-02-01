@@ -202,7 +202,7 @@ static int render_texture_upload(struct render *render,struct render_texture *te
         uint32_t alpha=*(uint32_t*)alphabytes;
         if (fmt==EGG_TEX_FMT_A1) {
           zero=0x00000000;
-          one=alpha;
+          one=0xffffffff;
         } else {
           zero=alpha;
           one=0xffffffff;
@@ -335,20 +335,15 @@ void render_texture_get_header(int *w,int *h,int *fmt,const struct render *rende
 /* Get texture pixels.
  */
  
-void *render_texture_get_pixels(int *w,int *h,int *fmt,struct render *render,int texid) {
-  if (!w||!h||!fmt) return 0;
+int render_texture_get_pixels(void *dst,int dsta,struct render *render,int texid) {
+  if (!dst||(dsta<0)) dsta=0;
   if ((texid<1)||(texid>render->texturec)) return 0;
   struct render_texture *texture=render->texturev+texid-1;
-  //if (!texture->fbid) return 0; // We can only read from textures that have an associated framebuffer.
   if (render_texture_require_fb(texture)<0) return 0;
-  *w=texture->w;
-  *h=texture->h;
-  *fmt=texture->fmt;
   int stride=render_minimum_stride(texture->w,texture->fmt);
   int len=render_texture_measure(texture->w,texture->h,stride,texture->fmt);
   if (len<1) return 0;
-  void *dst=malloc(len);
-  if (!dst) return 0;
+  if (len>dsta) return len;
   int glfmt=GL_RGBA,gltype=GL_UNSIGNED_BYTE;
   switch (texture->fmt) {
     case EGG_TEX_FMT_RGBA: break;
@@ -358,7 +353,7 @@ void *render_texture_get_pixels(int *w,int *h,int *fmt,struct render *render,int
   }
   glBindFramebuffer(GL_FRAMEBUFFER,texture->fbid);
   glReadPixels(0,0,texture->w,texture->h,glfmt,gltype,dst);
-  return dst;
+  return len;
 }
 
 /* Allocate framebuffer if needed.
