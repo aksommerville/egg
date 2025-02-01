@@ -1,7 +1,5 @@
 /* image.h
  * Image decoders and encoders.
- * These should work client-side too, if you have malloc, string.h, and for PNG, zlib.
- * If encoders are enabled, you'll also need our 'serial' unit.
  */
  
 #ifndef IMAGE_H
@@ -9,37 +7,18 @@
 
 struct sr_encoder;
 
-/* Delete these symbols, or set to zero, to eliminate a format.
- * Each of these has a corresponding C file.
- * OK to delete the files for disabled formats.
- * Each format must export:
- *   struct image *FORMAT_decode(const void *src,int srcc);
- *   int FORMAT_encode(struct sr_encoder *dst,struct image *image);
- * Format detection is hard-coded in image.c; add yourself there if you add a format.
- * Encoders are allowed to damage the input image. Reformatting or whatever.
+/* Originally there were four image formats.
+ * But I've eliminated runtime image decoding, so now we can only support formats that browsers also support.
+ * If we ever feel like supporting GIF, BMP, JPEG, etc, we could add them here.
+ * But I think the recommendation will be to use PNG for everything.
  */
-#if defined(IMAGE_USE_PNG) && !IMAGE_USE_PNG
-  #define IMAGE_FORMAT_rawimg 1
-  #define IMAGE_FORMAT_qoi    2
-  #define IMAGE_FORMAT_rlead  3
-  #define IMAGE_FORMAT_FOR_EACH \
-    _(rawimg) \
-    _(qoi) \
-    _(rlead)
-#else
-  #define IMAGE_FORMAT_rawimg 1
-  #define IMAGE_FORMAT_qoi    2
-  #define IMAGE_FORMAT_rlead  3
-  #define IMAGE_FORMAT_png    4 /* Also requires zlib. */
-  #define IMAGE_FORMAT_FOR_EACH \
-    _(rawimg) \
-    _(qoi) \
-    _(rlead) \
-    _(png)
-#endif
+#define IMAGE_FORMAT_png 1
 
-#define IMAGE_HINT_ALPHA 0x01
-#define IMAGE_HINT_LUMA  0x02
+#define IMAGE_FORMAT_FOR_EACH \
+  _(png)
+  
+#define IMAGE_HINT_ALPHA   0x01
+#define IMAGE_HINT_LUMA    0x02
 
 struct image {
   void *v;

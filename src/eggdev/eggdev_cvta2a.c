@@ -2,9 +2,6 @@
 #include "opt/image/image.h"
 
 #define EGGDEV_FMT_PNG 1
-#define EGGDEV_FMT_QOI 2
-#define EGGDEV_FMT_RAWIMG 3
-#define EGGDEV_FMT_RLEAD 4
 #define EGGDEV_FMT_MIDI 5
 #define EGGDEV_FMT_WAV 6
 #define EGGDEV_FMT_EGS 7
@@ -22,9 +19,6 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
    */
   if (namec>0) {
     if ((namec==3)&&!memcmp(name,"png",3)) return EGGDEV_FMT_PNG;
-    if ((namec==3)&&!memcmp(name,"qoi",3)) return EGGDEV_FMT_QOI;
-    if ((namec==6)&&!memcmp(name,"rawimg",6)) return EGGDEV_FMT_RAWIMG;
-    if ((namec==5)&&!memcmp(name,"rlead",5)) return EGGDEV_FMT_RLEAD;
     if ((namec==4)&&!memcmp(name,"midi",4)) return EGGDEV_FMT_MIDI;
     if ((namec==3)&&!memcmp(name,"wav",3)) return EGGDEV_FMT_WAV;
     if ((namec==3)&&!memcmp(name,"egs",3)) return EGGDEV_FMT_EGS;
@@ -40,9 +34,6 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
   if (srcc>0) {
     // image...
     if ((srcc>=8)&&!memcmp(src,"\x89PNG\r\n\x1a\n",8)) return EGGDEV_FMT_PNG;
-    if ((srcc>=4)&&!memcmp(src,"qoif",4)) return EGGDEV_FMT_QOI;
-    if ((srcc>=4)&&!memcmp(src,"\0rIm",4)) return EGGDEV_FMT_RAWIMG;
-    if ((srcc>=4)&&!memcmp(src,"\0rld",4)) return EGGDEV_FMT_RLEAD;
     // audio...
     if ((srcc>=4)&&!memcmp(src,"MThd",4)) return EGGDEV_FMT_MIDI;
     if ((srcc>=4)&&!memcmp(src,"RIFF",4)) return EGGDEV_FMT_WAV;
@@ -71,11 +62,6 @@ static int eggdev_cvta2a_guess_format(const char *name,int namec,const void *src
   /* Anything we can infer from the source format?
    */
   switch (fromfmt) {
-    // Images all go to PNG, except PNG goes to RAWIMG.
-    case EGGDEV_FMT_PNG: return EGGDEV_FMT_RAWIMG;
-    case EGGDEV_FMT_QOI: return EGGDEV_FMT_PNG;
-    case EGGDEV_FMT_RAWIMG: return EGGDEV_FMT_PNG;
-    case EGGDEV_FMT_RLEAD: return EGGDEV_FMT_PNG;
     // MIDI=>EGS and EGS=>WAV. It is possible to make MIDI from EGS but you have to ask for it specifically.
     case EGGDEV_FMT_MIDI: return EGGDEV_FMT_EGS;
     case EGGDEV_FMT_EGS: return EGGDEV_FMT_WAV;
@@ -231,9 +217,6 @@ int eggdev_cvta2a(
   
   switch (dfmt) {
     case EGGDEV_FMT_PNG: return eggdev_cvta2a_image(dst,src,srcc,IMAGE_FORMAT_png,refname);
-    case EGGDEV_FMT_QOI: return eggdev_cvta2a_image(dst,src,srcc,IMAGE_FORMAT_qoi,refname);
-    case EGGDEV_FMT_RAWIMG: return eggdev_cvta2a_image(dst,src,srcc,IMAGE_FORMAT_rawimg,refname);
-    case EGGDEV_FMT_RLEAD: return eggdev_cvta2a_image(dst,src,srcc,IMAGE_FORMAT_rlead,refname);
     case EGGDEV_FMT_MIDI: switch (sfmt) {
         case EGGDEV_FMT_EGS: return eggdev_song_midi_from_egs(dst,src,srcc,refname);
       } break;

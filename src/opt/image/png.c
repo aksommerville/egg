@@ -593,7 +593,10 @@ static int png_encode_IDAT(struct png_encoder *ctx) {
  
 static int png_encode_inner(struct png_encoder *ctx) {
   // We could allow (1,2,4,8,24,32) for pixelsize. For now forcing everything to RGBA.
-  if (image_force_rgba(ctx->image)<0) return -1;
+  switch (ctx->image->pixelsize) {
+    case 1: case 2: case 4: case 8: case 24: case 32: break;
+    default: if (image_force_rgba(ctx->image)<0) return -1;
+  }
   ctx->stride=ctx->image->stride;
   if (sr_encode_raw(ctx->dst,"\x89PNG\r\n\x1a\n",8)<0) return -1;
   if (png_encode_IHDR(ctx)<0) return -1;

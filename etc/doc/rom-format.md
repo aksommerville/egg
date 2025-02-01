@@ -33,7 +33,7 @@ It is beneficial to assign (rid) contiguously from 1 for each type.
 | 1       | metadata  | Required, rid must be 1. See metadata-format.md. |
 | 2       | code      | Required, rid must be 1. WebAssembly module. |
 | 3       | strings   | rid is 6 bits, with language in the top 10 bits. See strings-format.md. |
-| 4       | image     | Recommend PNG. See image-format.md. |
+| 4       | image     | PNG only. |
 | 5       | sound     | See audio-format.md. |
 | 6       | song      | See audio-format.md. |
 | 7       | map       | Convenience. See map-format.md. |

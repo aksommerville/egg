@@ -189,6 +189,13 @@ static void iter1d_next(struct iter1d *iter) {
   }
 }
 
+/* Built-in converters.
+ */
+ 
+static int image_cvt_32_1(int pixel,void *userdata) {
+  return pixel?0xffffffff:0;
+}
+
 /* Generic reformat.
  */
  
@@ -235,6 +242,9 @@ int image_reformat_in_place(
   if ((h<1)||(h>0x7fff)) return -1;
   int nstride=(w*pixelsize+7)>>3;
   if ((image->pixelsize==pixelsize)&&(image->w==w)&&(image->h==h)&&(image->stride==nstride)) return 0;
+  if (!cvt) {
+    if ((image->pixelsize==1)&&(pixelsize==32)) cvt=image_cvt_32_1;
+  }
   if (nstride>INT_MAX/h) return -1;
   int nlen=nstride*h;
   if ((nlen<=image_get_pixels_length(image))&&(nstride<=image->stride)&&(pixelsize<=image->pixelsize)) {
@@ -297,15 +307,6 @@ const char *image_format_repr(int format) {
 
 int image_format_guess(const void *src,int srcc) {
   if (!src) return 0;
-  #if IMAGE_FORMAT_rawimg
-    if ((srcc>=4)&&!memcmp(src,"\x00rIm",4)) return IMAGE_FORMAT_rawimg;
-  #endif
-  #if IMAGE_FORMAT_qoi
-    if ((srcc>=4)&&!memcmp(src,"qoif",4)) return IMAGE_FORMAT_qoi;
-  #endif
-  #if IMAGE_FORMAT_rlead
-    if ((srcc>=4)&&!memcmp(src,"\x00rld",4)) return IMAGE_FORMAT_rlead;
-  #endif
   #if IMAGE_FORMAT_png
     const uint8_t *b=src;
     if ((srcc>=8)&&!memcmp(src,"\x89PNG\r\n\x1a\n",8)) return IMAGE_FORMAT_png;
