@@ -68,6 +68,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] Ensure parity between web and native.
+- [ ] Replace minify, follow the example in Berry.
 
 ## Third-Party Code
 

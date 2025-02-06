@@ -4,7 +4,7 @@
 /* Minify, main entry point.
  */
  
-int eggdev_main_minify() {
+int eggdev_main_minify_OLD() {
   if (!eggdev.dstpath) {
     fprintf(stderr,"%s: Output path required.\n",eggdev.exename);
     return -2;

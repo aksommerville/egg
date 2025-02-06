@@ -239,4 +239,6 @@ int eggdev_ns_name_from_value(const char **dstpp,const struct eggdev_ns *ns,int 
 void eggdev_ns_require();
 void eggdev_ns_flush(); // Clear cached state. You must have set (eggdev.schema_volatile) before, otherwise we can't recover it.
 
+int eggdev_minify_inner(struct sr_encoder *dst,const char *src,int srcc,const char *srcpath,int fmt);
+
 #endif

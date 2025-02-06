@@ -62,13 +62,14 @@ int eggdev_minify_inner(struct sr_encoder *dst,const char *src,int srcc,const ch
   if ((dst->c>dstc0)&&(((char*)dst->v)[dst->c-1]!=0x0a)) {
     if (sr_encode_u8(dst,0x0a)<0) return -1;
   }
+  sr_encode_raw(dst,"/*NEW*/",7);
   return 0;
 }
 
 /* Minify, main entry point.
  */
  
-int eggdev_main_minify_WIP() {//XXX Work in progress. Will eventually replace the other eggdev_main_minify
+int eggdev_main_minify() {//XXX Work in progress. Will eventually replace the other eggdev_main_minify
   if (!eggdev.dstpath) {
     fprintf(stderr,"%s: Output path required.\n",eggdev.exename);
     return -2;

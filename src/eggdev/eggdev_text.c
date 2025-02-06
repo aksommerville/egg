@@ -197,8 +197,8 @@ int eggdev_relative_path(char *dst,int dsta,const char *ref,int refc,const char 
     } else if ((leadc==2)&&(rel[0]=='.')&&(rel[1]=='.')) { // Back one level off (ref).
       rel+=2;
       relc-=2;
-      while (relc&&(rel[relc-1]=='/')) relc--;
-      while (relc&&(rel[relc-1]!='/')) relc--;
+      while (refc&&(ref[refc-1]=='/')) refc--;
+      while (refc&&(ref[refc-1]!='/')) refc--;
     } else {
       break;
     }

@@ -178,10 +178,16 @@ static int eggdev_bundle_html_js(struct eggdev_bundle_html *ctx) {
     fprintf(stderr,"%s: Failed to read file\n",path);
     return -2;
   }
+  
+  /*XXX replacing jst with minify2
   struct jst_context jst={0};
   int err=jst_minify(&ctx->dst,&jst,src,srcc,path);
   free(src);
   jst_context_cleanup(&jst);
+  /**/
+  int err=eggdev_minify_inner(&ctx->dst,src,srcc,path,0);
+  free(src);
+  
   if (err<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error minifying platform javascript.\n",path);
     return -2;
