@@ -56,7 +56,8 @@ case "$UNAMES" in
 esac
 
 echo "NATIVE_TARGET:=$NATIVE_TARGET" >>$DSTPATH
-TARGETS="eggdev demo $NATIVE_TARGET"
+TARGETS="eggdev demo test $NATIVE_TARGET"
+# NB "eggdev" must come before "test" if we do both.
 
 echo "run:$NATIVE_TARGET-run" >>$DSTPATH
 echo "edit:demo-edit" >>$DSTPATH

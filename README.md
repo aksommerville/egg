@@ -69,6 +69,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] Ensure parity between web and native.
 - [ ] Replace minify, follow the example in Berry.
+- [x] Build up a general test framework too. Can't be confident in minify without it. (again, Berry has a good one)
 
 ## Third-Party Code
 
