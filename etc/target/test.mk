@@ -33,5 +33,6 @@ test-all:$(test_EXE_ITEST)
 $(test_EXE_ITEST):$(test_OFILES_ITEST) $(test_OFILES_COMMON) $(test_OFILES_EGGDEV);$(PRECMD) $(test_LD) -o$@ $^ $(test_LDPOST)
 
 test_EXES:=$(test_EXES_UTEST) $(test_EXE_ITEST) $(test_EXES_ATEST)
-test:$(test_EXES);etc/tool/testrunner.sh $^
-test-%:$(test_EXES);EGG_TEST_FILTER="$*" etc/tool/testrunner.sh $^
+test:$(test_EXES) $(eggdev_EXE);etc/tool/testrunner.sh $(test_EXES)
+# Don't do "test-%" because that would match "test-all", which runs on default builds.
+test1-%:$(test_EXES) $(eggdev_EXE);EGG_TEST_FILTER="$*" etc/tool/testrunner.sh $(test_EXES)

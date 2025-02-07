@@ -24,6 +24,7 @@ int mf_node_ref(struct mf_node *node);
 struct mf_node *mf_node_new();
 
 struct mf_node *mf_node_spawn(struct mf_node *parent); // => WEAK
+struct mf_node *mf_node_spawn_at(struct mf_node *parent,int p);
 
 /* Convenience to spawn a VALUE node with static text (typically "0", "undefined", etc).
  */
@@ -45,6 +46,20 @@ void mf_node_remove_all_children(struct mf_node *parent);
  */
 int mf_node_transfer(struct mf_node *dst,struct mf_node *src);
 
+/* Given an identifier (sym) and context node (ctx), walk up the tree until we find its declaration.
+ * If found, we return a WEAK node of type VALUE whose token is (sym).
+ */
+struct mf_node *mf_node_lookup_symbol(struct mf_node *ctx,const char *sym,int symc);
+
+/* For a node returned by mf_node_lookup_symbol(), locate its initializer.
+ * It doesn't necessarily exist; you can declare symbols without initializing them.
+ */
+struct mf_node *mf_node_get_symbol_initializer(struct mf_node *sym);
+
+/* Nearest ancestor of the given type, including (descendant) itself, or null if not found.
+ */
+struct mf_node *mf_node_ancestor_of_type(struct mf_node *descendant,int type);
+
 #define MF_NODE_TYPE_ROOT            1 /* Like BLOCK but reserved for the root node. */
 #define MF_NODE_TYPE_BLOCK           2 /* Sequential statements. */
 #define MF_NODE_TYPE_VALUE           3 /* Expression formed of this node's token. Grave strings should be treated as regular strings. */
@@ -62,8 +77,8 @@ int mf_node_transfer(struct mf_node *dst,struct mf_node *src);
 #define MF_NODE_TYPE_INDEX          15 /* token="[" or "?.[", [0]=context, [1]=index */
 #define MF_NODE_TYPE_DECL           16 /* token=const|var|let, [...]=VALUE|OP(=). */
 #define MF_NODE_TYPE_THROW          17 /* [0]?=value */
-#define MF_NODE_TYPE_ARRAY          18 /* [...]=members (FIELD). */
-#define MF_NODE_TYPE_OBJECT         19 /* [...]=members. OP(":") or OP("...") or VALUE(IDENTIFIER). */
+#define MF_NODE_TYPE_ARRAY          18 /* [...]=members. */
+#define MF_NODE_TYPE_OBJECT         19 /* [...]=members (FIELD). */
 #define MF_NODE_TYPE_SWITCH         20 /* [0]=context, [1...]=statement|CASE */
 #define MF_NODE_TYPE_CASE           21 /* [0]?=match. "default" if no children. Token is "case" or "default". Does not contain its statements. */
 #define MF_NODE_TYPE_TRY            22 /* [0]=body, [1]?=identifier, [2]?=catch body, [3|1]?=finally, argv[0]=catch present, argv[1]=finally present */
@@ -75,5 +90,20 @@ int mf_node_transfer(struct mf_node *dst,struct mf_node *src);
 #define MF_NODE_TYPE_POSTFIX        28 /* [0]=expression, token is "++" or "--". Prefix are OP, like normal unary operators. */
 #define MF_NODE_TYPE_FUNCTION       29 /* Token is name or "function" if anonymous. [0]=paramlist, [1]=body */
 #define MF_NODE_TYPE_FIELD          30 /* [0]=key [1]?=value */
+
+struct mf_nodelist {
+  struct mf_node **v; // WEAK
+  int c,a;
+};
+
+void mf_nodelist_del(struct mf_nodelist *nl);
+struct mf_nodelist *mf_nodelist_new();
+
+int mf_nodelist_search(const struct mf_nodelist *nl,const struct mf_node *node);
+int mf_nodelist_insert(struct mf_nodelist *nl,int p,struct mf_node *node); // must be sorted, we check
+int mf_nodelist_add(struct mf_nodelist *nl,struct mf_node *node);
+void mf_nodelist_remove(struct mf_nodelist *nl,struct mf_node *node);
+
+struct mf_nodelist *mf_find_nodes(struct mf_node *root,int (*filter)(struct mf_node *node,void *userdata),void *userdata);
 
 #endif

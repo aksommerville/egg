@@ -329,3 +329,64 @@ int mf_measure_js_operator(const char *src,int srcc,int *cls) {
   OK(SPECIAL,1)
   #undef OK
 }
+
+/* Sequential tiny identifiers.
+ */
+ 
+static int mf_identifier_by_index(char *dst,int dsta,int p) {
+  if (p<0) return -1;
+  
+  /* Four slightly different alphabets.
+   * When it's a single character, use everything except digits.
+   * Two or more characters, everything after the first uses the full alphabet.
+   * Two characters exactly, the lead may use lowercase letters but not "d", "i", or "o" (so we won't hit "in", "if", "of").
+   * Three or more, we eliminate every leading letter that occurs in any keyword.
+   */
+  char single[]="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+  int singlec=sizeof(single)-1;
+  char lead2[]="abcefghjklmnpqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+  int lead2c=sizeof(lead2)-1;
+  char lead[]="qupahjkzxmABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+  int leadc=sizeof(lead)-1;
+  char after[]="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$0123456789";
+  int afterc=sizeof(after)-1;
+  
+  if (p<singlec) {
+    if (dsta>=1) dst[0]=single[p];
+    return 1;
+  }
+  p-=singlec;
+  
+  int doublec=lead2c*afterc;
+  if (p<doublec) {
+    if (dsta>=2) {
+      dst[0]=lead2[p/afterc];
+      dst[1]=after[p%afterc];
+    }
+    return 2;
+  }
+  p-=doublec;
+  
+  int range=leadc*afterc*afterc;
+  int dstc=3;
+  while (p>=range) {
+    range*=afterc;
+    dstc++;
+  }
+  if (dstc>dsta) return dstc;
+  int i=dstc; while (i-->1) {
+    dst[i]=after[p%afterc];
+    p/=afterc;
+  }
+  dst[0]=lead[p];
+  return dstc;
+}
+ 
+char *mf_next_identifier(struct eggdev_minify_js *ctx,int *len) {
+  if (!ctx) return 0;
+  char tmp[16];
+  int tmpc=mf_identifier_by_index(tmp,sizeof(tmp),ctx->nextident++);
+  if ((tmpc<1)||(tmpc>sizeof(tmp))) return 0;
+  *len=tmpc;
+  return mf_js_text_intern(ctx,tmp,tmpc);
+}

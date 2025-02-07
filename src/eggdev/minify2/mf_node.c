@@ -44,6 +44,17 @@ struct mf_node *mf_node_spawn(struct mf_node *parent) {
   return child;
 }
 
+struct mf_node *mf_node_spawn_at(struct mf_node *parent,int p) {
+  struct mf_node *child=mf_node_new();
+  if (!child) return 0;
+  if (mf_node_add_child(parent,child,p)<0) {
+    mf_node_del(child);
+    return 0;
+  }
+  mf_node_del(child);
+  return child;
+}
+
 struct mf_node *mf_node_spawn_token(struct mf_node *parent,const char *src,int srcc) {
   if (!src||(srcc<0)) return 0;
   struct mf_node *child=mf_node_spawn(parent);
@@ -207,4 +218,193 @@ int mf_node_transfer(struct mf_node *dst,struct mf_node *src) {
   memcpy(dst->argv,src->argv,sizeof(dst->argv));
   dst->token=src->token;
   return mf_node_kidnap_all(dst,src,-1);
+}
+
+/* Look up symbol.
+ */
+ 
+static struct mf_node *mf_node_lookup_symbol_in_decl(struct mf_node *ctx,const char *sym,int symc) {
+  int i=0; for (;i<ctx->childc;i++) {
+    struct mf_node *child=ctx->childv[i];
+    
+    if ((child->type==MF_NODE_TYPE_VALUE)&&(child->token.c==symc)&&!memcmp(child->token.v,sym,symc)) {
+      // Found it, no initializer.
+      return child;
+      
+    } else if ((child->type==MF_NODE_TYPE_OP)&&(child->token.c==1)&&(child->token.v[0]=='=')&&(child->childc==2)) {
+      struct mf_node *lvalue=child->childv[0];
+      
+      if ((lvalue->type==MF_NODE_TYPE_VALUE)&&(lvalue->token.c==symc)&&!memcmp(lvalue->token.v,sym,symc)) {
+        // Found it, with initializer.
+        return lvalue;
+        
+      } else if ((lvalue->type==MF_NODE_TYPE_ARRAY)||(lvalue->type==MF_NODE_TYPE_OBJECT)) {
+        int ai=0; for (;ai<lvalue->childc;ai++) {
+          struct mf_node *a=lvalue->childv[i];
+          if ((a->type==MF_NODE_TYPE_VALUE)&&(a->token.c==symc)&&!memcmp(a->token.v,sym,symc)) {
+            // Found it, in destructured array or object.
+            return a;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+ 
+static struct mf_node *mf_node_lookup_symbol_at_context(struct mf_node *ctx,const char *sym,int symc) {
+  int i=0; for (;i<ctx->childc;i++) {
+    struct mf_node *child=ctx->childv[i];
+    if (child->type==MF_NODE_TYPE_DECL) {
+      struct mf_node *found=mf_node_lookup_symbol_in_decl(child,sym,symc);
+      if (found) return found;
+    }
+  }
+  return 0;
+}
+ 
+struct mf_node *mf_node_lookup_symbol(struct mf_node *ctx,const char *sym,int symc) {
+  if (!sym) return 0;
+  if (symc<0) { symc=0; while (sym[symc]) symc++; }
+  if (!symc) return 0;
+  for (;ctx;ctx=ctx->parent) {
+    struct mf_node *found=mf_node_lookup_symbol_at_context(ctx,sym,symc);
+    if (found) return found;
+  }
+  return 0;
+}
+
+/* Locate initializer for symbol node.
+ */
+ 
+struct mf_node *mf_node_get_symbol_initializer(struct mf_node *sym) {
+  if (!sym) return 0;
+  struct mf_node *parent=sym->parent;
+  if (!parent) return 0;
+  
+  if ((parent->type==MF_NODE_TYPE_OP)&&(parent->token.c==1)&&(parent->token.v[0]=='=')&&(parent->childc>=2)) {
+    // Simple initialized declaration.
+    return parent->childv[1];
+  }
+  
+  if (parent->type==MF_NODE_TYPE_DECL) {
+    // No initializer.
+    return 0;
+  }
+  
+  if ((parent->type==MF_NODE_TYPE_ARRAY)||(parent->type==MF_NODE_TYPE_OBJECT)) {
+    // Destructured assignment. Grandparent must be OP(=).
+    struct mf_node *grampa=parent->parent;
+    if (grampa&&(grampa->type==MF_NODE_TYPE_OP)&&(grampa->token.c==1)&&(grampa->token.v[0]=='=')&&(grampa->childc>=2)) {
+      struct mf_node *rvalue=grampa->childv[1];
+      if ((parent->type==MF_NODE_TYPE_ARRAY)&&(rvalue->type==MF_NODE_TYPE_ARRAY)) {
+        int p=mf_node_find_child(parent,sym);
+        if ((p>=0)&&(p<rvalue->childc)) return rvalue->childv[p];
+        return 0;
+      }
+      //TODO There's a special case of destructuring an array from String.split(",") that we ought to accomodate.
+      // We produce that construction. But probably only after constant expressions are resolved, so I don't think it will actually matter.
+      if ((parent->type==MF_NODE_TYPE_OBJECT)&&(rvalue->type==MF_NODE_TYPE_OBJECT)) {
+        // Destructuring an inline object is not realistic, why would you say "const {a}={a:123};" instead of "const a=123;"?
+        return 0;
+      }
+      //TODO More complex destructuring. eg "const a={b:123}; const {b}=a;"
+      // Is this ever going to come up? It sounds unusual.
+      return 0;
+    }
+  }
+  
+  return 0;
+}
+
+/* Nearest ancestor of a given type.
+ */
+ 
+struct mf_node *mf_node_ancestor_of_type(struct mf_node *descendant,int type) {
+  for (;descendant;descendant=descendant->parent) {
+    if (descendant->type==type) return descendant;
+  }
+  return 0;
+}
+
+/* Helper nodelist.
+ */
+ 
+void mf_nodelist_del(struct mf_nodelist *nl) {
+  if (!nl) return;
+  if (nl->v) free(nl->v);
+  free(nl);
+}
+
+struct mf_nodelist *mf_nodelist_new() {
+  struct mf_nodelist *nl=calloc(1,sizeof(struct mf_nodelist));
+  if (!nl) return 0;
+  return nl;
+}
+
+int mf_nodelist_search(const struct mf_nodelist *nl,const struct mf_node *node) {
+  int lo=0,hi=nl->c;
+  while (lo<hi) {
+    int ck=(lo+hi)>>1;
+    const struct mf_node *q=nl->v[ck];
+         if (node<q) hi=ck;
+    else if (node>q) lo=ck+1;
+    else return ck;
+  }
+  return -lo-1;
+}
+
+int mf_nodelist_insert(struct mf_nodelist *nl,int p,struct mf_node *node) {
+  if ((p<0)||(p>nl->c)) return -1;
+  if (p&&(node<=nl->v[p-1])) return -1;
+  if ((p<nl->c)&&(node>=nl->v[p])) return -1;
+  if (nl->c>=nl->a) {
+    int na=nl->a+16;
+    if (na>INT_MAX/sizeof(void*)) return -1;
+    void *nv=realloc(nl->v,sizeof(void*)*na);
+    if (!nv) return -1;
+    nl->v=nv;
+    nl->a=na;
+  }
+  memmove(nl->v+p+1,nl->v+p,sizeof(void*)*(nl->c-p));
+  nl->c++;
+  nl->v[p]=node;
+  return 0;
+}
+
+int mf_nodelist_add(struct mf_nodelist *nl,struct mf_node *node) {
+  if (!nl||!node) return -1;
+  int p=mf_nodelist_search(nl,node);
+  if (p>=0) return 0;
+  p=-p-1;
+  return mf_nodelist_insert(nl,p,node);
+}
+
+void mf_nodelist_remove(struct mf_nodelist *nl,struct mf_node *node) {
+  int p=mf_nodelist_search(nl,node);
+  if (p<0) return;
+  nl->c--;
+  memmove(nl->v+p,nl->v+p+1,sizeof(void*)*(nl->c-p));
+}
+
+static int mf_nodelist_apply_filter(struct mf_nodelist *nl,struct mf_node *node,int (*filter)(struct mf_node *node,void *userdata),void *userdata) {
+  int err,i=0;
+  if ((err=filter(node,userdata))>0) {
+    if (mf_nodelist_add(nl,node)<0) return -1;
+  }
+  if (err<0) return err;
+  for (;i<node->childc;i++) {
+    if ((err=mf_nodelist_apply_filter(nl,node->childv[i],filter,userdata))<0) return err;
+  }
+  return 0;
+}
+
+struct mf_nodelist *mf_find_nodes(struct mf_node *root,int (*filter)(struct mf_node *node,void *userdata),void *userdata) {
+  struct mf_nodelist *nl=mf_nodelist_new();
+  if (!nl) return 0;
+  if (mf_nodelist_apply_filter(nl,root,filter,userdata)<0) {
+    mf_nodelist_del(nl);
+    return 0;
+  }
+  return nl;
 }

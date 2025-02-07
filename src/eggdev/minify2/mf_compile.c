@@ -85,7 +85,7 @@ static int mf_js_compile_decl(struct mf_node *parent,struct eggdev_minify_js *ct
   node->type=MF_NODE_TYPE_DECL;
   node->token=reader->prev;
   for (;;) {
-    if ((err=mf_js_compile_expression(node,ctx,reader))<0) return err;
+    if ((err=mf_js_compile_expression_with_limit(node,ctx,reader,MF_OPCLS_SEQ+2))<0) return err;
     struct mf_token token;
     if ((err=mf_token_reader_next(&token,reader,ctx))<0) return err;
     if ((token.c==1)&&(token.v[0]==';')) return 0;

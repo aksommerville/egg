@@ -58,11 +58,6 @@ int eggdev_minify_inner(struct sr_encoder *dst,const char *src,int srcc,const ch
         if (sr_encode_raw(dst,src,srcc)<0) return -1;
       }
   }
-  // Force LF at the end of every non-empty file, for legibility.
-  if ((dst->c>dstc0)&&(((char*)dst->v)[dst->c-1]!=0x0a)) {
-    if (sr_encode_u8(dst,0x0a)<0) return -1;
-  }
-  sr_encode_raw(dst,"/*NEW*/",7);
   return 0;
 }
 

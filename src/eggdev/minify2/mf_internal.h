@@ -67,6 +67,8 @@ struct eggdev_minify_js {
   int textcachec,textcachea;
   
   struct mf_node *root;
+  
+  int nextident; // Used during identifier size reduction.
 };
 
 void eggdev_minify_js_cleanup(struct eggdev_minify_js *ctx);
@@ -97,6 +99,11 @@ struct mf_file *mf_js_get_file_by_id(struct eggdev_minify_js *ctx,int fileid);
  * The returned string is NOT terminated.
  */
 char *mf_js_text_intern(struct eggdev_minify_js *ctx,const char *src,int srcc);
+
+/* Advance the internal identifier counter and intern a new one.
+ * NB the string is not terminated; you must receive (len).
+ */
+char *mf_next_identifier(struct eggdev_minify_js *ctx,int *len);
 
 /* Read (file)'s text and append statements to (parent).
  * This is only appropriate at the top level of a file.
@@ -154,5 +161,11 @@ int mf_js_digest(struct eggdev_minify_js *ctx);
  * Any adjustments we want to make to the text, prefer to make them semantically by changing nodes around.
  */
 int mf_js_output(struct sr_encoder *dst,struct eggdev_minify_js *ctx,struct mf_node *node);
+
+/* If (node) is constant, generate its value as Javascript text.
+ * This will never be perfect because we're not a real JS runtime.
+ * But it does get fancy, resolving identifiers and performing arithmetic and all that.
+ */
+int mf_node_eval(char *dst,int dsta,struct eggdev_minify_js *ctx,struct mf_node *node);
 
 #endif

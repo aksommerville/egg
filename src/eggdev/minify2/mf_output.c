@@ -80,6 +80,44 @@ static int mf_js_output_BLOCK(struct sr_encoder *dst,struct eggdev_minify_js *ct
  */
  
 static int mf_js_output_VALUE(struct sr_encoder *dst,struct eggdev_minify_js *ctx,struct mf_node *node) {
+
+  /* If a grave string survives this far as type VALUE, it's intended to be literal.
+   * Replace the quotes.
+   */
+  if ((node->token.c>=2)&&(node->token.v[0]=='`')&&(node->token.v[node->token.c-1]=='`')) {
+    int hasquote=0,hasapos=0,i=node->token.c;
+    const char *v=node->token.v;
+    for (;i-->0;v++) {
+      if (*v=='"') hasquote=1;
+      else if (*v=='\'') hasapos=1;
+    }
+    // The typical case: Just lop off the graves and replace with quote or apostrophe.
+    if (!hasquote) {
+      if (mf_js_output_token(dst,ctx,"\"",1)<0) return -1;
+      if (mf_js_output_token(dst,ctx,node->token.v+1,node->token.c-2)<0) return -1;
+      if (mf_js_output_token(dst,ctx,"\"",1)<0) return -1;
+      return 0;
+    }
+    if (!hasapos) {
+      if (mf_js_output_token(dst,ctx,"'",1)<0) return -1;
+      if (mf_js_output_token(dst,ctx,node->token.v+1,node->token.c-2)<0) return -1;
+      if (mf_js_output_token(dst,ctx,"'",1)<0) return -1;
+      return 0;
+    }
+    // sr_string_eval is JS-compatible but it treats grave as a plain quote.
+    char tmp[1024];
+    int tmpc=sr_string_eval(tmp,sizeof(tmp),node->token.v,node->token.c);
+    if ((tmpc>=0)&&(tmpc<=sizeof(tmp))) {
+      char tmp2[1024];
+      int tmp2c=sr_string_repr(tmp2,sizeof(tmp2),tmp,tmpc);
+      if ((tmp2c>=2)&&(tmp2c<=sizeof(tmp2))) {
+        if (mf_js_output_token(dst,ctx,tmp2,tmp2c)<0) return -1;
+        return 0;
+      }
+    }
+    // Too long, or something weird. Let it emit verbatim.
+  }
+
   return mf_js_output_token(dst,ctx,node->token.v,node->token.c);
 }
 

@@ -434,9 +434,9 @@ int mf_js_compile_limited_expression(struct mf_node *node,struct eggdev_minify_j
       break;
     }
     
-    // Precedence below the context precedence? Done. There will be some outer layer that consumes it.
+    // Precedence at or below the context precedence? Done. There will be some outer layer that consumes it.
     // Also non-operator things have precedence zero and will always return here.
-    if (nopcls<opcls) {
+    if (nopcls<=opcls) {
       mf_token_reader_unread(reader);
       break;
     }

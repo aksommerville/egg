@@ -68,8 +68,11 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] Ensure parity between web and native.
-- [ ] Replace minify, follow the example in Berry.
+- [x] Replace minify, follow the example in Berry.
 - [x] Build up a general test framework too. Can't be confident in minify without it. (again, Berry has a good one)
+- [ ] Remove `EGG_TEX_FMT_` from the API. They will always be RGBA now.
+- [ ] minify: Algebraic refactoring of expressions. See comment by mf_node_eval() in mf_node_eval.c.
+- [ ] minify: See mf_js_digest.c, plenty more opportunities for optimization.
 
 ## Third-Party Code
 
