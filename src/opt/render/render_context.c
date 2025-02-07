@@ -214,6 +214,7 @@ static int render_texture_upload(struct render *render,struct render_texture *te
         ifmt=GL_RGBA;
         glfmt=GL_RGBA;
         type=GL_UNSIGNED_BYTE;
+        fmt=EGG_TEX_FMT_RGBA;
       } break;
     default: return -1;
   }

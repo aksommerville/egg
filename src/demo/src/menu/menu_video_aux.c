@@ -45,7 +45,7 @@ struct menu *menu_spawn_video_aux() {
   MENU->texw=160;
   MENU->texh=90;
   MENU->texid=egg_texture_new();
-  if (egg_texture_load_raw(MENU->texid,EGG_TEX_FMT_RGBA,MENU->texw,MENU->texh,MENU->texw<<2,0,0)<0) { menu->defunct=1; return 0; }
+  if (egg_texture_load_raw(MENU->texid,MENU->texw,MENU->texh,MENU->texw<<2,0,0)<0) { menu->defunct=1; return 0; }
   
   return menu;
 }

@@ -118,7 +118,7 @@ static int resources_refresh(struct menu *menu) {
   if (!pixels) return -1;
   resources_render_text(pixels,menu);
   if (!MENU->texid) MENU->texid=egg_texture_new();
-  egg_texture_load_raw(MENU->texid,EGG_TEX_FMT_RGBA,g.fbw,g.fbh,g.fbw<<2,pixels,g.fbw*g.fbh*4);
+  egg_texture_load_raw(MENU->texid,g.fbw,g.fbh,g.fbw<<2,pixels,g.fbw*g.fbh*4);
   free(pixels);
   return 0;
 }

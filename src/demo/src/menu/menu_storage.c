@@ -63,7 +63,7 @@ static void storage_read_store(struct menu *menu) {
     dstx+=font_render_string(pixels,MENU->texw,MENU->texh,stride,dstx,dsty,g.font,v,vc,0xffffc0ff);
   }
   if (!MENU->texid) MENU->texid=egg_texture_new();
-  egg_texture_load_raw(MENU->texid,EGG_TEX_FMT_RGBA,MENU->texw,MENU->texh,stride,pixels,stride*MENU->texh);
+  egg_texture_load_raw(MENU->texid,MENU->texw,MENU->texh,stride,pixels,stride*MENU->texh);
   free(pixels);
 }
 

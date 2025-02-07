@@ -540,7 +540,7 @@ int font_tex_oneline(const struct font *font,const char *src,int srcc,int wlimit
   if (!dst) return -1;
   font_render_string(dst,dstw,dsth,dstw<<2,0,0,font,src,srcc,rgba);
   int texid=egg_texture_new();
-  if ((texid<0)||(egg_texture_load_raw(texid,EGG_TEX_FMT_RGBA,dstw,dsth,dstw<<2,dst,dstw*dsth*4)<0)) {
+  if ((texid<0)||(egg_texture_load_raw(texid,dstw,dsth,dstw<<2,dst,dstw*dsth*4)<0)) {
     free(dst);
     return -1;
   }
@@ -584,7 +584,7 @@ int font_tex_multiline(const struct font *font,const char *src,int srcc,int wlim
   }
   free(linev);
   int texid=egg_texture_new();
-  if ((texid<0)||(egg_texture_load_raw(texid,EGG_TEX_FMT_RGBA,dstw,dsth,dstw<<2,dst,dstw*dsth*4)<0)) {
+  if ((texid<0)||(egg_texture_load_raw(texid,dstw,dsth,dstw<<2,dst,dstw*dsth*4)<0)) {
     free(dst);
     return -1;
   }

@@ -15,6 +15,11 @@ struct egg_draw_decal;
 struct egg_draw_tile;
 struct egg_draw_mode7;
 
+// These used to be part of the Platform API. We use them internally during texture load.
+#define EGG_TEX_FMT_RGBA 1 /* Red first, bytewise. */
+#define EGG_TEX_FMT_A8 2
+#define EGG_TEX_FMT_A1 3 /* 0x80 first. */
+
 void render_del(struct render *render);
 struct render *render_new();
 

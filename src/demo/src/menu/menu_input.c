@@ -58,7 +58,7 @@ static void input_log_line(struct menu *menu,const char *src,int srcc) {
     g.font,src,srcc,0xffffffff
   );
   if (!MENU->logtexid) MENU->logtexid=egg_texture_new();
-  egg_texture_load_raw(MENU->logtexid,EGG_TEX_FMT_RGBA,MENU->logw,MENU->logh,MENU->logw<<2,MENU->logbits,MENU->logw*MENU->logh*4);
+  egg_texture_load_raw(MENU->logtexid,MENU->logw,MENU->logh,MENU->logw<<2,MENU->logbits,MENU->logw*MENU->logh*4);
 }
  
 static void input_log_event(struct menu *menu,int btnid,int v) {

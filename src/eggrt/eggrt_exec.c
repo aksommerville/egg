@@ -164,8 +164,8 @@
     return egg_texture_load_image(texid,rid);
   }
   
-  static int egg_wasm_texture_load_raw(wasm_exec_env_t ee,int texid,int fmt,int w,int h,int stride,const void *src,int srcc) {
-    return egg_texture_load_raw(texid,fmt,w,h,stride,src,srcc);
+  static int egg_wasm_texture_load_raw(wasm_exec_env_t ee,int texid,int w,int h,int stride,const void *src,int srcc) {
+    return egg_texture_load_raw(texid,w,h,stride,src,srcc);
   }
   
   static void egg_wasm_draw_globals(wasm_exec_env_t ee,int tint,int alpha) {
@@ -230,7 +230,7 @@
     {"egg_texture_get_status",egg_wasm_texture_get_status,"(iii)i"},
     {"egg_texture_get_pixels",egg_wasm_texture_get_pixels,"(*~i)i"},
     {"egg_texture_load_image",egg_wasm_texture_load_image,"(ii)i"},
-    {"egg_texture_load_raw",egg_wasm_texture_load_raw,"(iiiii*~)i"},
+    {"egg_texture_load_raw",egg_wasm_texture_load_raw,"(iiii*~)i"},
     {"egg_draw_globals",egg_wasm_draw_globals,"(ii)"},
     {"egg_draw_clear",egg_wasm_draw_clear,"(ii)"},
     {"egg_draw_line",egg_wasm_draw_line,"(iii)"},
@@ -353,9 +353,9 @@
     return egg_texture_load_image(texid,rid);
   }
   
-  int w2c_env_egg_texture_load_raw(struct w2c_env *env,int texid,int fmt,int w,int h,int stride,uint32_t srcp,int srcc) {
+  int w2c_env_egg_texture_load_raw(struct w2c_env *env,int texid,int w,int h,int stride,uint32_t srcp,int srcc) {
     const void *src=HOSTADDR(srcp,srcc);
-    return egg_texture_load_raw(texid,fmt,w,h,stride,src,srcc);
+    return egg_texture_load_raw(texid,w,h,stride,src,srcc);
   }
   
   void w2c_env_egg_draw_globals(struct w2c_env *env,int tint,int alpha) {

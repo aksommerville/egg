@@ -275,25 +275,19 @@ int egg_texture_load_image(int texid,int rid) {
   int srcc=eggrt_rom_get(&src,EGG_TID_image,rid);
   struct image *image=image_decode(src,srcc);
   if (!image) return -1;
-  int fmt=EGG_TEX_FMT_RGBA;
-  switch (image->pixelsize) {
-    case 1: fmt=EGG_TEX_FMT_A1; break;
-    case 8: fmt=EGG_TEX_FMT_A8; break;
-    case 32: break;
-    default: {
-        if (image_force_rgba(image)<0) {
-          image_del(image);
-          return -1;
-        }
-      }
+  if (image->pixelsize!=32) {
+    if (image_force_rgba(image)<0) {
+      image_del(image);
+      return -1;
+    }
   }
-  int err=egg_texture_load_raw(texid,fmt,image->w,image->h,image->stride,image->v,image->stride*image->h);
+  int err=egg_texture_load_raw(texid,image->w,image->h,image->stride,image->v,image->stride*image->h);
   image_del(image);
   return err;
 }
 
-int egg_texture_load_raw(int texid,int fmt,int w,int h,int stride,const void *src,int srcc) {
-  return render_texture_load(eggrt.render,texid,w,h,stride,fmt,src,srcc);
+int egg_texture_load_raw(int texid,int w,int h,int stride,const void *src,int srcc) {
+  return render_texture_load(eggrt.render,texid,w,h,stride,EGG_TEX_FMT_RGBA,src,srcc);
 }
 
 /* Rendering.
