@@ -32,7 +32,7 @@ export class EnvUi {
     this.handleRadius = 6;
     this.vbox = { // Visible bounds in model space (gets recalculated after acquiring model)
       ta: 0,      // Left edge in ms.
-      tz: 1000,   // Right edge in ms.
+      tz: 100,    // Right edge in ms.
       va: 0,      // Bottom edge in value units.
       vz: 0xffff, // Top edge in value units.
     };
@@ -404,7 +404,7 @@ export class EnvUi {
      * If all times are zero, set it at 1 second.
      */
     this.vbox.tz = Math.max(this.loline[this.loline.length - 1]?.t || 0, this.hiline[this.hiline.length - 1]?.t);
-    if (this.vbox.tz <= 0) this.vbox.tz = 1000;
+    if (this.vbox.tz <= 0) this.vbox.tz = 100;
     else this.vbox.tz = Math.ceil(this.vbox.tz * 1.25);
     
     /* For pitch envelopes, start with one octave in each direction,

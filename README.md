@@ -71,6 +71,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [x] Remove `EGG_TEX_FMT_` from the API. They will always be RGBA now.
 - [ ] minify: Algebraic refactoring of expressions. See comment by mf_node_eval() in mf_node_eval.c.
 - [ ] minify: See mf_js_digest.c, plenty more opportunities for optimization.
+- [ ] Is it feasible to implement a custom builder like Berry? And if so, generalize targets all the way (web should not be special from the user's point of view).
 
 ## Third-Party Code
 

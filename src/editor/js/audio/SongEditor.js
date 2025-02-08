@@ -266,7 +266,9 @@ export class SongEditor {
    
   dirty() {
     if (!this.res || !this.song) return;
-    this.data.dirty(this.res.path, () => this.song.encode());
+    this.data.dirty(this.res.path, () => {
+      return this.song.encode();
+    });
   }
   
   /* Modify (this.song) to accord with our Mute and Solo buttons.

@@ -586,7 +586,8 @@ export class Song {
         dst.u24be(0);
       }
     }
-    return dst.finish();
+    const result = dst.finish();
+    return result;
   }
   
   decodeMidi(src) {
