@@ -79,7 +79,7 @@ double eggrt_record_update(double elapsed) {
     } else {
       if (sr_encode_intbe(&eggrt_record.rec,eggrt_record.rec_state,2)<0) return elapsed;
       if (sr_encode_u8(&eggrt_record.rec,eggrt_record.rec_framec)<0) return elapsed;
-      eggrt_record.rec_framec=1;
+      eggrt_record.rec_framec=0;
       eggrt_record.rec_state=state;
     }
   }

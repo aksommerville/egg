@@ -7,12 +7,13 @@
 int texcache_get_image(struct texcache *tc,int imageid) {
   struct texcache_entry *entry=tc->entryv;
   struct texcache_entry *oldest=entry;
-  int i=tc->entryc;
+  int i=tc->entryc,hiseq=0;
   for (;i-->0;entry++) {
     if (entry->imageid==imageid) {
       entry->seq++;
       return entry->texid;
     }
+    if (entry->seq>hiseq) hiseq=entry->seq;
     if (entry->seq<oldest->seq) oldest=entry;
   }
   if (tc->entryc<TEXCACHE_LIMIT) {
@@ -23,13 +24,14 @@ int texcache_get_image(struct texcache *tc,int imageid) {
     }
     egg_texture_load_image(entry->texid,imageid);
     entry->imageid=imageid;
-    entry->seq=0;
+    entry->seq=hiseq;
     return entry->texid;
   }
   if (tc->graf) graf_flush(tc->graf);
   tc->evictc++;
+  int oldimageid=oldest->imageid;
   egg_texture_load_image(oldest->texid,imageid);
   oldest->imageid=imageid;
-  oldest->seq=0;
+  oldest->seq=hiseq;
   return oldest->texid;
 }

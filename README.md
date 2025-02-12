@@ -77,6 +77,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] When using graf and texcache, a texture might get evicted by texcache before graf commits it. We need to make graf and texcache aware of each other.
 - - Eliminate texcache. Move its behavior into graf. And maybe allow conveniences at graf that use imageid instead of texid?
 - [x] Session recording.
+- [ ] Can we make session recording work when `USE_REAL_STDLIB`? We'd have to replace `rand()` somehow.
 - [ ] Map editor: Add a "join outside" tool that works like Heal but only affects edge cells, healing as if there were a neighbor across the edge.
 - [ ] Map editor: Hold modifier while clicking to invoke a modal (eg poiMove+ctl=poiEdit), editor misses the release of the modifier.
 
