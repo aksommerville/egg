@@ -63,6 +63,9 @@ void egg_terminate(int status) {
  */
  
 double egg_time_real() {
+  if (eggrt.record_path||eggrt.playback_path) {
+    return EGGRT_RECORDING_FAKE_TIME;
+  }
   struct timeval tv={0};
   gettimeofday(&tv,0);
   return (double)tv.tv_sec+(double)tv.tv_usec/1000000.0;

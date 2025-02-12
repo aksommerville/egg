@@ -62,6 +62,8 @@ static void eggrt_help_default() {
     "  --input-config=PATH           Where to load and save gamepad mappings.\n"
     "  --store=PATH                  Saved game. Blank for default, or \"none\" to disable.\n"
     "  --store:KEY=VALUE             Add or override a store field.\n"
+    "  --record=PATH                 Record session, and return a constant at egg_time_real() to circumvent RNG.\n"
+    "  --playback=PATH               Play a recording.\n"
     "\n"
   );
   fprintf(stderr,
@@ -241,6 +243,8 @@ static int eggrt_configure_kv(const char *k,int kc,const char *v,int vc) {
   INTOPT("configure-input",configure_input,0,1)
   STROPT("input-config",inmgr_path)
   STROPT("store",storepath)
+  STROPT("record",record_path)
+  STROPT("playback",playback_path)
   
   #undef STROPT
   #undef INTOPT

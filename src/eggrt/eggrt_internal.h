@@ -23,6 +23,10 @@
   #define PATH_SEP_CHAR '/'
 #endif
 
+// When recording or playing back, all updates have a fixed duration.
+#define EGGRT_RECORDING_UPDATE_INTERVAL 0.016666
+#define EGGRT_RECORDING_FAKE_TIME 1000000000.0
+
 extern struct eggrt {
 
   // Acquired at eggrt_configure():
@@ -45,6 +49,8 @@ extern struct eggrt {
   char *inmgr_path;
   char *store_extra; // JSON, composed from '--store:KEY=VALUE' args
   char *cfgpath;
+  char *record_path;
+  char *playback_path;
   
   // eggrt_romsrc.c:
   const void *romserial;
@@ -118,5 +124,9 @@ int eggrt_store_save(); // Writes file whether dirty or not; caller should check
 void eggrt_drivers_quit();
 int eggrt_drivers_init();
 int eggrt_drivers_update();
+
+void eggrt_record_quit();
+int eggrt_record_init();
+double eggrt_record_update(double elapsed);
 
 #endif

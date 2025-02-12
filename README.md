@@ -68,10 +68,17 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - [ ] SongEditor: Auto end time accounting for envelopes (esp for sound effects)
 - - [ ] SongEditor: With empty input, create a default sound effect. Making the Note and EOT events every time gets tedious.
 - - [ ] Ensure parity between web and native.
+- - [ ] Option to select a GM instrument and then expand it in place, "take this violin and tweak it"
+- - [ ] Drum editor: Copy one to another
 - [x] Remove `EGG_TEX_FMT_` from the API. They will always be RGBA now.
 - [ ] minify: Algebraic refactoring of expressions. See comment by mf_node_eval() in mf_node_eval.c.
 - [ ] minify: See mf_js_digest.c, plenty more opportunities for optimization.
 - [ ] Is it feasible to implement a custom builder like Berry? And if so, generalize targets all the way (web should not be special from the user's point of view).
+- [ ] When using graf and texcache, a texture might get evicted by texcache before graf commits it. We need to make graf and texcache aware of each other.
+- - Eliminate texcache. Move its behavior into graf. And maybe allow conveniences at graf that use imageid instead of texid?
+- [x] Session recording.
+- [ ] Map editor: Add a "join outside" tool that works like Heal but only affects edge cells, healing as if there were a neighbor across the edge.
+- [ ] Map editor: Hold modifier while clicking to invoke a modal (eg poiMove+ctl=poiEdit), editor misses the release of the modifier.
 
 ## Third-Party Code
 

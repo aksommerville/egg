@@ -26,6 +26,7 @@ static void eggrt_quit() {
   if (eggrt.store_dirty&&((err=eggrt_store_save())<0)) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error saving game.\n",eggrt.storepath);
   }
+  eggrt_record_quit();
   if (!eggrt.exitstatus) {
     eggrt_clock_report();
   }
@@ -50,6 +51,8 @@ static int eggrt_init() {
   
   // With the ROM online, now we can select default language.
   if (!eggrt.lang) eggrt.lang=eggrt_configure_guess_language();
+  
+  if ((err=eggrt_record_init())<0) return err;
   
   if ((err=eggrt_exec_init())<0) {
     if (err!=-2) fprintf(stderr,"%s: Unspecified error initializing execution core.\n",eggrt.exename);
@@ -109,6 +112,11 @@ static int eggrt_update() {
     } else {
       return 0;
     }
+  }
+  
+  // Update record/playback if that's happening.
+  if (eggrt.record_path||eggrt.playback_path) {
+    elapsed=eggrt_record_update(elapsed);
   }
   
   // Update client.

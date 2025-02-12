@@ -31,6 +31,7 @@ void graf_flush(struct graf *graf) {
   else if (graf->mode==egg_draw_mode7) egg_draw_mode7(graf->dsttexid,graf->srctexid,(void*)graf->vtxv,graf->vtxc/sizeof(struct egg_draw_mode7),graf->interpolate);
   graf->mode=0;
   graf->vtxc=0;
+  graf->srctexid=0;
 }
 
 /* Globals.
