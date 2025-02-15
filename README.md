@@ -80,6 +80,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Can we make session recording work when `USE_REAL_STDLIB`? We'd have to replace `rand()` somehow.
 - [ ] Map editor: Add a "join outside" tool that works like Heal but only affects edge cells, healing as if there were a neighbor across the edge.
 - [ ] Map editor: Hold modifier while clicking to invoke a modal (eg poiMove+ctl=poiEdit), editor misses the release of the modifier.
+- [ ] GM piccolo out of tune
 
 ## Third-Party Code
 

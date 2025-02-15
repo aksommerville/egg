@@ -43,7 +43,7 @@ export class Video {
     
     if (
       (this.egg_texture_new() !== 1) ||
-      (this.egg_texture_load_raw(1, Video.TEX_FMT_RGBA, fbw, fbh, fbw << 2, 0, 0) < 0)
+      (this.egg_texture_load_raw(1, fbw, fbh, fbw << 2, 0, 0) < 0)
     ) throw new Error(`Failed to create main framebuffer.`);
     
     this.compileShaders();
@@ -149,29 +149,7 @@ export class Video {
     }
   }
   
-  expandOneBit(src, w, h, stride) {
-    const dst = new Uint8Array(w * h * 4);
-    for (let yi=h, dstp=0, srcrowp=0; yi-->0; srcrowp+=stride) {
-      for (let xi=w, srcp=srcrowp, srcmask=0x80; xi-->0; ) {
-        if (src[srcp] & srcmask) {
-          dst[dstp++] = 0xff;
-          dst[dstp++] = 0xff;
-          dst[dstp++] = 0xff;
-          dst[dstp++] = 0xff;
-        } else {
-          dst[dstp++] = 0x00;
-          dst[dstp++] = 0x00;
-          dst[dstp++] = 0x00;
-          dst[dstp++] = 0x00;
-        }
-        if (srcmask === 1) { srcmask = 0x80; srcp++; }
-        else srcmask >>= 1;
-      }
-    }
-    return dst;
-  }
-  
-  loadTexture(tex, fmt, w, h, stride, src) {
+  loadTexture(tex, w, h, stride, src) {
     
     if ((w < 1) || (w > Video.TEXTURE_SIZE_LIMIT) || (h < 1) || (h > Video.TEXTURE_SIZE_LIMIT)) return -1;
     
@@ -184,16 +162,6 @@ export class Video {
     } else {
       // Validate raw pixels.
       let minstride = w << 2;
-      switch (fmt) {
-        case Video.TEX_FMT_RGBA: break;
-        case Video.TEX_FMT_A8: ifmt = this.gl.ALPHA; glfmt = this.gl.ALPHA; minstride = w; break;
-        case Video.TEX_FMT_A1: {
-            if (src) src = this.expandOneBit(src, w, h, stride);
-            fmt = Video.TEX_FMT_RGBA;
-            stride = w << 2;
-          } break;
-        default: return -1;
-      }
       if (src) {
         if (stride < 1) stride = minstride;
         else if (stride < minstride) return -1;
@@ -207,7 +175,6 @@ export class Video {
     
     tex.w = w;
     tex.h = h;
-    tex.fmt = fmt;
     return 0;
   }
   
@@ -288,10 +255,10 @@ export class Video {
     if (!tex) return -1;
     const res = this.rt.rom.getResourceEntry(Rom.TID_image, rid);
     if (!res || !res.image) return -1;
-    return this.loadTexture(tex, 1/*RGBA*/, res.image.naturalWidth, res.image.naturalHeight, 0, res.image);
+    return this.loadTexture(tex, res.image.naturalWidth, res.image.naturalHeight, 0, res.image);
   }
   
-  egg_texture_load_raw(texid, fmt, w, h, stride, srcp, srcc) {
+  egg_texture_load_raw(texid, w, h, stride, srcp, srcc) {
     const tex = this.textures[texid];
     if (!tex) return -1;
     
@@ -305,7 +272,7 @@ export class Video {
       if (!(src = this.rt.exec.getMemory(srcp, srcc))) return -1;
     }
     
-    return this.loadTexture(tex, fmt, w, h, stride, src);
+    return this.loadTexture(tex, w, h, stride, src);
   }
   
   egg_draw_globals(tint, alpha) {
@@ -785,9 +752,5 @@ Video.glsl = {
     "}\n" +
     "",
 };
-
-Video.TEX_FMT_RGBA = 1;
-Video.TEX_FMT_A8 = 2;
-Video.TEX_FMT_A1 = 3;
 
 Video.TEXTURE_SIZE_LIMIT = 4096;
