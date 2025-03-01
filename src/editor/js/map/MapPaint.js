@@ -68,13 +68,14 @@ export class MapPaint {
       case "rainbow": result = this.rainbowBegin(); break;
       case "monalisa": result = this.monalisaBegin(); break;
       case "pickup": result = this.pickupBegin(); break;
-      case "heal": result = this.healBegin(); break;
+      case "heal": result = this.healBegin(false); break;
       case "marquee": result = this.marqueeBegin(); break;
       case "lasso": result = this.lassoBegin(); break;
       case "poimove": result = this.poimoveBegin(); break;
       case "poiedit": result = this.poieditBegin(); break;
       case "door": result = this.doorBegin(); break;
       case "pedometer": result = this.pedometerBegin(); break;
+      case "healout": result = this.healBegin(true); break;
     }
     if (!result) return false;
     this.toolRunning = toolName;
@@ -91,11 +92,12 @@ export class MapPaint {
       case "verbatim": this.verbatimMove(); break;
       case "rainbow": this.rainbowMove(); break;
       case "monalisa": this.monalisaMove(); break;
-      case "heal": this.healMove(); break;
+      case "heal": this.healMove(false); break;
       case "marquee": this.marqueeMove(); break;
       case "lasso": this.lassoMove(); break;
       case "poimove": this.poimoveMove(); break;
       case "pedometer": this.pedometerMove(); break;
+      case "healout": this.healMove(true); break;
     }
   }
   
@@ -172,16 +174,16 @@ export class MapPaint {
     this.mapEditor.mapToolbar.selectTile(this.mapEditor.map.v[this.mousey * this.mapEditor.map.w + this.mousex]);
   }
   
-  healBegin() {
-    this.healMove();
+  healBegin(outside) {
+    this.healMove(outside);
     return true;
   }
   
-  healMove() {
+  healMove(outside) {
     let changed = false;
     for (let dx=-1; dx<=1; dx++) {
       for (let dy=-1; dy<=1; dy++) {
-        if (this.healCell(this.mousex + dx, this.mousey + dy)) changed = true;
+        if (this.healCell(this.mousex + dx, this.mousey + dy, outside)) changed = true;
       }
     }
     if (changed) {
@@ -525,9 +527,10 @@ export class MapPaint {
   /* Heal.
    * This is its own section because it's complex and sensitive.
    * healCell(x, y) does not call out at all. Instead it returns true if anything changed.
+   * (outside) means OOB cells are treating as matching their nearest IB neighbor.
    *******************************************************************/
    
-  healCell(x, y) {
+  healCell(x, y, outside) {
   
     // Get out fast if it's OOB, family zero, or appointment-only.
     if (!this.mapEditor.tilesheet.family) return false;
@@ -538,7 +541,7 @@ export class MapPaint {
     if (!family) return false;
     
     // Which of my 8 neighbors are in the same family?
-    const neighbors = this.collectNeighbors(x, y, family);
+    const neighbors = this.collectNeighbors(x, y, family, outside);
     
     // Assemble a set of candidate tiles.
     const candidates = this.collectCandidateTiles(family, neighbors);
@@ -556,13 +559,17 @@ export class MapPaint {
   }
   
   // 8-bit mask of neighbors for a given cell. You tell us the family.
-  collectNeighbors(x, y, family) {
+  collectNeighbors(x, y, family, outside) {
     let neighbors = 0;
     for (let dy=-1, mask=0x80; dy<=1; dy++) {
-      const ny = y + dy;
+      let ny = y + dy;
       for (let dx=-1; dx<=1; dx++) {
         if (!dx && !dy) continue; // important to continue without advancing (mask).
-        const nx = x + dx;
+        let nx = x + dx;
+        if (outside) {
+          if (nx < 0) nx = 0; else if (nx >= this.mapEditor.map.w) nx = this.mapEditor.map.w - 1;
+          if (ny < 0) ny = 0; else if (ny >= this.mapEditor.map.h) ny = this.mapEditor.map.h - 1;
+        }
         if ((nx >= 0) && (ny >= 0) && (nx < this.mapEditor.map.w) && (ny < this.mapEditor.map.h)) {
           const otherFamily = this.mapEditor.tilesheet.family[this.mapEditor.map.v[ny * this.mapEditor.map.w + nx]];
           if (otherFamily === family) {
@@ -669,4 +676,5 @@ MapPaint.TOOLS = [
   { name: "poiedit",   icon:  8 },
   { name: "door",      icon:  9 },
   { name: "pedometer", icon: 10 },
+  { name: "healout",   icon: 11 },
 ];

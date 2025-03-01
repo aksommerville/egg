@@ -78,8 +78,10 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - Eliminate texcache. Move its behavior into graf. And maybe allow conveniences at graf that use imageid instead of texid?
 - [x] Session recording.
 - [ ] Can we make session recording work when `USE_REAL_STDLIB`? We'd have to replace `rand()` somehow.
-- [ ] Map editor: Add a "join outside" tool that works like Heal but only affects edge cells, healing as if there were a neighbor across the edge.
+- [x] Map editor: Add a "join outside" tool that works like Heal but only affects edge cells, healing as if there were a neighbor across the edge.
+- [ ] Hacked together "join outside" as a separate tool. Eventually I'm sure we'll want some toggle to make the rainbow pencil behave like this.
 - [ ] Map editor: Hold modifier while clicking to invoke a modal (eg poiMove+ctl=poiEdit), editor misses the release of the modifier.
+- [ ] Map editor: Should initialize to NS_sys_mapw,NS_sys_maph. But I think it's hard-coded to 20x15
 - [ ] GM piccolo out of tune
 
 ## Third-Party Code
