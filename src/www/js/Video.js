@@ -83,6 +83,9 @@ export class Video {
     this.gl.uniform4f(this.u_decal.texlimit, 0, 0, 1, 1);
     this.gl.uniform2f(this.u_decal.screensize, fbw, fbh);
     this.gl.uniform1i(this.u_decal.sampler, 0);
+    this.gl.uniform1f(this.u_decal.dstedge, 0);
+    this.gl.uniform1f(this.u_decal.srcedge, srctex.edge_extra);
+    this.gl.uniform2f(this.u_decal.texsize, srctex.w + srctex.edge_extra * 2, srctex.h + srctex.edge_extra * 2);
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, srctex.id);
     this.gl.uniform4f(this.u_decal.tint, 0.0, 0.0, 0.0, 0.0);
@@ -102,9 +105,9 @@ export class Video {
    *************************************************************************/
    
   compileShaders() {
-    this.pgm_raw = this.compileShader("raw", ["apos", "acolor"], ["screensize", "alpha", "tint"]);
-    this.pgm_decal = this.compileShader("decal", ["apos", "atexcoord"], ["screensize", "sampler", "alpha", "tint", "texlimit"]);
-    this.pgm_tile = this.compileShader("tile", ["apos", "atileid", "axform"], ["screensize", "sampler", "alpha", "tint", "pointsize"]);
+    this.pgm_raw = this.compileShader("raw", ["apos", "acolor"], ["screensize", "dstedge", "alpha", "tint"]);
+    this.pgm_decal = this.compileShader("decal", ["apos", "atexcoord"], ["screensize", "dstedge", "sampler", "srcedge", "texsize", "alpha", "tint", "texlimit"]);
+    this.pgm_tile = this.compileShader("tile", ["apos", "atileid", "axform"], ["screensize", "dstedge", "sampler", "srcedge", "texsize", "alpha", "tint", "pointsize"]);
   }
   
   compileShader(name, aNames, uNames) {
@@ -159,6 +162,7 @@ export class Video {
     if ((src instanceof Image) || (src instanceof HTMLCanvasElement)) {
       // WebGL accepts these directly.
       this.gl.texImage2D(this.gl.TEXTURE_2D, 0, ifmt, glfmt, type, src);
+      tex.edge_extra = 0;
     } else {
       // Validate raw pixels.
       let minstride = w << 2;
@@ -169,8 +173,12 @@ export class Video {
         if (stride !== minstride) {
           if (!(src = this.restride(src, minstride, stride, h))) return -1;
         }
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, ifmt, w, h, 0, glfmt, type, src);
+        tex.edge_extra = 0;
+      } else {
+        tex.edge_extra = 32;
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, ifmt, w + tex.edge_extra * 2, h + tex.edge_extra * 2, 0, glfmt, type, null);
       }
-      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, ifmt, w, h, 0, glfmt, type, src);
     }
     
     tex.w = w;
@@ -225,7 +233,7 @@ export class Video {
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-    this.textures[texid] = { id, w:0, h:0, fmt:0 };
+    this.textures[texid] = { id, w:0, h:0, fmt:0, edge_extra:0 };
     return texid;
   }
   
@@ -287,7 +295,7 @@ export class Video {
     const dsttex = this.textures[dsttexid];
     if (!this.requireFramebuffer(dsttex)) return;
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
-    this.gl.viewport(0, 0, dsttex.w, dsttex.h);
+    this.gl.viewport(0, 0, dsttex.w + dsttex.edge_extra * 2, dsttex.h + dsttex.edge_extra * 2);
     if (rgba) this.gl.clearColor(((rgba >> 24) & 0xff) / 255.0, ((rgba >> 16) & 0xff) / 255.0, ((rgba >> 8) & 0xff) / 255.0, (rgba & 0xff) / 255.0);
     else this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
@@ -322,8 +330,9 @@ export class Video {
     this.requireFramebuffer(dsttex);
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
     this.gl.useProgram(this.pgm_raw);
-    this.gl.viewport(0, 0, dsttex.w, dsttex.h);
+    this.gl.viewport(0, 0, dsttex.w + dsttex.edge_extra * 2, dsttex.h + dsttex.edge_extra * 2);
     this.gl.uniform2f(this.u_raw.screensize, dsttex.w, dsttex.h);
+    this.gl.uniform1f(this.u_raw.dstedge, dsttex.edge_extra);
     this.gl.uniform1f(this.u_raw.alpha, this.alpha);
     this.gl.uniform4f(this.u_raw.tint, this.tr, this.tg, this.tb, this.ta);
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
@@ -354,8 +363,9 @@ export class Video {
     this.requireFramebuffer(dsttex);
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
     this.gl.useProgram(this.pgm_raw);
-    this.gl.viewport(0, 0, dsttex.w, dsttex.h);
+    this.gl.viewport(0, 0, dsttex.w + dsttex.edge_extra * 2, dsttex.h + dsttex.edge_extra * 2);
     this.gl.uniform2f(this.u_raw.screensize, dsttex.w, dsttex.h);
+    this.gl.uniform1f(this.u_raw.dstedge, dsttex.edge_extra);
     this.gl.uniform1f(this.u_raw.alpha, this.alpha);
     this.gl.uniform4f(this.u_raw.tint, this.tr, this.tg, this.tb, this.ta);
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
@@ -408,8 +418,9 @@ export class Video {
     this.requireFramebuffer(dsttex);
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
     this.gl.useProgram(this.pgm_raw);
-    this.gl.viewport(0, 0, dsttex.w, dsttex.h);
+    this.gl.viewport(0, 0, dsttex.w + dsttex.edge_extra * 2, dsttex.h + dsttex.edge_extra * 2);
     this.gl.uniform2f(this.u_raw.screensize, dsttex.w, dsttex.h);
+    this.gl.uniform1f(this.u_raw.dstedge, dsttex.edge_extra);
     this.gl.uniform1f(this.u_raw.alpha, this.alpha);
     this.gl.uniform4f(this.u_raw.tint, this.tr, this.tg, this.tb, this.ta);
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
@@ -459,8 +470,11 @@ export class Video {
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
     this.gl.bindTexture(this.gl.TEXTURE_2D, srctex.id);
     this.gl.useProgram(this.pgm_decal);
-    this.gl.viewport(0, 0, dsttex.w, dsttex.h);
+    this.gl.viewport(0, 0, dsttex.w + dsttex.edge_extra * 2, dsttex.h + dsttex.edge_extra * 2);
     this.gl.uniform2f(this.u_decal.screensize, dsttex.w, dsttex.h);
+    this.gl.uniform1f(this.u_decal.dstedge, dsttex.edge_extra);
+    this.gl.uniform1f(this.u_decal.srcedge, srctex.edge_extra);
+    this.gl.uniform2f(this.u_decal.texsize, srctex.w + srctex.edge_extra * 2, srctex.h + srctex.edge_extra * 2);
     this.gl.uniform1f(this.u_decal.alpha, this.alpha);
     this.gl.uniform4f(this.u_decal.tint, this.tr, this.tg, this.tb, this.ta);
     this.gl.uniform4f(this.u_decal.texlimit, 0, 0, 1, 1); // No need for this since output is axis-aligned.
@@ -540,8 +554,11 @@ export class Video {
     if (!src) return;
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
     this.gl.useProgram(this.pgm_tile);
-    this.gl.viewport(0, 0, dsttex.w, dsttex.h);
+    this.gl.viewport(0, 0, dsttex.w + dsttex.edge_extra * 2, dsttex.h + dsttex.edge_extra * 2);
     this.gl.uniform2f(this.u_tile.screensize, dsttex.w, dsttex.h);
+    this.gl.uniform1f(this.u_tile.dstedge, dsttex.edge_extra);
+    this.gl.uniform1f(this.u_tile.srcedge, srctex.edge_extra);
+    this.gl.uniform2f(this.u_tile.texsize, srctex.w + srctex.edge_extra * 2, srctex.h + srctex.edge_extra * 2);
     this.gl.bindTexture(this.gl.TEXTURE_2D, srctex.id);
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
     this.gl.bufferData(this.gl.ARRAY_BUFFER, src, this.gl.STREAM_DRAW);
@@ -583,9 +600,12 @@ export class Video {
     this.requireVbuf(48); // 4 vertices * 12 bytes per
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, dsttex.fbid);
-    this.gl.viewport(0, 0, dsttex.w, dsttex.h);
+    this.gl.viewport(0, 0, dsttex.w + dsttex.edge_extra * 2, dsttex.h + dsttex.edge_extra * 2);
     this.gl.useProgram(this.pgm_decal);
     this.gl.uniform2f(this.u_decal.screensize, dsttex.w, dsttex.h);
+    this.gl.uniform1f(this.u_decal.dstedge, dsttex.edge_extra);
+    this.gl.uniform1f(this.u_decal.srcedge, srctex.edge_extra);
+    this.gl.uniform2f(this.u_decal.texsize, srctex.w + srctex.edge_extra * 2, srctex.h + srctex.edge_extra * 2);
     this.gl.uniform1i(this.u_decal.sampler, 0);
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, srctex.id);
@@ -656,13 +676,17 @@ Video.glsl = {
     "#version 100\n" +
     "precision mediump float;\n" +
     "uniform vec2 screensize;\n" +
+    "uniform float dstedge;\n" +
     "uniform vec4 tint;\n" +
     "uniform float alpha;\n" +
     "attribute vec2 apos;\n" +
     "attribute vec4 acolor;\n" +
     "varying vec4 vcolor;\n" +
     "void main() {\n" +
-      "vec2 npos=(apos*2.0)/screensize-1.0;\n" +
+      "vec2 npos=vec2(\n" +
+        "((dstedge+apos.x)*2.0)/(dstedge*2.0+screensize.x)-1.0,\n" +
+        "((dstedge+apos.y)*2.0)/(dstedge*2.0+screensize.y)-1.0\n" +
+      ");\n" +
       "gl_Position=vec4(npos,0.0,1.0);\n" +
       "vcolor=vec4(mix(acolor.rgb,tint.rgb,tint.a),acolor.a*alpha);\n" +
     "}\n" +
@@ -679,11 +703,15 @@ Video.glsl = {
     "#version 100\n" +
     "precision mediump float;\n" +
     "uniform vec2 screensize;\n" +
+    "uniform float dstedge;\n" +
     "attribute vec2 apos;\n" +
     "attribute vec2 atexcoord;\n" +
     "varying vec2 vtexcoord;\n" +
     "void main() {\n" +
-      "vec2 npos=(apos*2.0)/screensize-1.0;\n" +
+      "vec2 npos=vec2(\n" +
+        "((dstedge+apos.x)*2.0)/(dstedge*2.0+screensize.x)-1.0,\n" +
+        "((dstedge+apos.y)*2.0)/(dstedge*2.0+screensize.y)-1.0\n" +
+      ");\n" +
       "gl_Position=vec4(npos,0.0,1.0);\n" +
       "vtexcoord=atexcoord;\n" +
     "}\n" +
@@ -692,16 +720,22 @@ Video.glsl = {
     "#version 100\n" +
     "precision mediump float;\n" +
     "uniform sampler2D sampler;\n" +
+    "uniform float srcedge;\n" +
     "uniform float alpha;\n" +
     "uniform vec4 texlimit;\n" +
     "uniform vec4 tint;\n" +
+    "uniform vec2 texsize;\n" +
     "varying vec2 vtexcoord;\n" +
     "void main() {\n" +
       "if (vtexcoord.x<texlimit.x) discard;\n" +
       "if (vtexcoord.y<texlimit.y) discard;\n" +
       "if (vtexcoord.x>=texlimit.z) discard;\n" +
       "if (vtexcoord.y>=texlimit.w) discard;\n" +
-      "gl_FragColor=texture2D(sampler,vtexcoord);\n" +
+      "vec2 texcoord=vec2(\n" +
+        "vtexcoord.x*(1.0-(srcedge*2.0)/texsize.x)+srcedge/texsize.x,\n" +
+        "vtexcoord.y*(1.0-(srcedge*2.0)/texsize.y)+srcedge/texsize.y\n" +
+      ");\n" +
+      "gl_FragColor=texture2D(sampler,texcoord);\n" +
       "gl_FragColor=vec4(mix(gl_FragColor.rgb,tint.rgb,tint.a),gl_FragColor.a*alpha);\n" +
     "}\n" +
     "",
@@ -709,6 +743,7 @@ Video.glsl = {
     "#version 100\n" +
     "precision mediump float;\n" +
     "uniform vec2 screensize;\n" +
+    "uniform float dstedge;\n" +
     "uniform float pointsize;\n" +
     "attribute vec2 apos;\n" +
     "attribute float atileid;\n" +
@@ -716,7 +751,10 @@ Video.glsl = {
     "varying vec2 vsrcp;\n" +
     "varying mat2 vmat;\n" +
     "void main() {\n" +
-      "vec2 npos=(apos*2.0)/screensize-1.0;\n" +
+      "vec2 npos=vec2(\n" +
+        "((dstedge+apos.x)*2.0)/(dstedge*2.0+screensize.x)-1.0,\n" +
+        "((dstedge+apos.y)*2.0)/(dstedge*2.0+screensize.y)-1.0\n" +
+      ");\n" +
       "gl_Position=vec4(npos,0.0,1.0);\n" +
       "vsrcp=vec2(\n" +
         "mod(atileid,16.0),\n" +
@@ -738,6 +776,8 @@ Video.glsl = {
     "#version 100\n" +
     "precision mediump float;\n" +
     "uniform sampler2D sampler;\n" +
+    "uniform float srcedge;\n" +
+    "uniform vec2 texsize;\n" +
     "uniform float alpha;\n" +
     "uniform vec4 tint;\n" +
     "varying vec2 vsrcp;\n" +
@@ -747,6 +787,10 @@ Video.glsl = {
       "texcoord.y=1.0-texcoord.y;\n" +
       "texcoord=vmat*(texcoord-0.5)+0.5;\n" +
       "texcoord=vsrcp+texcoord/16.0;\n" +
+      "texcoord=vec2(\n" +
+        "texcoord.x*(1.0-(srcedge*2.0)/texsize.x)+srcedge/texsize.x,\n" +
+        "texcoord.y*(1.0-(srcedge*2.0)/texsize.y)+srcedge/texsize.y\n" +
+      ");\n" +
       "gl_FragColor=texture2D(sampler,texcoord);\n" +
       "gl_FragColor=vec4(mix(gl_FragColor.rgb,tint.rgb,tint.a),gl_FragColor.a*alpha);\n" +
     "}\n" +
