@@ -83,6 +83,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Map editor: Hold modifier while clicking to invoke a modal (eg poiMove+ctl=poiEdit), editor misses the release of the modifier.
 - [ ] Map editor: Should initialize to NS_sys_mapw,NS_sys_maph. But I think it's hard-coded to 20x15
 - [ ] GM piccolo out of tune
+- [ ] Some way to zap input settings, or get back into input config, for web in last-resort scenarios.
 
 ## Third-Party Code
 
