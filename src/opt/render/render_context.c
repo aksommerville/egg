@@ -352,8 +352,9 @@ int render_texture_get_pixels(void *dst,int dsta,struct render *render,int texid
     case EGG_TEX_FMT_A1: break;
     default: free(dst); return 0;
   }
+  glFlush();
   glBindFramebuffer(GL_FRAMEBUFFER,texture->fbid);
-  glReadPixels(0,0,texture->w,texture->h,glfmt,gltype,dst);
+  glReadPixels(texture->edge_extra,texture->edge_extra,texture->w,texture->h,glfmt,gltype,dst);
   return len;
 }
 
