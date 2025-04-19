@@ -208,9 +208,9 @@ static int mf_js_output_DSPARAM(struct sr_encoder *dst,struct eggdev_minify_js *
     if ((dstv[startp]=='(')&&(dstv[endp]==')')) {
       if (node->token.v[0]=='{') {
         dstv[startp]='{';
-        dstv[endp]=='}';
+        dstv[endp]='}';
       } else {
-        dstv[startp]=='[';
+        dstv[startp]='[';
         dstv[endp]=']';
       }
     }
