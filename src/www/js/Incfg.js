@@ -335,6 +335,7 @@ export class Incfg {
     this.canvas.width = 160;
     this.canvas.height = 90;
     this.canvas.style.objectFit = "contain";
+    this.canvas.style.imageRendering = "pixelated";
     this.canvas.style.backgroundColor = "#000";
     this.canvas.style.position = "absolute";
     const gameBounds = this.rt.canvas.getBoundingClientRect();

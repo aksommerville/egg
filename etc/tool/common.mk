@@ -87,9 +87,9 @@ ifneq (,$(strip $(NATIVE_TARGET)))
     $(BUNDLE_NIB):$(EGG_SDK)/src/opt/macos/Main.xib;$(PRECMD) ibtool --compile $@ $<
     $(BUNDLE_ICONS):$(BUNDLE_EXE);$(PRECMD) $(EGG_SDK)/out/eggdev macicon -o$@ $< $(EXTRA_MAC_ICONS)
     all:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB) $(BUNDLE_ICONS)
-    run:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB) $(BUNDLE_ICONS);open -W $(BUNDLE) --args --reopen-tty=$(shell tty)
+    run:$(BUNDLE_EXE) $(BUNDLE_PLIST) $(BUNDLE_NIB) $(BUNDLE_ICONS);open -W $(BUNDLE) --args --reopen-tty=$(shell tty) $(NATIVE_RUN_ARGS)
   else
-    run:$(NATIVE_EXE);$(NATIVE_EXE)
+    run:$(NATIVE_EXE);$(NATIVE_EXE) $(NATIVE_RUN_ARGS)
   endif
 else
   run:;echo "NATIVE_TARGET unset" ; exit 1

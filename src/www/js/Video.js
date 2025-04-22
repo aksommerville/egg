@@ -29,7 +29,7 @@ export class Video {
     this.u_decal = {};
     this.u_tile = {};
     
-    this.textures = [null]; // Indexed by texid; zero is reserved. {id,w,h,fmt}
+    this.textures = [null]; // Indexed by texid; zero is reserved. {id,w,h,fmt,edge_extra}
     
     this.tint = 0;
     this.alpha = 1;
@@ -253,7 +253,7 @@ export class Video {
     if (dstc > dsta) return dstc;
     const dst = this.rt.exec.getMemory(dstp, dstc);
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, tex.fbid);
-    this.gl.readPixels(0, 0, tex.w, tex.h, this.gl.RGBA, this.gl.UNSIGNED_BYTE, dst);
+    this.gl.readPixels(tex.edge_extra, tex.edge_extra, tex.w, tex.h, this.gl.RGBA, this.gl.UNSIGNED_BYTE, dst);
     return dstc;
   }
   
