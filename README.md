@@ -84,6 +84,11 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - [ ] Map editor: Should initialize to NS_sys_mapw,NS_sys_maph. But I think it's hard-coded to 20x15
 - [ ] GM piccolo out of tune
 - [ ] Some way to zap input settings, or get back into input config, for web in last-resort scenarios.
+- [x] (Dot's Wicked Garden) Multiple complaints about audio distortion in Firefox, presumably Windows.
+- - Not just Windows, it happens in Linux too. Within about 2 minutes of play, CPU consumption approaches 100% and audio starts cutting out.
+- - There's suspicious behavior in Chrome too, now that I'm looking close. RAM keeps growing, and CPU grows too, tho much slower than in Firefox.
+- - [x] Check for leaks in the synthesizer.
+- - FM voices, I was stopping the carrier but not the modulator. Chrome must have some emergency shut-off for dead WebAudio nodes, Firefox must not.
 
 ## Third-Party Code
 

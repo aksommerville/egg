@@ -124,6 +124,8 @@ export class Channel {
       osc.stop(plan[plan.length - 1].t);
       osc.addEventListener("ended", () => {
         tail.disconnect();
+        env.disconnect();
+        osc.disconnect();
         const p = this.inflight.findIndex(v => v.tail === env);
         if (p >= 0) this.inflight.splice(p, 1);
       });
@@ -319,6 +321,10 @@ export class Channel {
       type: "sine",
     });
     modulator.start();
+    osc.addEventListener("ended", () => {
+      modulator.stop();
+      modulator.disconnect();
+    });
     
     const modgain = new GainNode(ctx, { gain: frequency });
     modgain.gain.setValueAtTime(frequency, 0);
