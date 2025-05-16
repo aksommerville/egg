@@ -221,6 +221,7 @@ export class Video {
     const tex = this.textures[texid];
     if (!tex) return;
     this.gl.deleteTexture(tex.id);
+    if (tex.fbid) this.gl.deleteFramebuffer(tex.fbid);
     this.textures[texid] = null;
   }
   

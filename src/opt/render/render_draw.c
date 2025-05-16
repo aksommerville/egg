@@ -590,7 +590,7 @@ void render_draw_to_main(struct render *render,int mainw,int mainh,int texid) {
   int yscale=mainh/texture->h;
   int scale=(xscale<yscale)?xscale:yscale;
   if (scale<1) scale=1;
-  if (scale<3) { // Debatable: Below 3x, scale only to multiples of the framebuffer size, leaving a border.
+  if (scale<5) { // Debatable: Below 5x, scale only to multiples of the framebuffer size, leaving a border.
     w=texture->w*scale;
     h=texture->h*scale;
   } else { // If scaling large enough, cover one axis and let pixels end up different sizes.
