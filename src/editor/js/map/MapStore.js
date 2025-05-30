@@ -99,11 +99,12 @@ export class MapStore {
       switch (this.neighborRegime) {
 
         case "neighbors": {
+            const repru16 = (v) => "0x" + (v || 0).toString(16).padStart(4, '0');
             const lmap = (dstx > plane.x) ? plane.v[dstp - 1] : null;
             const rmap = (dstx < plane.x + plane.w - 1) ? plane.v[dstp + 1] : null;
             const umap = (dsty > plane.y) ? plane.v[dstp - plane.w] : null;
             const dmap = (dsty < plane.y + plane.h - 1) ? plane.v[dstp + plane.w] : null;
-            to.commands.push(new MapCommand(["neighbors", lmap?.rid || 0, rmap?.rid || 0, umap?.rid || 0, dmap?.rid || 0]));
+            to.commands.push(new MapCommand(["neighbors", repru16(lmap?.rid), repru16(rmap?.rid), repru16(umap?.rid), repru16(dmap?.rid)]));
             this.setNeighbor(lmap, 1, to.rid);
             this.setNeighbor(rmap, 0, to.rid);
             this.setNeighbor(umap, 3, to.rid);
