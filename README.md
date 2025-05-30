@@ -89,6 +89,8 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - There's suspicious behavior in Chrome too, now that I'm looking close. RAM keeps growing, and CPU grows too, tho much slower than in Firefox.
 - - [x] Check for leaks in the synthesizer.
 - - FM voices, I was stopping the carrier but not the modulator. Chrome must have some emergency shut-off for dead WebAudio nodes, Firefox must not.
+- [ ] Native image decoder does not properly manage indexed PNG.
+- [ ] editor: MapStore should accept non-numeric arguments for `neighbors`
 
 ## Third-Party Code
 

@@ -198,7 +198,7 @@ export class MapStore {
   }
   
   fillPlane_neighbors(plane, x, y, unplaced) {
-    if ((x < plane.x) || (y < plane.w) || (x >= plane.x + plane.w) || (y >= plane.y + plane.h)) return;
+    if ((x < plane.x) || (y < plane.y) || (x >= plane.x + plane.w) || (y >= plane.y + plane.h)) return;
     const map = plane.v[(y - plane.y) * plane.w + (x - plane.x)];
     if (!map) return;
     const tokens = map.getFirstCommandTokens("neighbors");
