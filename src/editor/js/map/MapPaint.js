@@ -142,13 +142,13 @@ export class MapPaint {
   // Rainbow pencil is just regular pencil followed by heal, easy.
   rainbowBegin() {
     this.verbatimMove();
-    this.healMove();
+    this.healMove(true); //XXX TEMP force outside join always (while making Dead Weight)
     return true;
   }
   
   rainbowMove() {
     this.verbatimMove();
-    this.healMove();
+    this.healMove(true); //XXX
   }
   
   monalisaBegin() {

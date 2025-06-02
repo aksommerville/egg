@@ -18,6 +18,7 @@ import { MapEditor } from "./map/MapEditor.js";
 import { SpriteEditor } from "./map/SpriteEditor.js";
 import { TilesheetEditor } from "./map/TilesheetEditor.js";
 import { CommandListEditor } from "./map/CommandListEditor.js";
+import { WorldMapModal } from "./map/WorldMapModal.js";
  
 export class Actions {
   static getDependencies() {
@@ -30,6 +31,7 @@ export class Actions {
     this.ops = [
       { op: "launch", label: "Launch", fn: () => this.launchService.launch() },
       { op: "compareSounds", label: "Compare Sounds", fn: () => this.dom.spawnModal(CompareSoundsModal) },
+      { op: "worldMap", label: "World Map", fn: () => this.dom.spawnModal(WorldMapModal) },
       ...custom.getActions(),
     ];
     

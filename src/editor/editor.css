@@ -702,3 +702,13 @@ body {
 .CompareSoundsModal .row > .name {
   flex: 1;
 }
+
+.WorldMapModal {
+  width: 75vw;
+  height: 75vh;
+  display: flex;
+  flex-direction: column;
+}
+.WorldMapModal .display {
+  flex: 1;
+}
