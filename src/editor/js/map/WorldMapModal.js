@@ -21,6 +21,7 @@ export class WorldMapModal {
     
     this.maps = []; // Record of canvas position of each displayed map.
     
+    this.mapStore.requireNeighbors(); // Important, in case no map has been opened yet.
     this.buildUi();
   }
   
