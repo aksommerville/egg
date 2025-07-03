@@ -112,7 +112,7 @@ export class MapStore {
           } break;
           
         case "location": {
-            to.commands.push(new MapCommand(`location ${dstx} ${dsty} ${plane.z.startsWith?.("orphan:") ? "" : (plane.z || '')}`));
+            to.commands.push(new MapCommand(`location ${dstx} ${dsty} ${plane.z.startsWith?.("orphan:") ? "" : (plane.z || '')} *`));
           } break;
       }
       this.maps.push(to);
