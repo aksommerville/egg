@@ -69,7 +69,7 @@ static int pulse_init_pa(struct pulse *pulse,const struct pulse_setup *setup) {
   }
   if (pulse->rate<1) pulse->rate=44100;
   if (pulse->chanc<1) pulse->chanc=2;
-  if (buffersize<1) buffersize=pulse->rate/20;
+  if (buffersize<1) buffersize=pulse->rate/100;
   if (buffersize<20) buffersize=20;
 
   pa_sample_spec sample_spec={
