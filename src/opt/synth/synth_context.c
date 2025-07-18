@@ -109,6 +109,16 @@ static void synth_song_error(struct synth *synth) {
   synth_end_song(synth);
 }
 
+/* Delay song.
+ */
+ 
+void synth_delay_song(struct synth *synth,double s) {
+  if (!synth||(s<=0.0f)) return;
+  int framec=(int)(synth->framesperms*s*1000.0);
+  if (framec<1) return;
+  synth->songdelay+=framec;
+}
+
 /* Apply any pending song events and return duration in frames available to synthesize.
  * (limit) in frames and must be >=1.
  * Returns 1..limit.

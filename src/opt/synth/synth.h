@@ -24,6 +24,11 @@ void synth_emit_full_volume(struct synth *synth);
  */
 void synth_neuter(struct synth *synth);
 
+/* Add some artificial delay to the song, wherever it currently is.
+ * We might use this at startup because some hosts have a nasty habit of dropping the first quarter-second or so of output.
+ */
+void synth_delay_song(struct synth *synth,double s);
+
 /* (c) in samples -- not frames, not bytes.
  * Float is the more natural format for us. You can change formats any time.
  */
