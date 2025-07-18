@@ -75,7 +75,7 @@ static int eggrt_init() {
   }
   
   // Now that the client started, add some artificial delay to the song player. Sometimes a little bit at the beginning gets lopped off.
-  synth_delay_song(eggrt.synth,0.250);
+  synth_delay_song(eggrt.synth,1.0);
   
   // With --configure-input, start the input configurator immediately.
   if (eggrt.configure_input) {
