@@ -186,4 +186,22 @@ export class MapCommand {
     }
     return false;
   }
+  
+  // You should provide a live instance of Namespaces, then we can resolve symbolic values.
+  getInt(tokenp, namespaces) {
+    let src = this.tokens[tokenp];
+    if (!src) return 0;
+    let ns = "";
+    if (src[0] === '(') {
+      const closep = src.indexOf(')');
+      if (closep < 0) return 0;
+      ns = src.substring(1, closep);
+      src = src.substring(closep + 1);
+      const colonp = ns.indexOf(':'); // We don't need the bit before the colon, and if there's no colon, drop it all.
+      if (colonp >= 0) ns = ns.substring(colonp + 1);
+      else ns = "";
+    }
+    if (ns && namespaces) return namespaces.idFromName("NS", ns, src);
+    return +src || 0;
+  }
 }
