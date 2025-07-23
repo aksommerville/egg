@@ -496,6 +496,8 @@ export class Video {
       let dx0=dstx, dy0=dsty, sx0=srcx, sy0=srcy;
       let dx1=dstx+w, dy1=dsty+h, sx1=srcx+w, sy1=srcy+h;
       if (xform & 4) { // SWAP
+        dx1 = dstx + h;
+        dy1 = dsty + w;
         if (xform & 1) { // XREV
           const tmp=dy0; dy0=dy1; dy1=tmp;
         }
