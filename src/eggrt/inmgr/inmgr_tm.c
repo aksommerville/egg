@@ -497,7 +497,7 @@ int inmgr_tm_match(const struct inmgr_tm *tm,int vid,int pid,int version,const c
 static int inmgr_tm_apply_verbatim(
   struct inmgr_device *device,
   int srcbtnid,int dstbtnid,
-  int srclo,int srchi
+  int srclo,int srchi,int srcvalue
 ) {
   int p=inmgr_device_buttonv_search(device,srcbtnid);
   if (p<0) p=-p-1;
@@ -517,19 +517,20 @@ static int inmgr_tm_apply_verbatim(
   button->dstbtnid=dstbtnid;
   button->srclo=srclo;
   button->srchi=srchi;
+  button->srcvalue=srcvalue;
   return 0;
 }
 
 /* Apply twostate and hat.
  */
  
-static int inmgr_tm_apply_twostate(struct inmgr_device *device,int srcbtnid,int dstbtnid,int lo,int hi) {
+static int inmgr_tm_apply_twostate(struct inmgr_device *device,int srcbtnid,int dstbtnid,int lo,int hi,int value) {
   if (lo>hi-1) return 0;
-  return inmgr_tm_apply_verbatim(device,srcbtnid,dstbtnid,lo+1,INT_MAX);
+  return inmgr_tm_apply_verbatim(device,srcbtnid,dstbtnid,lo+1,INT_MAX,value);
 }
 
-static int inmgr_tm_apply_hat(struct inmgr_device *device,int srcbtnid,int srclo) {
-  return inmgr_tm_apply_verbatim(device,srcbtnid,EGG_BTN_DPAD,srclo,srclo+7);
+static int inmgr_tm_apply_hat(struct inmgr_device *device,int srcbtnid,int srclo,int srcvalue) {
+  return inmgr_tm_apply_verbatim(device,srcbtnid,EGG_BTN_DPAD,srclo,srclo+7,srcvalue);
 }
 
 /* Apply with dynamic caps from the device.
@@ -552,13 +553,13 @@ static int inmgr_tm_apply_cb(int srcbtnid,int hidusage,int lo,int hi,int value,v
   if (!tmbtn->dstbtnid) return 0;
   
   // Signals are two-state for mapping purposes.
-  if (tmbtn->dstbtnid>0xffff) return inmgr_tm_apply_twostate(ctx->device,srcbtnid,tmbtn->dstbtnid,lo,hi);
+  if (tmbtn->dstbtnid>0xffff) return inmgr_tm_apply_twostate(ctx->device,srcbtnid,tmbtn->dstbtnid,lo,hi,value);
   
   // Hats go out as a single entry, but we must ensure range is exactly 8.
   if (tmbtn->dstbtnid==EGG_BTN_DPAD) {
     int range=hi-lo+1;
     if (range!=8) return 0;
-    return inmgr_tm_apply_hat(ctx->device,srcbtnid,lo);
+    return inmgr_tm_apply_hat(ctx->device,srcbtnid,lo,value);
   }
   
   // HORZ and VERT aggregates produce two entries, and range must be at least 3.
@@ -569,15 +570,15 @@ static int inmgr_tm_apply_cb(int srcbtnid,int hidusage,int lo,int hi,int value,v
     int midhi=(mid+hi)>>1;
     if (midlo>=mid) midlo=mid-1;
     if (midhi<=mid) midhi=mid+1;
-    if (inmgr_tm_apply_verbatim(ctx->device,srcbtnid,tmbtn->dstbtnid&(EGG_BTN_LEFT|EGG_BTN_UP),INT_MIN,midlo)<0) return -1;
-    if (inmgr_tm_apply_verbatim(ctx->device,srcbtnid,tmbtn->dstbtnid&(EGG_BTN_RIGHT|EGG_BTN_DOWN),midhi,INT_MAX)<0) return -1;
+    if (inmgr_tm_apply_verbatim(ctx->device,srcbtnid,tmbtn->dstbtnid&(EGG_BTN_LEFT|EGG_BTN_UP),INT_MIN,midlo,value)<0) return -1;
+    if (inmgr_tm_apply_verbatim(ctx->device,srcbtnid,tmbtn->dstbtnid&(EGG_BTN_RIGHT|EGG_BTN_DOWN),midhi,INT_MAX,value)<0) return -1;
     return 0;
   }
   
   // Anything else must be a single bit under 0x10000, and emits as two-state.
   int bit=1; for (;bit<0x10000;bit<<=1) {
     if (bit==tmbtn->dstbtnid) {
-      return inmgr_tm_apply_twostate(ctx->device,srcbtnid,bit,lo,hi);
+      return inmgr_tm_apply_twostate(ctx->device,srcbtnid,bit,lo,hi,value);
     }
   }
   return 0;

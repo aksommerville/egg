@@ -62,6 +62,7 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 - - - 3. Require a button instead of axis, to Hello a device at incfg.
 - - - 4. Expect users to Hello with a button instead of an axis and continue failing confusingly when they don't.
 - - Option 3 seems reasonable.
+- [x] Axis with nonzero resting state, if the first state change is to zero, we miss it.
 - [ ] Windows
 - - [ ] Link is failing due to GL2 functions not found. I'm stumped.
 - - [ ] Drivers, build config
