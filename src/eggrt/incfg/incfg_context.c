@@ -284,11 +284,13 @@ static int incfg_device_define_button(struct incfg_device *device,int btnid,int 
 }
 
 /* Receive capability report while welcoming device.
+ * Return >0 to abort. Only used if we determine the trigger event was ambiguous.
  */
  
 struct incfg_cb_cap_ctx {
   struct incfg *incfg;
   struct incfg_device *device;
+  int tbtnid,tvalue; // Trigger event -- this button is not in its resting state.
 };
  
 static int incfg_cb_cap(int btnid,int hidusage,int lo,int hi,int value,void *userdata) {
@@ -314,18 +316,31 @@ static int incfg_cb_cap(int btnid,int hidusage,int lo,int hi,int value,void *use
   // Range of 3 with lo==0, it's probably a keyboard key (doesn't need recorded).
   if ((range==3)&&!lo) return 0;
   
-  // Now it gets dicey: Is this a one-way axis (eg Xbox 360 L2), or a two-way axis unwisely reporting itself unsigned?
+  // Now it gets dicey: Is this a one-way axis (eg Xbox 360 L2), or a two-way axis unwisely reporting itself unsigned (eg Xinmotek, my arcade cabinet)?
   // Let's assume that if the (value) provided here is at (lo), it's one-way.
   // (value) is supposed to be the resting value, in which case we're correct.
   // But drivers might report the most recent value instead. In which case we're still *probably* correct.
-  if (value<=lo) return 0;
-  return incfg_device_define_button(ctx->device,btnid,INCFG_BUTTON_MODE_ONEWAY,(lo+hi)>>1,INT_MAX);
+  //fprintf(stderr,"%s btnid=0x%08x hidusage=0x%08x %d..%d=%d\n",__func__,btnid,hidusage,lo,hi,value);
+  if (btnid==ctx->tbtnid) {
+    // Even more complicated in this case, because (value) is definitely *not* the resting state.
+    // Complicated enough, in fact, that I'm going to wash my hands of it and abort the welcome.
+    return 1;
+  } else {
+    if (value<=lo) return incfg_device_define_button(ctx->device,btnid,INCFG_BUTTON_MODE_ONEWAY,(lo+hi)>>1,INT_MAX);
+    int mid=(lo+hi)>>1;
+    int midlo=(mid+lo)>>1;
+    int midhi=(mid+hi)>>1;
+    if (midlo>=mid) midlo=mid-1;
+    if (midhi<=mid) midhi=mid+1;
+    return incfg_device_define_button(ctx->device,btnid,INCFG_BUTTON_MODE_TWOWAY,midlo,midhi);
+  }
 }
 
 /* Get device record, or create it if necessary.
+ * (btnid,value) are the source event that triggered the intern -- lets us know that a given button is not in its resting state.
  */
  
-static struct incfg_device *incfg_device_intern(struct incfg *incfg,struct hostio_input *driver,int devid) {
+static struct incfg_device *incfg_device_intern(struct incfg *incfg,struct hostio_input *driver,int devid,int btnid,int value) {
   int p=incfg_devicev_search(incfg,devid);
   if (p>=0) return incfg->devicev+p;
   p=-p-1;
@@ -351,8 +366,13 @@ static struct incfg_device *incfg_device_intern(struct incfg *incfg,struct hosti
       incfg_device_set_name(device,"Unknown Device",-1);
     }
     if (driver->type->for_each_button) {
-      struct incfg_cb_cap_ctx ctx={.incfg=incfg,.device=device};
-      driver->type->for_each_button(driver,devid,incfg_cb_cap,&ctx);
+      struct incfg_cb_cap_ctx ctx={.incfg=incfg,.device=device,.tbtnid=btnid,.tvalue=value};
+      if (driver->type->for_each_button(driver,devid,incfg_cb_cap,&ctx)) {
+        incfg_device_cleanup(device);
+        incfg->devicec--;
+        memmove(incfg->devicev+p,incfg->devicev+p+1,sizeof(struct incfg_device)*(incfg->devicec-p));
+        return 0;
+      }
     }
   } else {
     // When there's no driver, it's the system keyboard. All keyboard buttons can take the default behavior: zero/nonzero.
@@ -605,7 +625,6 @@ static int incfg_event_passive(struct incfg_device *device,int btnid,int value) 
  */
  
 static void incfg_event_active(struct incfg *incfg,int btnid,int value) {
-  //fprintf(stderr,"%s (%d).%#.08x=%d\n",__func__,incfg->devid,btnid,value);
   if (incfg->devicec!=1) return;
   struct incfg_device *device=incfg->devicev;
   int p=incfg_device_buttonv_search(device,btnid);
@@ -706,7 +725,7 @@ static void incfg_cb_event(struct hostio_input *driver,int devid,int btnid,int v
     if (devid!=incfg->devid) return;
     incfg_event_active(incfg,btnid,value);
   } else {
-    struct incfg_device *device=incfg_device_intern(incfg,driver,devid);
+    struct incfg_device *device=incfg_device_intern(incfg,driver,devid,btnid,value);
     if (!device) return;
     if (incfg_event_passive(device,btnid,value)) {
       incfg_focus_device(incfg,device);

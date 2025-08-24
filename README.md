@@ -52,6 +52,16 @@ Reasons you *would* want to use Egg, and goals I'm designing toward.
 
 ## TODO
 
+- [x] !!! CRITICAL !!! Native inmgr must support nonzero resting states. Arcade cabinet depends on it.
+- - Looking closer, it looks like inmgr is doing all the right things. Just incfg assumes the zero resting state.
+- - Actually the problem is fairly narrow: We're starting the device selection with an axis in the wrong state. I've been pressing Left to start config every time.
+- - Confirmed. If you Hello the device at incfg with a button instead of an axis, no problems.
+- - There's a few things we might do:
+- - - 1. Capture caps for all devices as incfg loads. This would get an incorrect value for the button that triggered incfg.
+- - - 2. Capture caps for all devices within the evdev driver, and just echo them when clients ask. Lots of wasted memory, and lots of additional I/O at startup.
+- - - 3. Require a button instead of axis, to Hello a device at incfg.
+- - - 4. Expect users to Hello with a button instead of an axis and continue failing confusingly when they don't.
+- - Option 3 seems reasonable.
 - [ ] Windows
 - - [ ] Link is failing due to GL2 functions not found. I'm stumped.
 - - [ ] Drivers, build config
