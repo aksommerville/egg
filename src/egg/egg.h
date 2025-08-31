@@ -129,30 +129,31 @@ int egg_store_key_by_index(char *k,int ka,int p);
  * It's the Standard Mapping Gamepad, minus analogue sticks.
  * If it helps, the Evercade gamepad matches our buttons exactly.
  * And SNES comes close, only we have L2, R2, and AUX3, which SNES did not.
+ * 2025-08-31: Button IDs were shuffled to match inmgr exactly (for shared config files). Symbols remain the same.
  **********************************************************************/
 
-#define EGG_BTN_SOUTH 0x0001
-#define EGG_BTN_EAST  0x0002
-#define EGG_BTN_WEST  0x0004
-#define EGG_BTN_NORTH 0x0008
-#define EGG_BTN_L1    0x0010
-#define EGG_BTN_R1    0x0020
-#define EGG_BTN_L2    0x0040
-#define EGG_BTN_R2    0x0080
-#define EGG_BTN_AUX2  0x0100
-#define EGG_BTN_AUX1  0x0200
-#define EGG_BTN_UP    0x0400
-#define EGG_BTN_DOWN  0x0800
-#define EGG_BTN_LEFT  0x1000
-#define EGG_BTN_RIGHT 0x2000
+#define EGG_BTN_LEFT  0x0001
+#define EGG_BTN_RIGHT 0x0002
+#define EGG_BTN_UP    0x0004
+#define EGG_BTN_DOWN  0x0008
+#define EGG_BTN_SOUTH 0x0010
+#define EGG_BTN_WEST  0x0020
+#define EGG_BTN_EAST  0x0040
+#define EGG_BTN_NORTH 0x0080
+#define EGG_BTN_L1    0x0100
+#define EGG_BTN_R1    0x0200
+#define EGG_BTN_L2    0x0400
+#define EGG_BTN_R2    0x0800
+#define EGG_BTN_AUX1  0x1000
+#define EGG_BTN_AUX2  0x2000
 #define EGG_BTN_AUX3  0x4000
-#define EGG_BTN_CD    0x8000 /* Fake button for reporting device connect/disconnect. */
+#define EGG_BTN_CD    0x8000
 
 #define EGG_BTN_FOR_EACH \
+  _(LEFT) _(RIGHT) _(UP) _(DOWN) \
   _(SOUTH) _(WEST) _(EAST) _(NORTH) \
   _(L1) _(R1) _(L2) _(R2) \
   _(AUX1) _(AUX2) _(AUX3) \
-  _(LEFT) _(RIGHT) _(UP) _(DOWN) \
   _(CD)
  
 /* Input states are indexed by a nonzero "playerid".

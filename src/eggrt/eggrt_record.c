@@ -64,16 +64,15 @@ double eggrt_record_update(double elapsed) {
       eggrt_record.pb_state|=eggrt_record.pb[eggrt_record.pbp++];
       eggrt_record.pb_framec=eggrt_record.pb[eggrt_record.pbp++];
     }
-    if (eggrt.inmgr) {
-      int i=eggrt.inmgr->playerc;
-      while (i-->0) eggrt.inmgr->playerv[i]=eggrt_record.pb_state;
-    }
+    int i=inmgr_get_player_count();
+    while (i-->0) inmgr_force_player_state(i,eggrt_record.pb_state);
   }
   
   if (eggrt.record_path) {
     elapsed=EGGRT_RECORDING_UPDATE_INTERVAL;
     int state=0;
-    if (eggrt.inmgr&&(eggrt.inmgr->playerc>=1)) state=eggrt.inmgr->playerv[0];
+    int playerc=inmgr_get_player_count();
+    if (eggrt.inmgr&&(playerc>=1)) state=inmgr_get_player(0);
     if ((state==eggrt_record.rec_state)&&(eggrt_record.rec_framec<0xff)) {
       eggrt_record.rec_framec++;
     } else {

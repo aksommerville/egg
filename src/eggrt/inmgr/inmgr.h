@@ -1,90 +1,220 @@
 /* inmgr.h
- * Generic input mapping for Egg.
+ * Uses fs.
+ * Global configuration and input mapping.
  */
  
 #ifndef INMGR_H
 #define INMGR_H
 
-union egg_event;
-struct inmgr_device;
-struct inmgr_tm;
+// 1, 2, 4, and 8 are limits we've seen. 16 is ridiculous, so that's good for a limit.
+// This does not include the aggregate player zero.
+#define INMGR_PLAYER_LIMIT 16
 
-/* "signal" are stateless events that can be mapped to keyboard or gamepads.
- * These always have bit 0x40000000 set.
- * Not visible to games, and not part of the platform API.
+/* Format of the input config file.
+ * Line-oriented text.
+ * '#' begins a line comment, start of line only.
+ * Beware that line comments will be lost if you use inmgr_save().
+ *
+ * Device blocks are introduced with one line:
+ *   >>> [VID [PID [VERSION]] ["NAME"] [COMMENT]
+ * The quotes around NAME are dumb. There's no escaping in that string, and it can't contain quotes or unprintables.
+ * (VID,PID,VERSION) are unprefixed hexadecimal integers.
+ * Zero for (VID,PID,VERSION) or empty for NAME, matches everything.
+ * COMMENT is loose space-delimited tokens for future expansion, currently unused.
+ * The system keyboard will always have zero IDs and the name "System Keyboard". Its buttons are HID page 7 (including that page ID).
+ *
+ * After the device introducer, zero or more button declarations:
+ *   SRCBTNID DSTBTNID [COMMENT]
+ * SRCBTNID is an unprefixed hexadecimal integer.
+ * DSTBTNID may be that, or a symbol consumable by inmgr_btnid_repr, see below.
+ * If we fail to evaluated DSTBTNID, we treat it as part of COMMENT.
+ * COMMENT may contain:
+ *  - `reverse`: For three-way axes, treat low as Right or Down instead of the default low = Left or Up.
+ *  - Anything else is quietly ignored (and preserved).
+ *
+ * The first match is used on new connections.
+ * Devices that don't match any block, we'll attempt a default.
+ * If it does match, we use only the mappings explicitly declared.
  */
-#define EGG_SIGNAL_BIT             0x40000000
-#define EGG_SIGNAL_QUIT            0x40000001
-#define EGG_SIGNAL_FULLSCREEN      0x40000002 /* toggle */
-#define EGG_SIGNAL_PAUSE           0x40000003 /* toggle */
-#define EGG_SIGNAL_STEP            0x40000004 /* Step one video frame, if hard-paused. */
-#define EGG_SIGNAL_SAVESTATE       0x40000005
-#define EGG_SIGNAL_LOADSTATE       0x40000006
-#define EGG_SIGNAL_SCREENCAP       0x40000007
-#define EGG_SIGNAL_CONFIGIN        0x40000008 /* Launch input configurer. */
 
-#define EGG_SIGNAL_FOR_EACH \
-  _(QUIT) \
-  _(FULLSCREEN) \
-  _(PAUSE) \
-  _(STEP) \
-  _(SAVESTATE) \
-  _(LOADSTATE) \
-  _(SCREENCAP) \
-  _(CONFIGIN)
+/* Global shared configuration files.
+ * I'm getting annoyed by the proliferation of config files from minor games.
+ * From now on, all of my games' config will go under "~/.config/aksomm/".
+ * And, importantly, there's an input config file "~/.config/aksomm/input" that they all share.
+ ******************************************************************************/
 
-struct inmgr {
-// Owner can read directly:
-  int *playerv;
-  int playerc; // including player zero
-// Private:
-  int syskbd; // devid
-  struct inmgr_device **devicev;
-  int devicec,devicea;
-  struct inmgr_tm **tmv;
-  int tmc,tma;
-  int tmv_dirty;
-  void (*cb_override)(struct hostio_input *driver,int devid,int btnid,int value,void *userdata);
-  void *userdata_override;
-};
+/* Fails if it doesn't fit.
+ * (app) and (sub) may both be empty. If you only use one, it doesn't matter which.
+ */
+int inmgr_compose_path(char *dst,int dsta,const char *app,int appc,const char *sub,int subc);
 
-void inmgr_del(struct inmgr *inmgr);
-struct inmgr *inmgr_new();
-int inmgr_update(struct inmgr *inmgr);
+/* Conveniences.
+ * Writing a config file this way will also mkdir its parents.
+ */
+int inmgr_get_input_path(char *dst,int dsta);
+int inmgr_config_read(void *dstpp,const char *app,int appc,const char *sub,int subc);
+int inmgr_config_write(const char *app,int appc,const char *sub,int subc,const void *src,int srcc);
 
-int inmgr_enable_system_keyboard(struct inmgr *inmgr,int enable);
+/* Button names.
+ * Client apps that write the config file must keep symbols in sync with other clients.
+ * But in general, unexpected text in the config file can be ignored by others.
+ ********************************************************************************/
 
-void inmgr_event_key(struct inmgr *inmgr,int keycode,int value);
-void inmgr_event_connect(struct inmgr *inmgr,struct hostio_input *driver,int devid);
-void inmgr_event_disconnect(struct inmgr *inmgr,struct hostio_input *driver,int devid);
-void inmgr_event_button(struct inmgr *inmgr,struct hostio_input *driver,int devid,int btnid,int value);
+// The first 16 buttons are two-state selections from Standard Mapping, plus a CD bit.
+// These occupy the lower 16 bits of btnid, and typically you'll use that as a player state.
+#define INMGR_BTN_LEFT   0x0001
+#define INMGR_BTN_RIGHT  0x0002
+#define INMGR_BTN_UP     0x0004
+#define INMGR_BTN_DOWN   0x0008
+#define INMGR_BTN_SOUTH  0x0010
+#define INMGR_BTN_WEST   0x0020
+#define INMGR_BTN_EAST   0x0040
+#define INMGR_BTN_NORTH  0x0080
+#define INMGR_BTN_L1     0x0100
+#define INMGR_BTN_R1     0x0200
+#define INMGR_BTN_L2     0x0400
+#define INMGR_BTN_R2     0x0800
+#define INMGR_BTN_AUX1   0x1000
+#define INMGR_BTN_AUX2   0x2000
+#define INMGR_BTN_AUX3   0x4000
+#define INMGR_BTN_CD     0x8000
+// Three aggregate symbols are defined for the dpad.
+#define INMGR_BTN_HORZ (INMGR_BTN_LEFT|INMGR_BTN_RIGHT)
+#define INMGR_BTN_VERT (INMGR_BTN_UP|INMGR_BTN_DOWN)
+#define INMGR_BTN_DPAD (INMGR_BTN_HORZ|INMGR_BTN_VERT)
+// Third byte nonzero and fourth byte zero are Extended buttons. These have a value stored outside the state bits.
+#define INMGR_BTN_LP      0x010001 /* Plunger. It's two-state but there's no room in the ordinary mask. */
+#define INMGR_BTN_RP      0x010002
+#define INMGR_BTN_LX      0x010003 /* -32768..32767 */
+#define INMGR_BTN_LY      0x010004
+#define INMGR_BTN_RX      0x010005
+#define INMGR_BTN_RY      0x010006
+// Fourth byte nonzero are stateless signals.
+#define INMGR_BTN_QUIT          0x01000001
+#define INMGR_BTN_FULLSCREEN    0x01000002
+#define INMGR_BTN_MUTE          0x01000003
+#define INMGR_BTN_PAUSE         0x01000004
+#define INMGR_BTN_SCREENCAP     0x01000005
+#define INMGR_BTN_SAVESTATE     0x01000006
+#define INMGR_BTN_LOADSTATE     0x01000007
+#define INMGR_BTN_MENU          0x01000008
+#define INMGR_BTN_RESET         0x01000009
+#define INMGR_BTN_DEBUG         0x0100000a
+#define INMGR_BTN_STEP          0x0100000b
+#define INMGR_BTN_FASTFWD       0x0100000c
+#define INMGR_BTN_AUTOMAPPED    0x0100000d /* Generated by inmgr internally when we create a new device template. You'll want to save, if you do that. */
 
-int inmgr_button_repr(char *dst,int dsta,int btnid);
-int inmgr_button_eval(int *btnid,const char *src,int srcc);
+#define INMGR_FOR_EACH_BUTTON \
+  _(LEFT) _(RIGHT) _(UP) _(DOWN) \
+  _(SOUTH) _(WEST) _(EAST) _(NORTH) \
+  _(L1) _(R1) _(L2) _(R2) \
+  _(AUX1) _(AUX2) _(AUX3) _(CD) \
+  _(HORZ) _(VERT) _(DPAD) \
+  _(LP) _(RP) _(LX) _(LY) _(RX) _(RY) \
+  _(QUIT) _(FULLSCREEN) _(MUTE) _(PAUSE) \
+  _(SCREENCAP) _(SAVESTATE) _(LOADSTATE) \
+  _(MENU) _(RESET) _(DEBUG) _(STEP) _(FASTFWD) \
+  _(AUTOMAPPED)
 
-/* The remainder is only for use by incfg.
- ***************************************************************************/
+/* Button names fall back to unprefixed hexadecimal.
+ * Prefixes are OK as input, we ignore them.
+ */
+int inmgr_btnid_eval(int *dst,const char *src,int srcc);
+int inmgr_btnid_repr(char *dst,int dsta,int btnid);
+int inmgr_hexuint_eval(int *dst,const char *src,int srcc);
+int inmgr_hexuint_repr(char *dst,int dsta,int src);
+
+/* Input mapping, light-touch interface.
+ ******************************************************************************/
  
-// When we have a non-null override callback, most normal processing is suspended.
-void inmgr_override_all(struct inmgr *inmgr,void (*cb)(struct hostio_input *driver,int devid,int btnid,int value,void *userdata),void *userdata);
+void inmgr_quit();
+int inmgr_init();
 
-void inmgr_tm_del(struct inmgr_tm *tm);
-struct inmgr_tm *inmgr_tm_new(int vid,int pid,int version,const char *name,int namec);
-
-int inmgr_tm_synthesize_button(struct inmgr_tm *tm,int srcbtnid,int lo,int hi,int dstbtnid);
-int inmgr_tm_synthesize_threeway(struct inmgr_tm *tm,int srcbtnid,int lo,int hi,int dstbtnid);
-int inmgr_tm_synthesize_hat(struct inmgr_tm *tm,int srcbtnid,int lo,int hi);
-
-/* Add this template to our permanent config.
- * If an identical template (by matching criteria) already exists, retain its position and signal events.
- * Otherwise the new one goes in front.
- * In any success, (tm) is handed off.
+/* Global declarations, call these right after init.
+ * inmgr_set_player_count() is kosher during play too, if that comes up.
+ * Beware that there may be a momentary loss of state on player count changes.
+ * If you don't declare anything, you get sensible defaults: One player, all the buttons, no extended or signals.
+ * There's a hard-coded limit on extbtn, see inmgr_internal.h.
+ * Extbtn must have a resting state of zero.
  */
-int inmgr_install_tm_over(struct inmgr *inmgr,struct inmgr_tm *tm_HANDOFF);
+int inmgr_set_player_count(int playerc);
+int inmgr_get_player_count();
+int inmgr_set_button_mask(int mask);
+int inmgr_set_extbtn(int btnid,int lo,int hi);
+int inmgr_set_signal(int btnid,void (*cb)());
 
-/* Dangerously attempt to delete every device, then simulate reconnection so they find the latest template.
- * Do this after installing new templates on the fly.
+/* (playerid) zero is the aggregate of all player states.
+ * inmgr_get_player() gives you the 16-bit state, suitable for most games.
+ * inmgr_get_button() can return those bits and also Extended buttons.
  */
-int inmgr_reconnect_all(struct inmgr *inmgr);
+int inmgr_get_player(int playerid);
+int inmgr_get_button(int playerid,int btnid);
+
+/* One-shot events from the sources (ie you).
+ * (devid) must be unique and positive.
+ */
+void inmgr_event(int devid,int btnid,int value);
+void inmgr_disconnect(int devid);
+void inmgr_connect_keyboard(int devid);
+
+/* Most connections, you should "begin", then "more" for each source button, and finally "end.
+ * The device does not fully participate until you "end" it.
+ * Keyboards that report their buttons as HID page 7 can just call inmgr_connect_keyboard() instead of all this.
+ * We record every declaration, whether it's mapped or not.
+ */
+void inmgr_connect_begin(int devid,int vid,int pid,int version,const char *name,int namec);
+void inmgr_connect_more(int devid,int btnid,int hidusage,int lo,int hi,int value);
+void inmgr_connect_end(int devid);
+
+/* Input mapping, less common uses.
+ ********************************************************************************/
+
+int inmgr_save();
+
+/* Devices are enabled by default.
+ * When disabled, they continue updating as usual, but they won't fire signals or affect player states.
+ */
+void inmgr_device_enable(int devid,int enable);
+
+/* Register to be told about every source event just after we process it.
+ * (state) is the mapped state of the device, including this event.
+ * Connections and disconnections are reported as (btnid) zero with (value) 1 or 0 respectively.
+ * Devices are fully initialized before we report a connection.
+ * It's safe to unlisten during your own callback, but do not unlisten anyone else during a listener callback.
+ */
+int inmgr_listen(void (*cb)(int devid,int btnid,int value,int state,void *userdata),void *userdata);
+void inmgr_unlisten(int listenerid);
+
+/* Bypass mapping and write some state change directly to our outputs.
+ * If (btnid) is a signal and (value) nonzero, we fire its callback.
+ * inmgr_force_player_state() is similar but no side effects.
+ */
+void inmgr_artificial_event(int playerid,int btnid,int value);
+void inmgr_force_player_state(int playerid,int state);
+
+/* Examine currently mapped devices.
+ */
+int inmgr_devid_by_index(int p);
+const char *inmgr_get_device_id(int *vid,int *pid,int *version,int devid);
+int inmgr_get_device_button(int *hidusage,int *lo,int *hi,int *value,int devid,int p); // => srcbtnid or zero for OOB
+int inmgr_get_dstbtnid(int devid,int srcbtnid);
+int inmgr_playerid_for_devid(int devid);
+
+/* Changes the live state and also the config.
+ * Does not actually write out to the file -- you should inmgr_save() soon after.
+ * (dstbtnid) zero to unmap.
+ * This may cause a device to start or stop particpating in player mapping.
+ */
+int inmgr_remap_button(int devid,int srcbtnid,int dstbtnid);
+
+/* Erase all config for one device.
+ */
+void inmgr_clear_map(int devid);
+
+/* An extra hack for Egg, to disable all devices at once.
+ * Devices disabled when you override will remain disabled when you relinquish the override.
+ * But two callers can't override at the same time.
+ */
+int inmgr_override_all(void (*cb)(int devid,int btnid,int value,int state,void *userdata),void *userdata);
 
 #endif

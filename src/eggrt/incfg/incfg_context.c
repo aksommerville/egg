@@ -3,7 +3,7 @@
 #define INCFG_PRESS_TIMEOUT 10.0
 #define INCFG_DEVICE_TIMEOUT 10.0
 
-static void incfg_cb_event(struct hostio_input *driver,int devid,int btnid,int value,void *userdata);
+static void incfg_cb_event(int devid,int btnid,int value,int state,void *userdata);
 
 // 1-bit PNG 128x155
 // od -tx1 -An src/eggrt/incfg/bits.png | sed 's/ /\,0x/g' | sed -E 's/^\,(.*)/  \1\,/'
@@ -124,7 +124,7 @@ static void incfg_device_cleanup(struct incfg_device *device) {
  
 void incfg_del(struct incfg *incfg) {
   if (!incfg) return;
-  inmgr_override_all(eggrt.inmgr,0,0);
+  inmgr_override_all(0,0);
   render_texture_del(eggrt.render,incfg->texid_main);
   render_texture_del(eggrt.render,incfg->texid_bits);
   if (incfg->devicev) {
@@ -142,7 +142,7 @@ static int incfg_init(struct incfg *incfg) {
   if ((incfg->texid_bits=render_texture_new(eggrt.render))<1) return -1;
   if (render_texture_load(eggrt.render,incfg->texid_main,INCFG_FBW,INCFG_FBH,INCFG_FBW<<2,EGG_TEX_FMT_RGBA,0,0)<0) return -1;
   if (render_texture_load(eggrt.render,incfg->texid_bits,0,0,0,0,incfg_bits,sizeof(incfg_bits))<0) return -1;
-  inmgr_override_all(eggrt.inmgr,incfg_cb_event,incfg);
+  if (inmgr_override_all(incfg_cb_event,incfg)<0) return -1;
   incfg->buttonp=-1;
   return 0;
 }
@@ -386,35 +386,29 @@ static struct incfg_device *incfg_device_intern(struct incfg *incfg,struct hosti
  
 static void incfg_finish(struct incfg *incfg,int commit) {
   if (commit&&(incfg->devicec==1)) {
+    eggrt.inmgr_dirty=1;
     struct incfg_device *device=incfg->devicev;
-    struct inmgr_tm *tm=inmgr_tm_new(device->vid,device->pid,device->version,device->oname,device->onamec);
-    if (tm) {
-      const struct incfg_change *change=device->changev;
-      int i=sizeof(device->changev)/sizeof(device->changev[0]);
-      for (;i-->0;change++) {
-        if (!change->srcbtnid) continue;
-        switch (change->srcmode) {
-          case INCFG_BUTTON_MODE_ONEWAY: inmgr_tm_synthesize_button(tm,change->srcbtnid,0,1,change->dstbtnid); break;
-          // Oops "twoway" vs "threeway"; I've been confused about whether the chili contains cheese:
-          case INCFG_BUTTON_MODE_TWOWAY: {
-              int dstbtnid=change->dstbtnid;
-              switch (dstbtnid) {
-                case EGG_BTN_LEFT: dstbtnid|=EGG_BTN_RIGHT; break;
-                case EGG_BTN_UP: dstbtnid|=EGG_BTN_DOWN; break;
-                case EGG_BTN_RIGHT: continue;
-                case EGG_BTN_DOWN: continue;
-              }
-              inmgr_tm_synthesize_threeway(tm,change->srcbtnid,-1,1,dstbtnid);
-            } break;
-          case INCFG_BUTTON_MODE_HAT: inmgr_tm_synthesize_hat(tm,change->srcbtnid,0,7); break;
-        }
-      }
-      if (inmgr_install_tm_over(eggrt.inmgr,tm)<0) { // HANDOFF on success
-        inmgr_tm_del(tm);
-      } else {
-        inmgr_reconnect_all(eggrt.inmgr);
-        // Force them to sync now, in case main quits when we close.
-        inmgr_update(eggrt.inmgr);
+    inmgr_clear_map(device->devid);
+    const struct incfg_change *change=device->changev;
+    int i=sizeof(device->changev)/sizeof(device->changev[0]);
+    for (;i-->0;change++) {
+      if (!change->srcbtnid) continue;
+      switch (change->srcmode) {
+        case INCFG_BUTTON_MODE_ONEWAY: {
+            inmgr_remap_button(device->devid,change->srcbtnid,change->dstbtnid);
+          } break;
+        case INCFG_BUTTON_MODE_TWOWAY: {
+            int dstbtnid=change->dstbtnid;
+            switch (dstbtnid) {
+              case EGG_BTN_LEFT: case EGG_BTN_RIGHT: dstbtnid=EGG_BTN_LEFT|EGG_BTN_RIGHT; break;
+              case EGG_BTN_UP: case EGG_BTN_DOWN: dstbtnid=EGG_BTN_UP|EGG_BTN_DOWN; break;
+              default: continue;
+            }
+            inmgr_remap_button(device->devid,change->srcbtnid,dstbtnid);
+          } break;
+        case INCFG_BUTTON_MODE_HAT: {
+            inmgr_remap_button(device->devid,change->srcbtnid,EGG_BTN_LEFT|EGG_BTN_RIGHT|EGG_BTN_UP|EGG_BTN_DOWN);
+          } break;
       }
     }
   }
@@ -719,12 +713,13 @@ static int incfg_focus_device(struct incfg *incfg,struct incfg_device *device) {
 /* Event from drivers.
  */
  
-static void incfg_cb_event(struct hostio_input *driver,int devid,int btnid,int value,void *userdata) {
+static void incfg_cb_event(int devid,int btnid,int value,int state,void *userdata) {
   struct incfg *incfg=userdata;
   if (incfg->devid) {
     if (devid!=incfg->devid) return;
     incfg_event_active(incfg,btnid,value);
   } else {
+    struct hostio_input *driver=hostio_input_driver_for_devid(eggrt.hostio,devid);
     struct incfg_device *device=incfg_device_intern(incfg,driver,devid,btnid,value);
     if (!device) return;
     if (incfg_event_passive(device,btnid,value)) {

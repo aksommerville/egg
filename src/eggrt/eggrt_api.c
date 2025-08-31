@@ -180,15 +180,14 @@ int egg_store_key_by_index(char *k,int ka,int p) {
  */
  
 int egg_input_get_one(int playerid) {
-  if ((playerid<0)||(playerid>=eggrt.inmgr->playerc)) return 0;
-  return eggrt.inmgr->playerv[playerid];
+  return inmgr_get_player(playerid);
 }
 
 int egg_input_get_all(int *dst,int dsta) {
   if (!dst||(dsta<1)) return 0;
-  int dstc=eggrt.inmgr->playerc;
+  int dstc=inmgr_get_player_count();
   if (dstc>dsta) dstc=dsta;
-  memcpy(dst,eggrt.inmgr->playerv,sizeof(int)*dstc);
+  int i=dstc; while (i-->0) dst[i]=inmgr_get_player(i);
   return dstc;
 }
 

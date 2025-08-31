@@ -79,9 +79,11 @@ extern struct eggrt {
   
   // eggrt_drivers.c:
   struct hostio *hostio;
+  int devid_keyboard;
   void *iconstorage;
   struct render *render;
   struct inmgr *inmgr;
+  int inmgr_dirty;
   int fbw,fbh;
   struct synth *synth;
   

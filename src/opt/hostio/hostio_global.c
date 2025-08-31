@@ -265,3 +265,16 @@ void hostio_audio_unlock(struct hostio *hostio) {
   if (!hostio||!hostio->audio||!hostio->audio->type->unlock) return;
   hostio->audio->type->unlock(hostio->audio);
 }
+
+struct hostio_input *hostio_input_driver_for_devid(const struct hostio *hostio,int devid) {
+  if (!hostio) return 0;
+  int i=0; for (;i<hostio->inputc;i++) {
+    struct hostio_input *driver=hostio->inputv[i];
+    // Not what it's meant for, but we'll use get_ids as a means of validating that a device exists.
+    // All drivers are expected to implement it, and it's expected to be cheap.
+    if (!driver->type->get_ids) continue;
+    int vid,pid,version;
+    if (driver->type->get_ids(&vid,&pid,&version,driver,devid)) return driver;
+  }
+  return 0;
+}

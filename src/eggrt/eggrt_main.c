@@ -161,6 +161,16 @@ static int eggrt_update() {
   }
   if (eggrt.hostio->video->type->gx_end(eggrt.hostio->video)<0) return -1;
   
+  // Save inmgr if it's dirty.
+  if (eggrt.inmgr_dirty) {
+    eggrt.inmgr_dirty=0;
+    if (inmgr_save()<0) {
+      fprintf(stderr,"%s: Failed to save input config.\n",eggrt.exename);
+    } else {
+      fprintf(stderr,"%s: Saved input config.\n",eggrt.exename);
+    }
+  }
+  
   return 0;
 }
 

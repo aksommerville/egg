@@ -54,7 +54,7 @@ static void main_cb_input(int optid,void *userdata) {
 
 static void main_cb_input_config(int optid,void *userdata) {
   if (egg_input_configure()<0) {
-    fprintf(stderr,"egg_configure_input() failed\n");
+    fprintf(stderr,"egg_input_configure() failed\n");
   }
 }
  

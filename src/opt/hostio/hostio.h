@@ -78,5 +78,6 @@ int hostio_toggle_fullscreen(struct hostio *hostio); // => (0,1)=(window,fullscr
 int hostio_audio_play(struct hostio *hostio,int play); // => (0,1) new state
 int hostio_audio_lock(struct hostio *hostio);
 void hostio_audio_unlock(struct hostio *hostio);
+struct hostio_input *hostio_input_driver_for_devid(const struct hostio *hostio,int devid);
 
 #endif

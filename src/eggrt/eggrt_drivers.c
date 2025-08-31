@@ -22,7 +22,7 @@ static void hostio_cb_resize(struct hostio_video *driver,int w,int h) {
 }
 
 static int hostio_cb_key(struct hostio_video *driver,int keycode,int value) {
-  inmgr_event_key(eggrt.inmgr,keycode,value);
+  inmgr_event(eggrt.devid_keyboard,keycode,value);
   return 1;
 }
  
@@ -31,16 +31,41 @@ static void hostio_cb_pcm_out(int16_t *v,int c,struct hostio_audio *driver) {
   else memset(v,0,c<<1);
 }
 
+static int eggrt_cb_incap(int btnid,int hidusage,int lo,int hi,int value,void *userdata) {
+  inmgr_connect_more(*(int*)userdata,btnid,hidusage,lo,hi,value);
+  return 0;
+}
+
 static void hostio_cb_connect(struct hostio_input *driver,int devid) {
-  inmgr_event_connect(eggrt.inmgr,driver,devid);
+  int vid=0,pid=0,version=0;
+  const char *name=0;
+  if (driver->type->get_ids) name=driver->type->get_ids(&vid,&pid,&version,driver,devid);
+  inmgr_connect_begin(devid,vid,pid,version,name,-1);
+  if (driver->type->for_each_button) driver->type->for_each_button(driver,devid,eggrt_cb_incap,&devid);
+  inmgr_connect_end(devid);
 }
 
 static void hostio_cb_disconnect(struct hostio_input *driver,int devid) {
-  inmgr_event_disconnect(eggrt.inmgr,driver,devid);
+  inmgr_disconnect(devid);
 }
 
 static void hostio_cb_button(struct hostio_input *driver,int devid,int btnid,int value) {
-  inmgr_event_button(eggrt.inmgr,driver,devid,btnid,value);
+  inmgr_event(devid,btnid,value);
+}
+
+/* Inmgr signals.
+ */
+ 
+static void eggrt_cb_quit() {
+  eggrt.terminate++;
+}
+
+static void eggrt_cb_fullscreen() {
+  hostio_toggle_fullscreen(eggrt.hostio);
+}
+
+static void eggrt_cb_automapped() {
+  eggrt.inmgr_dirty=1;
 }
 
 /* Quit.
@@ -52,7 +77,7 @@ void eggrt_drivers_quit() {
     hostio_audio_unlock(eggrt.hostio);
   }
   render_del(eggrt.render); eggrt.render=0;
-  inmgr_del(eggrt.inmgr); eggrt.inmgr=0;
+  inmgr_quit();
   hostio_del(eggrt.hostio); eggrt.hostio=0;
   synth_del(eggrt.synth); eggrt.synth=0;
   if (eggrt.iconstorage) free(eggrt.iconstorage);
@@ -218,10 +243,15 @@ static int eggrt_drivers_init_audio() {
 static int eggrt_drivers_init_input() {
   struct hostio_input_setup setup={0};
   if (hostio_init_input(eggrt.hostio,eggrt.input_drivers,&setup)<0) return -1;
-  if (!(eggrt.inmgr=inmgr_new())) return -1;
+  
+  if (inmgr_init()<0) return -1;
+  inmgr_set_signal(INMGR_BTN_QUIT,eggrt_cb_quit);
+  inmgr_set_signal(INMGR_BTN_FULLSCREEN,eggrt_cb_fullscreen);
+  inmgr_set_signal(INMGR_BTN_AUTOMAPPED,eggrt_cb_automapped);
   
   if (eggrt.hostio->video&&eggrt.hostio->video->type->provides_input) {
-    if (inmgr_enable_system_keyboard(eggrt.inmgr,1)<0) return -1;
+    eggrt.devid_keyboard=hostio_input_devid_next();
+    inmgr_connect_keyboard(eggrt.devid_keyboard);
   }
   
   return 0;
@@ -260,6 +290,5 @@ int eggrt_drivers_init() {
 int eggrt_drivers_update() {
   int err;
   if ((err=hostio_update(eggrt.hostio))<0) return -1;
-  if ((err=inmgr_update(eggrt.inmgr))<0) return -1;
   return 0;
 }
