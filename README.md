@@ -1,5 +1,8 @@
 # Egg
 
+2025-12-15 DEPRECATED. Prefer [Egg v2](https://github.com/aksommerville/egg2) for most projects,
+or [Shovel](https://github.com/aksommerville/shovel) for size-constrained ones.
+
 Portable game engine.
 Games compile to WebAssembly and pack into a single ROM file with all their assets.
 Linkage to the outside world is controlled entirely by the Egg Platform, and we're stingy about what's available.
